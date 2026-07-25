@@ -712,28 +712,18 @@ export function Grid({
         height={canvas}
         style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1, display: "block" }}
       />
-      {dayEnded && (
+      {/* Manual Start Day sits centered IN the box (auto-start hides it). */}
+      {dayEnded && !autoStartDay && (
         <div
           style={{
             position: "absolute",
             inset: 0,
             display: "flex",
-            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
-            gap: 18,
-            fontFamily: "ui-monospace, Menlo, monospace",
-            color: INK,
-            letterSpacing: 2,
           }}
         >
-          <div style={{ fontSize: 13, lineHeight: 2, opacity: 0.7, textAlign: "center" }}>
-            <div>ARROWS DRIVE</div>
-            <div>SPACE DELIVER</div>
-            <div>RETURN TO DEPOT</div>
-          </div>
-          {/* Manual button only when auto-start is off (owned+enabled auto-rolls). */}
-          {!autoStartDay && <Button label="Start Day" variant="primary" onClick={beginDay} />}
+          <Button label="Start Day" variant="primary" onClick={beginDay} />
         </div>
       )}
     </div>

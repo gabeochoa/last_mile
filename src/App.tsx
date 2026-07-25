@@ -140,6 +140,15 @@ export function App() {
   const displayShare = useAnimatedNumber(theirShare);
   const displayPackages = useAnimatedNumber(stats.packagesLeft);
 
+  // Controls hint fades in under the map at the start, then fades out for good once
+  // the shop is revealed (by then you know how to play). Its slot keeps a fixed
+  // height so showing/hiding it never nudges the map box.
+  const [instrShown, setInstrShown] = useState(false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setInstrShown(true));
+    return () => cancelAnimationFrame(r);
+  }, []);
+
   return (
     <Theme theme={theme} mode="dark">
       {/* Top banner: map coverage + cash + routes, pinned across the top. */}
@@ -333,12 +342,6 @@ export function App() {
                   DELIVERIES LEFT
                 </span>
               </div>
-              {/* hidden while the day isn't started — the map box shows them there */}
-              {!stats.dayEnded && (
-                <div style={{ fontSize: 12, opacity: 0.55, marginBlockStart: 6, letterSpacing: 1 }}>
-                  ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
-                </div>
-              )}
             </div>
           </>
         )}
@@ -364,6 +367,21 @@ export function App() {
           {...dims}
           initialRoutes={loaded?.routes ?? 0}
         />
+
+        {/* Controls hint below the box — fixed-height slot so it never moves the box;
+            fades in at the start, fades out once the shop is revealed. */}
+        <div style={{ height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            style={{
+              fontSize: 12,
+              letterSpacing: 1,
+              opacity: instrShown && !revealed ? 0.55 : 0,
+              transition: "opacity 600ms ease",
+            }}
+          >
+            ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
+          </div>
+        </div>
       </div>
 
       {intro && <Intro accent={accent} onPickAccent={setAccent} onStart={() => setIntro(false)} />}
