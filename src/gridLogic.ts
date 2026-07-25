@@ -11,6 +11,11 @@ export const PAD = 16;
 export const idx = (x: number, y: number, cols: number) => y * cols + x;
 export const START = 0;
 
+// Cells beyond the original BASE_COLS×BASE_ROWS area (the streets you claim by
+// expanding). Rival delivery points only sit here — your base map is already yours.
+export const isExpansionCell = (c: number, cols: number) =>
+  c % cols >= BASE_COLS || Math.floor(c / cols) >= BASE_ROWS;
+
 // Each expansion level adds +1 col then +1 row, alternating, from the base.
 // 0 -> 6x6, 1 -> 7x6, 2 -> 7x7, 3 -> 8x7, ...
 export function sizeForExpansion(level: number): { cols: number; rows: number } {
@@ -118,9 +123,33 @@ export type Layout = {
   // warehouse cells the fleet homes to and the player can finish at. START(0) is
   // ALWAYS a depot; the Depots upgrade adds more on open non-START cells.
   depots: Set<number>;
+  // cells held by rival companies (blue delivery points). Your deliveries never spawn
+  // here and they don't count toward capacity — you buy them out to reclaim the space.
+  // Optional so older/simpler Layout literals (tests) stay valid.
+  reserved?: Set<number>;
   cols: number;
   rows: number;
 };
+
+// Place `count` rival delivery points on open EXPANSION cells (non-START, non-depot).
+export function genReserved(
+  blocked: Set<number>,
+  cols: number,
+  rows: number,
+  count: number,
+  rng: () => number = Math.random,
+  exclude: Set<number> = new Set(),
+): Set<number> {
+  const reserved = new Set<number>();
+  if (count <= 0) return reserved;
+  const open: number[] = [];
+  for (let c = 0; c < cols * rows; c++) {
+    if (c !== START && !blocked.has(c) && !exclude.has(c) && isExpansionCell(c, cols)) open.push(c);
+  }
+  const want = Math.min(count, open.length);
+  while (reserved.size < want) reserved.add(open[Math.floor(rng() * open.length)]);
+  return reserved;
+}
 
 // Place `depotCount` depots: START plus depotCount-1 on random distinct open,
 // non-START cells (capped by how many open cells exist).
@@ -241,8 +270,9 @@ export function growLayout(layout: Layout, newCols: number, newRows: number): La
   const blocked = remapIndices(layout.blocked, oldCols, newCols);
   const specials = remapIndices(layout.specials, oldCols, newCols);
   const depots = remapIndices(layout.depots, oldCols, newCols);
+  const reserved = remapIndices(layout.reserved ?? new Set(), oldCols, newCols);
   ensureReachable(blocked, newCols, newRows);
-  return { blocked, specials, depots, cols: newCols, rows: newRows };
+  return { blocked, specials, depots, reserved, cols: newCols, rows: newRows };
 }
 
 // fresh city layout: open streets + building blocks, START open & fully reachable.
@@ -253,13 +283,19 @@ export function genLayout(
   count = BASE_PACKAGES,
   depotCount = 1,
   rng: () => number = Math.random,
+  rivalCount = 0,
 ): Layout {
+  // depots first, then rivals claim expansion cells, then your deliveries fill what's
+  // left (avoiding both) — so rivals genuinely take space away from you.
+  const build = (blocked: Set<number>): Layout => {
+    const depots = genDepots(blocked, cols, rows, depotCount, rng);
+    const reserved = genReserved(blocked, cols, rows, rivalCount, rng, depots);
+    const exclude = new Set<number>([...depots, ...reserved]);
+    return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, exclude), depots, reserved, cols, rows };
+  };
   for (let attempt = 0; attempt < 50; attempt++) {
     const blocked = cityBlocked(cols, rows, rng);
-    if (!blocked.has(START) && allReachable(blocked, cols, rows)) {
-      const depots = genDepots(blocked, cols, rows, depotCount, rng);
-      return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, depots), depots, cols, rows };
-    }
+    if (!blocked.has(START) && allReachable(blocked, cols, rows)) return build(blocked);
   }
   // fallback: fixed road grid (cols 0,3 x rows 0,3) — always connected
   const blocked = new Set<number>();
@@ -268,6 +304,5 @@ export function genLayout(
       if (x !== 0 && x !== 3 && y !== 0 && y !== 3) blocked.add(idx(x, y, cols));
     }
   }
-  const depots = genDepots(blocked, cols, rows, depotCount, rng);
-  return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, depots), depots, cols, rows };
+  return build(blocked);
 }

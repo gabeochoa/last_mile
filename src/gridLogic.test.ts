@@ -7,6 +7,7 @@ import {
   START,
   BASE_COLS,
   BASE_ROWS,
+  isExpansionCell,
   sizeForExpansion,
   makeRng,
   type Layout,
@@ -46,6 +47,23 @@ test("genLayout places depotCount depots (incl START) on open non-package cells"
   }
   // default depotCount is 1 (START only)
   expect(genLayout(COLS, ROWS, 4, undefined, makeRng(1)).depots.size).toBe(1);
+});
+
+test("genLayout: rivals reserve expansion cells; deliveries never overlap them", () => {
+  // expand a few levels so expansion cells exist
+  const { cols, rows } = sizeForExpansion(6);
+  for (let i = 0; i < 20; i++) {
+    const { specials, depots, reserved } = genLayout(cols, rows, 4, 1, makeRng(i), 3);
+    const rez = reserved ?? new Set<number>();
+    // every reserved cell is in the expansion area and off depots/START
+    for (const c of rez) {
+      expect(isExpansionCell(c, cols)).toBe(true);
+      expect(c).not.toBe(START);
+      expect(depots.has(c)).toBe(false);
+    }
+    // your deliveries never sit on a rival cell
+    for (const s of specials) expect(rez.has(s)).toBe(false);
+  }
 });
 
 test("genLayout is deterministic for a given seed", () => {

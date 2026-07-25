@@ -26,10 +26,11 @@ export function newRoute(
   depotCount = 1,
   routes = 0,
   rng: () => number = Math.random,
+  rivalCount = 0,
 ): GridState {
   return {
     player: { x: 0, y: 0 },
-    layout: genLayout(cols, rows, packageCount, depotCount, rng),
+    layout: genLayout(cols, rows, packageCount, depotCount, rng, rivalCount),
     visited: new Set([START]),
     collected: new Set(),
     routes,
@@ -40,9 +41,9 @@ export function newRoute(
 // Start the next day: a fresh route carrying the current routes count forward.
 export function startDay(
   state: GridState,
-  opts: { cols: number; rows: number; packageCount: number; depotCount?: number; rng?: () => number },
+  opts: { cols: number; rows: number; packageCount: number; depotCount?: number; rng?: () => number; rivalCount?: number },
 ): GridState {
-  return newRoute(opts.cols, opts.rows, opts.packageCount, opts.depotCount ?? 1, state.routes, opts.rng);
+  return newRoute(opts.cols, opts.rows, opts.packageCount, opts.depotCount ?? 1, state.routes, opts.rng, opts.rivalCount ?? 0);
 }
 
 // Grow the CURRENT route's map to newCols x newRows LIVE (mid-route). growLayout
@@ -69,11 +70,12 @@ export function addPackages(
   n: number,
   rng: () => number = Math.random,
 ): GridState {
-  const { cols, rows, blocked, specials } = state.layout;
+  const { cols, rows, blocked, specials, reserved } = state.layout;
   const unvisited: number[] = [];
   const visited: number[] = [];
   for (let c = 0; c < cols * rows; c++) {
-    if (c === START || blocked.has(c) || specials.has(c)) continue;
+    // rival-held cells are off-limits for your deliveries
+    if (c === START || blocked.has(c) || specials.has(c) || reserved?.has(c)) continue;
     (state.visited.has(c) ? visited : unvisited).push(c);
   }
   // deterministic shuffle so the pick order is seeded, not index-biased
