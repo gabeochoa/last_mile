@@ -1,4 +1,5 @@
 // Pure, non-React grid logic: dimensions, indexing, and layout generation.
+import { BASE_PACKAGES } from "./config";
 
 export const COLS = 6;
 export const ROWS = 6;
@@ -30,15 +31,15 @@ export function allReachable(blocked: Set<number>): boolean {
   return seen.size === total;
 }
 
-// 4-6 packages on random open (non-blocked, non-start) cells — these are the objective
-export function genSpecials(blocked: Set<number>): Set<number> {
+// `count` packages on random open (non-blocked, non-start) cells — the objective
+export function genSpecials(blocked: Set<number>, count = BASE_PACKAGES): Set<number> {
   const open: number[] = [];
   for (let c = 0; c < COLS * ROWS; c++) {
     if (c !== START && !blocked.has(c)) open.push(c);
   }
   const specials = new Set<number>();
-  const count = Math.min(open.length, 4 + Math.floor(Math.random() * 3)); // 4-6
-  while (specials.size < count) {
+  const want = Math.min(open.length, count);
+  while (specials.size < want) {
     specials.add(open[Math.floor(Math.random() * open.length)]);
   }
   return specials;
@@ -47,16 +48,16 @@ export function genSpecials(blocked: Set<number>): Set<number> {
 export type Layout = { blocked: Set<number>; specials: Set<number> };
 
 // fresh random layout: 6-9 blocked cells (never START), guaranteed fully reachable
-export function genLayout(): Layout {
+export function genLayout(count = BASE_PACKAGES): Layout {
   for (let attempt = 0; attempt < 50; attempt++) {
     const blocked = new Set<number>();
-    const count = 6 + Math.floor(Math.random() * 4); // 6-9
-    while (blocked.size < count) {
+    const nBlocked = 6 + Math.floor(Math.random() * 4); // 6-9
+    while (blocked.size < nBlocked) {
       const c = Math.floor(Math.random() * COLS * ROWS);
       if (c !== START) blocked.add(c);
     }
-    if (allReachable(blocked)) return { blocked, specials: genSpecials(blocked) };
+    if (allReachable(blocked)) return { blocked, specials: genSpecials(blocked, count) };
   }
   const blocked = new Set<number>(); // fallback: no blocked cells is trivially reachable
-  return { blocked, specials: genSpecials(blocked) };
+  return { blocked, specials: genSpecials(blocked, count) };
 }

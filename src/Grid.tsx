@@ -16,6 +16,7 @@ import {
   ROUTE_BONUS,
   SPECIAL_BONUS,
   FULL_COVERAGE_BONUS,
+  BASE_PACKAGES,
 } from "./config";
 
 const BG = "#0F0F0F";
@@ -52,11 +53,13 @@ export function Grid({
   onStats,
   autoDeliver,
   cashMult,
+  extraPackages,
 }: {
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
   autoDeliver: boolean;
   cashMult: number;
+  extraPackages: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
@@ -76,6 +79,8 @@ export function Grid({
   autoDeliverRef.current = autoDeliver;
   const cashMultRef = useRef(cashMult);
   cashMultRef.current = cashMult;
+  const extraPackagesRef = useRef(extraPackages);
+  extraPackagesRef.current = extraPackages;
   // pay `base` cash scaled by the current Route Optimization multiplier
   const earn = (base: number) => onEarnRef.current(Math.round(base * cashMultRef.current));
 
@@ -97,7 +102,7 @@ export function Grid({
   fullBonusPaidRef.current = fullBonusPaid;
 
   const newLayout = () => {
-    setLayout(genLayout());
+    setLayout(genLayout(BASE_PACKAGES + extraPackagesRef.current));
     setPlayer({ x: 0, y: 0 });
     setVisited(new Set([START]));
     setCollected(new Set());

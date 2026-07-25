@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, cashMult, SHARE_PER_ROUTE } from "./config";
+import { BUCKETS, upgradeCost, cashMult, extraPackages, SHARE_PER_ROUTE } from "./config";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -146,6 +146,7 @@ export function App() {
           onStats={setStats}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           cashMult={cashMult(upgrades)}
+          extraPackages={extraPackages(upgrades)}
         />
       </div>
     </Theme>
