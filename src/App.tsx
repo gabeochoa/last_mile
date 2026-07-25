@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Upgrades, micrographic } from "./Upgrades";
-import { COSTS, SHARE_PER_ROUTE } from "./config";
+import { BUCKETS, upgradeCost, SHARE_PER_ROUTE } from "./config";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -40,10 +40,14 @@ export function App() {
   }, [cash, revealed]);
 
   const onBuy = (id: string) => {
-    const cost = COSTS[id];
-    if (cost == null || cash < cost || (upgrades[id] ?? 0) > 0) return;
+    const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
+    if (!u) return;
+    const level = upgrades[id] ?? 0;
+    if (level >= (u.maxLevel ?? 1)) return;
+    const cost = upgradeCost(u, level);
+    if (cash < cost) return;
     setCash((c) => c - cost);
-    setUpgrades((u) => ({ ...u, [id]: 1 }));
+    setUpgrades((prev) => ({ ...prev, [id]: level + 1 }));
   };
 
   // market takeover: their unowned share counts down as you clear routes.

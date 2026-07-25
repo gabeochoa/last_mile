@@ -4,7 +4,7 @@ import { Heading, Text } from "@astryxdesign/core/Text";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { List, ListItem } from "@astryxdesign/core/List";
-import { BUCKETS, type Upgrade } from "./config";
+import { BUCKETS, upgradeCost, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme).
@@ -55,18 +55,24 @@ function UpgradeEnd({
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
   }
-  if (level > 0) {
-    return (
+  const maxLevel = item.maxLevel ?? 1;
+  // one-time upgrades read as OWNED once bought; leveled ones cap at MAX.
+  if (level >= maxLevel) {
+    return maxLevel === 1 ? (
+      <Badge label="OWNED" variant="success" />
+    ) : (
       <HStack gap={2} vAlign="center">
         <Badge label={`Lv ${level}`} variant="neutral" />
-        <Badge label="OWNED" variant="success" />
+        <Badge label="MAX" variant="success" />
       </HStack>
     );
   }
-  const canBuy = item.id != null && item.cost != null && cash >= item.cost;
+  const cost = upgradeCost(item, level);
+  const canBuy = item.id != null && cash >= cost;
   return (
     <HStack gap={2} vAlign="center">
-      <Text type="code" color="accent">{`$${item.cost}`}</Text>
+      {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
+      <Text type="code" color="accent">{`$${cost}`}</Text>
       <Button
         label="BUY"
         size="sm"
