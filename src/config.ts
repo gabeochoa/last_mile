@@ -62,3 +62,10 @@ export function cashMult(u: Record<string, number>) {
 export function expandLevel(u: Record<string, number>) {
   return u.expand ?? 0;
 }
+// Owning the market IS fully expanding the map: each Map Expansion level claims
+// an equal slice, so unowned share counts down to 0 at full expansion.
+export const EXPAND_MAX =
+  BUCKETS.flatMap((b) => b.items).find((i) => i.id === "expand")?.maxLevel ?? 20;
+export function unownedShare(u: Record<string, number>): number {
+  return Math.max(0, Math.round(100 * (1 - expandLevel(u) / EXPAND_MAX)));
+}

@@ -3,7 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, SHARE_PER_ROUTE } from "./config";
+import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, unownedShare, EXPAND_MAX } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -69,9 +69,9 @@ export function App() {
     playSfx("purchase");
   };
 
-  // market takeover: their unowned share counts down as you clear routes.
-  const theirShare = 100 - Math.min(100, stats.routes * SHARE_PER_ROUTE);
-  const routesToMonopoly = Math.max(0, Math.ceil(theirShare / SHARE_PER_ROUTE));
+  // market takeover: unowned share counts down as you EXPAND the map.
+  const theirShare = unownedShare(upgrades);
+  const territoryLeft = EXPAND_MAX - expandLevel(upgrades);
 
   // Latch the ending: once you own 100% (or ?end preview), it stays for the session.
   const [ended, setEnded] = useState(END_PREVIEW);
@@ -111,7 +111,7 @@ export function App() {
       >
         <span>CASH ${cash}</span>
         <span style={{ color: "#E8541E" }}>
-          ROUTES TO MONOPOLY {String(routesToMonopoly).padStart(2, "0")} ▼
+          TERRITORY LEFT {String(territoryLeft).padStart(2, "0")} ▼
         </span>
         <button
           onClick={() => {
