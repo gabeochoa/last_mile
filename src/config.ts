@@ -1,10 +1,8 @@
 // Single source of game tunables: economy, upgrade costs, share formula, shop.
 
-// Economy (movement + route income), used by Grid.
-export const CASH_PER_STOP = 1;
+// Economy: cash comes only from delivering a package and finishing a route.
 export const ROUTE_BONUS = 25;
 export const SPECIAL_BONUS = 10;
-export const FULL_COVERAGE_BONUS = 50; // one-time, for covering every reachable cell in a route
 
 // Market-takeover math: each cleared route claims this much share.
 export const SHARE_PER_ROUTE = 5;

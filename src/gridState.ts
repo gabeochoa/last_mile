@@ -7,10 +7,8 @@ import {
   type Layout,
 } from "./gridLogic";
 import {
-  CASH_PER_STOP,
   ROUTE_BONUS,
   SPECIAL_BONUS,
-  FULL_COVERAGE_BONUS,
 } from "./config";
 
 export type GridState = {
@@ -19,7 +17,6 @@ export type GridState = {
   visited: Set<number>;
   collected: Set<number>;
   routes: number;
-  fullBonusPaid: boolean;
 };
 
 // fresh route: player at depot, nothing collected, new random layout at cols×rows
@@ -36,7 +33,6 @@ export function newRoute(
     visited: new Set([START]),
     collected: new Set(),
     routes,
-    fullBonusPaid: false,
   };
 }
 
@@ -55,9 +51,10 @@ type MoveOpts = {
 };
 
 // one grid move in (dx,dy). Off-grid/blocked = no-op. Armed + depot completes the
-// route (returns a fresh route with routes+1). Otherwise advances a cell, paying
-// movement income, the one-time full-coverage bonus, and (if autoDeliver) any
-// package driven over.
+// route (returns a fresh route with routes+1, paying ROUTE_BONUS). Otherwise
+// advances a cell (tracking coverage for the map% stat, no payout) and, if
+// autoDeliver, collects any package driven over. Cash comes only from deliveries
+// and finishing a route.
 export function applyMove(
   state: GridState,
   dx: number,
@@ -87,15 +84,7 @@ export function applyMove(
   }
 
   let earned = 0;
-  if (!state.visited.has(cellIdx)) earned += Math.round(CASH_PER_STOP * cashMult);
-  const visited = new Set(state.visited).add(cellIdx);
-
-  let fullBonusPaid = state.fullBonusPaid;
-  const total = gcols * grows - state.layout.blocked.size;
-  if (!fullBonusPaid && visited.size === total) {
-    fullBonusPaid = true;
-    earned += Math.round(FULL_COVERAGE_BONUS * cashMult);
-  }
+  const visited = new Set(state.visited).add(cellIdx); // coverage for map% stat only
 
   let collected = state.collected;
   if (autoDeliver && state.layout.specials.has(cellIdx) && !collected.has(cellIdx)) {
@@ -104,7 +93,7 @@ export function applyMove(
   }
 
   return {
-    state: { ...state, player: { x: nx, y: ny }, visited, collected, fullBonusPaid },
+    state: { ...state, player: { x: nx, y: ny }, visited, collected },
     earned,
   };
 }

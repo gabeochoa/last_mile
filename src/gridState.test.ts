@@ -1,6 +1,6 @@
 import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
 import { BASE_COLS, BASE_ROWS, START, idx, makeRng } from "./gridLogic";
-import { CASH_PER_STOP, ROUTE_BONUS, SPECIAL_BONUS } from "./config";
+import { ROUTE_BONUS, SPECIAL_BONUS } from "./config";
 
 const COLS = BASE_COLS;
 const ROWS = BASE_ROWS;
@@ -63,8 +63,8 @@ test("playing a full route increments routes exactly once and resets state", () 
   expect([...s.visited]).toEqual([START]);
   expect(s.player).toEqual({ x: 0, y: 0 });
   expect(s.layout.specials.size).toBe(4); // packages back to full count
-  // route bonus + 4 package bonuses + some movement income, all sane
-  expect(earned).toBeGreaterThanOrEqual(ROUTE_BONUS + 4 * SPECIAL_BONUS);
+  // cash is exactly route bonus + 4 package deliveries — no movement income
+  expect(earned).toBe(ROUTE_BONUS + 4 * SPECIAL_BONUS);
 });
 
 test("regression: completing a route does not re-complete on the next move", () => {
@@ -76,7 +76,6 @@ test("regression: completing a route does not re-complete on the next move", () 
     collected: new Set([idx(2, 0, COLS)]),
     visited: new Set([START, idx(1, 0, COLS)]),
     routes: 0,
-    fullBonusPaid: false,
   };
   const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
 
@@ -96,8 +95,8 @@ test("regression: completing a route does not re-complete on the next move", () 
   })!;
   const second = applyMove(fresh, dir[0], dir[1], opts);
   expect(second.state.routes).toBe(1); // still 1 — no re-completion
-  // ordinary move income, never a route bonus (package underfoot may add SPECIAL_BONUS)
-  expect(second.earned).toBeGreaterThanOrEqual(Math.round(CASH_PER_STOP * 1));
+  // ordinary move earns nothing now; a package underfoot (autoDeliver) may add SPECIAL_BONUS
+  expect([0, SPECIAL_BONUS]).toContain(second.earned);
   expect(second.earned).toBeLessThan(ROUTE_BONUS);
   expect(second.state.player).toEqual({ x: dir[0], y: dir[1] });
 });
@@ -109,7 +108,6 @@ test("collectHere collects an uncollected package underfoot, else no-op", () => 
     collected: new Set(),
     visited: new Set([START]),
     routes: 0,
-    fullBonusPaid: false,
   };
   const hit = collectHere(base, { cashMult: 1 });
   expect(hit.earned).toBe(SPECIAL_BONUS);
@@ -126,7 +124,6 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
     collected: new Set(),
     visited: new Set([START]),
     routes: 0,
-    fullBonusPaid: false,
   };
   const hit = collectAt(base, idx(2, 0, COLS), { cashMult: 1 });
   expect(hit.earned).toBe(SPECIAL_BONUS);
