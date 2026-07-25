@@ -41,23 +41,25 @@ type UpgradesProps = {
   cash: number;
   upgrades: Record<string, number>;
   onBuy: (id: string) => void;
+  maxLevels?: Record<string, number>;
 };
 
 function UpgradeEnd({
   item,
   level,
+  maxLevel,
   cash,
   onBuy,
 }: {
   item: Upgrade;
   level: number;
+  maxLevel: number;
   cash: number;
   onBuy: (id: string) => void;
 }) {
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
   }
-  const maxLevel = item.maxLevel ?? 1;
   // one-time upgrades read as OWNED once bought; leveled ones cap at MAX.
   if (level >= maxLevel) {
     return maxLevel === 1 ? (
@@ -86,12 +88,14 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
   const [hideCompleted, setHideCompleted] = useState(false);
+  const maxLevelFor = (item: Upgrade) =>
+    (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
     if (item.locked) return false;
     const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
-    return level >= (item.maxLevel ?? 1);
+    return level >= maxLevelFor(item);
   };
   return (
     <VStack
@@ -149,7 +153,7 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
                   label={item.name}
                   description={item.effect}
                   isDisabled={item.locked}
-                  endContent={<UpgradeEnd item={item} level={level} cash={cash} onBuy={onBuy} />}
+                  endContent={<UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} />}
                 />
               );
             })}

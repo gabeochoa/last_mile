@@ -38,7 +38,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "ECONOMY",
     items: [
-      { id: "demand", name: "Demand Engine", effect: "more orders -> more packages", baseCost: 30, costMult: 1.6, maxLevel: 8 },
+      { id: "demand", name: "Demand Engine", effect: "more deliveries per route", baseCost: 30, costMult: 1.6 },
       { id: "routeOpt", name: "Route Optimization", effect: "+cash per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
     ],
   },

@@ -42,6 +42,10 @@ export function App() {
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
 
+  // Current map dims from expansion; Demand Engine's cap = cells on the map.
+  const dims = sizeForExpansion(expandLevel(upgrades));
+  const maxLevels: Record<string, number> = { demand: dims.cols * dims.rows };
+
   // Create/resume the AudioContext on the first user gesture (autoplay policy).
   useEffect(() => initAudioOnFirstGesture(), []);
 
@@ -61,7 +65,7 @@ export function App() {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
     if (!u) return;
     const level = upgrades[id] ?? 0;
-    if (level >= (u.maxLevel ?? 1)) return;
+    if (level >= (maxLevels[id] ?? u.maxLevel ?? 1)) return;
     const cost = upgradeCost(u, level);
     if (cash < cost) return;
     setCash((c) => c - cost);
@@ -167,7 +171,7 @@ export function App() {
           zIndex: 1,
         }}
       >
-        <Upgrades cash={cash} upgrades={upgrades} onBuy={onBuy} />
+        <Upgrades cash={cash} upgrades={upgrades} onBuy={onBuy} maxLevels={maxLevels} />
       </div>
 
       {/* Map: centered; slides right (padding grows) once the sidebar reveals. */}
@@ -218,7 +222,7 @@ export function App() {
           fleet={upgrades.fleet ?? 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
-          {...sizeForExpansion(expandLevel(upgrades))}
+          {...dims}
           initialRoutes={loaded?.routes ?? 0}
         />
       </div>
