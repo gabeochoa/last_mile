@@ -1,65 +1,64 @@
 # Last Mile — design
 
-GMTK Game Jam 2026. Theme: **COUNT DOWN**. Deadline: **July 26, 1PM** (~2 days).
-Engine: C++ + afterhours (ECS) + raylib. Scaffolded from afterhours-template.
+GMTK Game Jam 2026. Theme: **COUNT DOWN**. Deadline **July 26 1PM**.
 
 ## What it is
-An incremental / idle "clicker" delivery game. You mostly manage and watch
-numbers fall. You drive manually for the first loop or two, then automate
-everything and grow a delivery operation.
+An incremental / idle **delivery-dispatch** clicker. You play the dispatcher /
+fleet manager of a last-mile delivery operation — mostly managing and watching
+numbers fall. Drive manually for the first loop or two, then automate everything.
 
-Fictional quirky brand (no real trademarks). No generative-AI art or audio
-(jam rule — instant DQ). Code-drawn shapes + free asset packs (credited) only.
+Fictional quirky brand. **No generative-AI art/audio** (jam DQ rule). Visuals
+come from a **UI component library (astryx)** + code-drawn canvas shapes; audio
+from free packs (credited). Using libraries is allowed; only AI-*generated*
+assets are banned — a component library is how we get a polished look without
+making/generating art.
+
+## Stack (built from scratch on top of libraries)
+- **Vite + React 19 + TypeScript**, **astryx** design system (`@astryxdesign/core`
+  + `@astryxdesign/theme-neutral`), MIT / `facebook/astryx`. vitest for tests,
+  localStorage for saves. HMR = the fast-feedback DX we wanted.
+- Game logic is framework-agnostic plain TS modules (state/config/economy/loop/
+  save/input/audio); React+astryx render the UI; a `<canvas>` renders the map.
+- astryx rules: components not `<div>`; tokens not hex/px; discover via
+  `npx @astryxdesign/cli` (see `.claude/CLAUDE.md`).
 
 ## The countdown (theme = "everything counts down")
-- **Quota → 0**: packages left to deliver this shift. Clearing it ends the shift.
-- **Days until the Last Mile → 0**: meta clock. Prestige burns a day; at 0 you
-  drive your literal last mile → ending. Ties theme + Narrative together.
-- Flavor: cash target, timers, etc. all framed as ticking down.
+- **Quota → 0**: packages left this shift; clearing it banks cash + next shift.
+- **Days until the Last Mile → 0**: meta clock; each prestige ("a day") automates
+  more of the world. At 0 → ending.
+- **Humans remaining → 0** + planet coverage → 100%: automate everything, remove
+  humans, take over the planet (Amazon's logical endgame). Quota, days, humans —
+  all tick toward zero.
 
-No per-shift time limit — pressure comes from clearing the quota and the days clock.
+## Core loop & progression
+1. Manual: drive a van (arrows), SPACE to deliver → quota drops, cash in.
+2. Self-driving → auto-dispatch → hire drivers (slower auto-vans) → new routes.
+3. Economy: cash (in-run) + prestige tokens (permanent multipliers).
 
-## Core loop
-1. A shift starts with a package quota on a route (small top-down map).
-2. Deliver packages until quota hits 0 → shift ends, bank cash.
-3. Spend cash on upgrades. Prestige ("clock out for the day") → tokens +
-   permanent multipliers, days counter drops by 1.
-4. Repeat until days = 0 → ending.
+## UI: the "operational control center" (dispatch board)
+Modeled on real dispatch software (Onfleet/Samsara look), built with astryx:
+- **Top alert bar**: the countdowns (packages left, days left, humans left) +
+  active routes + alerts.
+- **Sidebar**: driver roster + unassigned orders (lists/rows, StatusDot for
+  state: gray unassigned / blue assigned / green done / red delayed).
+- **Main canvas**: the map with van icons + delivery pins + route polylines.
+- **Detail modals**: click a driver/pin for granular info (proof-of-delivery,
+  ETA), upgrades.
 
-## Progression ladder (manual → automated fleet)
-1. **Manual**: arrow keys drive a van around the route; SPACE drops a package
-   near a house. You are the only driver.
-2. **Self-driving**: upgrade auto-navigates your van to the nearest undelivered
-   house (greedy steering, no real pathfinding).
-3. **Auto-dispatch**: van loops on its own; you stop touching it.
-4. **Hire drivers**: each hire = another auto-van, slower than self-driving;
-   adds throughput (idle scaling).
-5. **New routes**: unlock new maps with bigger quotas + better pay.
-6. **Prestige**: advance a day for permanent multiplier tokens.
+## Map — OPEN DECISION (Phase 1)
+Real map data is too heavy to bundle (OSM = GB) — user's size worry is valid.
+Leaning **procedural / WFC fake city** (zero data, no network, no permissions,
+full stylistic control, matches no-AI-art, scales with prestige = "take over the
+planet"). Optional cheap flavor: let the player name/"detect" their city as a
+text label only (no real map tiles). Decision pending.
 
-## Economy
-- **Cash**: in-run currency, escalating upgrade costs.
-- **Prestige tokens**: earned on prestige, buy permanent multipliers.
+## Phases
+- **P0 Setup** ✅ — Vite+React+astryx building; logic-module stubs; vitest green;
+  repo pushed (`github.com/gabeochoa/the_last_mile`).
+- **P1 Core loop** — dispatch board UI + drive/deliver + quota→0 + shift banking.
+- **P2 Incremental** — upgrades + auto-delivery + save/offline.
+- **P3 Meta/theme/ending** — days→0, prestige, humans/planet counters, ending, juice.
+- **P4 Ship** — `vite build`, zip `dist/` → itch, credits, playtest.
 
-## Map / driving (kept cheap)
-- Top-down. Houses = dots, van = rect, free movement (no player pathfinding).
-- SPACE delivers when van is near an undelivered house.
-- Auto-vans: steer toward nearest undelivered house (greedy). No A*.
-
-## Milestones (cut from the bottom under time pressure)
-- **M0** template builds + window + title. *(done)*
-- **M1** manual drive: van, houses, SPACE-deliver, quota→0 HUD, shift-end screen.
-- **M2** upgrades menu + self-driving + one hired auto-van + persistent cash.
-- **M3** days countdown + prestige + new route + ending; sound + juice.
-- **M4** itch build (web smoke-tested early) + credits + playtest.
-
-## Build
-- Smoke-test raylib→WebAssembly (emscripten) early; desktop as fallback.
-- Baseline: `cd ~/p/last_mile && make` (or `xmake build`); exe `output/supermarket.exe`.
-
-## Reference
-- `~/p/prime_pressure` — prior Amazon-themed afterhours game (typing/warehouse,
-  different mechanic). Mine for ECS/component/system patterns + tone. Has docs/GDD.
-- `~/p/break-ross/idea.md` — original world-mapping idea (mostly cut for scope).
-</content>
-</invoke>
+## Reference (do not copy code)
+`~/p/scrubdaddy` (user's own incremental game), `~/p/mine` (p5 ECS) — patterns only.
