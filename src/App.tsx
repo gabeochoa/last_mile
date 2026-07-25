@@ -152,8 +152,9 @@ export function App() {
           height: 40,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          gap: 28,
+          justifyContent: "space-between",
+          gap: 16,
+          paddingInline: 12,
           background: "#0F0F0F",
           borderBlockEnd: "1px solid rgba(236,231,218,0.15)",
           fontFamily: "ui-monospace, Menlo, monospace",
@@ -163,25 +164,27 @@ export function App() {
           zIndex: 2,
         }}
       >
-        <span>DAY {stats.routes + 1}</span>
-        <span>
-          CASH ${fmtNum(cash)}
-          {showRate && (
-            <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
-              {rate >= 0 ? "+" : "−"}${fmtNum(Math.abs(rate))}/s
-            </span>
-          )}
-        </span>
-        {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
+        {/* Stats grouped left so they never collide with the right-hand controls. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 24, minWidth: 0 }}>
+          <span>DAY {stats.routes + 1}</span>
+          <span>
+            CASH ${fmtNum(cash)}
+            {showRate && (
+              <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
+                {rate >= 0 ? "+" : "−"}${fmtNum(Math.abs(rate))}/s
+              </span>
+            )}
+          </span>
+          {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
+        </div>
 
         {/* Controls grouped right: autopilot toggle · drivers · SFX · reset */}
         <div
           style={{
-            position: "absolute",
-            insetInlineEnd: 12,
             display: "flex",
             alignItems: "center",
             gap: 8,
+            flexShrink: 0,
           }}
         >
           {(upgrades.autopilot ?? 0) > 0 && (
