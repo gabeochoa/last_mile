@@ -144,7 +144,7 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
         paddingBlock={3}
         style={{ borderBlockStart: "1px solid var(--color-border-emphasized)" }}
       >
-        <Text type="supporting">MARKET SHARE 3&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;$/s 0.0</Text>
+        <Text type="supporting">{`DRIVERS ${upgrades.fleet ?? 0}   ·   AUTOPILOT ${(upgrades.autopilot ?? 0) > 0 ? "ON" : "—"}`}</Text>
       </VStack>
     </VStack>
   );
