@@ -3,7 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Upgrades, micrographic } from "./Upgrades";
 
-const COSTS: Record<string, number> = { momentumDrive: 10 };
+const COSTS: Record<string, number> = {};
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -16,10 +16,10 @@ export function App() {
   const [revealed, setRevealed] = useState(DEV);
 
   useEffect(() => {
-    if (!revealed && (cash >= 10 || (upgrades.momentumDrive ?? 0) > 0)) {
+    if (!revealed && cash >= 10) {
       setRevealed(true);
     }
-  }, [cash, upgrades, revealed]);
+  }, [cash, revealed]);
 
   const onBuy = (id: string) => {
     const cost = COSTS[id];

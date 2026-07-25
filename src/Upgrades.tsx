@@ -41,7 +41,6 @@ const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "MOVEMENT",
     items: [
-      { name: "Momentum Drive", effect: "roll till a wall; you steer", id: "momentumDrive", cost: 10 },
       { name: "Adaptive Steering", effect: "auto-turns at walls", cost: 45 },
     ],
   },
