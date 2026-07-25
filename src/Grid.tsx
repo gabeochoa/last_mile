@@ -48,6 +48,7 @@ export function Grid({
   autopilot,
   fleet,
   vanSpeed,
+  daySpeed,
   perDelivery,
   extraPackages,
   depotCount,
@@ -62,6 +63,7 @@ export function Grid({
   autopilot: boolean;
   fleet: number;
   vanSpeed: number;
+  daySpeed: number;
   perDelivery: number;
   extraPackages: number;
   depotCount: number;
@@ -99,6 +101,8 @@ export function Grid({
   fleetRef.current = fleet;
   const vanSpeedRef = useRef(vanSpeed);
   vanSpeedRef.current = vanSpeed;
+  const daySpeedRef = useRef(daySpeed);
+  daySpeedRef.current = daySpeed;
   const perDeliveryRef = useRef(perDelivery);
   perDeliveryRef.current = perDelivery;
   const extraPackagesRef = useRef(extraPackages);
@@ -297,10 +301,10 @@ export function Grid({
         }),
         earned: 0,
       });
-    }, 900);
+    }, Math.max(150, Math.round(900 / daySpeed)));
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gs.dayEnded, autoStartDay]);
+  }, [gs.dayEnded, autoStartDay, daySpeed]);
 
   const { player, layout, visited, collected, routes, dayEnded } = gs;
   const { blocked, specials, depots, cols: gcols, rows: grows } = layout;

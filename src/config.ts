@@ -46,6 +46,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 5 },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "vans drive faster", baseCost: 100, costMult: 1.5, maxLevel: 8 },
+      { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 5 },
     ],
   },
   {
@@ -75,6 +76,10 @@ export function perDelivery(u: Record<string, number>) {
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {
   return 1 + (u.vanSpeed ?? 0) * 0.5;
+}
+// Faster Days -> factor shortening the auto-start-day delay (level 0 = 1, +1/level).
+export function daySpeed(u: Record<string, number>) {
+  return 1 + (u.daySpeed ?? 0);
 }
 // Depots upgrade -> number of warehouses (START is always one).
 export function depotCount(u: Record<string, number>) {
