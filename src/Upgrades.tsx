@@ -4,6 +4,7 @@ import { Heading, Text } from "@astryxdesign/core/Text";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { List, ListItem } from "@astryxdesign/core/List";
+import { BUCKETS, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme).
@@ -33,33 +34,6 @@ export const micrographic = defineTheme({
     "--radius-full": ["0px", "0px"],
   },
 });
-
-// id set => real, purchasable upgrade. Only momentumDrive is wired for now;
-// the rest stay visual (no id => BUY disabled) or LOCKED, as in the mock.
-type Upgrade = { name: string; effect: string; id?: string; cost?: number; locked?: boolean };
-const BUCKETS: { name: string; items: Upgrade[] }[] = [
-  {
-    name: "MOVEMENT",
-    items: [
-      { name: "Adaptive Steering", effect: "auto-turns at walls", cost: 45 },
-    ],
-  },
-  {
-    name: "AUTOMATION",
-    items: [
-      { name: "Auto-Deliver", effect: "packages auto-collect; no key press", id: "autoDeliver", cost: 10 },
-      { name: "Autopilot Module", effect: "self-drives the route", locked: true },
-      { name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", locked: true },
-    ],
-  },
-  {
-    name: "ECONOMY",
-    items: [
-      { name: "Demand Engine", effect: "more orders -> more packages", cost: 30 },
-      { name: "Route Optimization", effect: "+cash per delivery", cost: 60 },
-    ],
-  },
-];
 
 type UpgradesProps = {
   cash: number;

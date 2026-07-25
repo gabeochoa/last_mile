@@ -1,69 +1,40 @@
-// Static data tables + balance constants.
+// Single source of game tunables: economy, upgrade costs, share formula, shop.
 
-export type Upgrade = {
-  id: string;
-  name: string;
-  description: string;
-  baseCost: number;
-  costMultiplier: number;
-  maxLevel: number;
-  effect: number; // per-level magnitude; meaning depends on the upgrade
-};
+// Economy (movement + route income), used by Grid.
+export const CASH_PER_STOP = 1;
+export const ROUTE_BONUS = 25;
+export const SPECIAL_BONUS = 10;
+export const FULL_COVERAGE_BONUS = 50; // one-time, for covering every reachable cell in a route
 
-export type Route = {
-  id: string;
-  name: string;
-  quota: number;
-  payPerPackage: number;
-};
+// Purchasable-upgrade costs, keyed by upgrade id (used by App's onBuy).
+export const COSTS: Record<string, number> = { autoDeliver: 10 };
 
-export const STARTING_DAYS = 30;
-export const BASE_QUOTA = 10;
-export const QUOTA_GROWTH = 1.15; // each shift's quota grows by this factor
-export const STARTING_HUMANS = 8_000_000_000;
-export const DRIVER_RATE = 0.5; // packages/sec per hired driver (slower)
-export const AUTO_RATE = 1.0; // packages/sec per self-driving level (faster)
+// Market-takeover math: each cleared route claims this much share.
+export const SHARE_PER_ROUTE = 5;
 
-export const UPGRADES: Upgrade[] = [
+// id set => real, purchasable upgrade. Only wired ids do anything; the rest
+// stay visual (no id => BUY disabled) or LOCKED, as in the mock.
+export type Upgrade = { name: string; effect: string; id?: string; cost?: number; locked?: boolean };
+export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
-    id: "vanSpeed",
-    name: "Faster Vans",
-    description: "Each level speeds up delivery rate.",
-    baseCost: 10,
-    costMultiplier: 1.15,
-    maxLevel: 50,
-    effect: 0.1,
+    name: "MOVEMENT",
+    items: [
+      { name: "Adaptive Steering", effect: "auto-turns at walls", cost: 45 },
+    ],
   },
   {
-    id: "vanCapacity",
-    name: "Bigger Vans",
-    description: "Each level carries more packages per trip.",
-    baseCost: 25,
-    costMultiplier: 1.2,
-    maxLevel: 50,
-    effect: 1,
+    name: "AUTOMATION",
+    items: [
+      { name: "Auto-Deliver", effect: "packages auto-collect; no key press", id: "autoDeliver", cost: 10 },
+      { name: "Autopilot Module", effect: "self-drives the route", locked: true },
+      { name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", locked: true },
+    ],
   },
   {
-    id: "selfDriving",
-    name: "Self-Driving",
-    description: "Each level raises automation.",
-    baseCost: 500,
-    costMultiplier: 1.5,
-    maxLevel: 20,
-    effect: 1,
+    name: "ECONOMY",
+    items: [
+      { name: "Demand Engine", effect: "more orders -> more packages", cost: 30 },
+      { name: "Route Optimization", effect: "+cash per delivery", cost: 60 },
+    ],
   },
-  {
-    id: "hireDriver",
-    name: "Hire Driver",
-    description: "Each level adds a driver to the roster.",
-    baseCost: 100,
-    costMultiplier: 1.3,
-    maxLevel: 100,
-    effect: 1,
-  },
-];
-
-export const ROUTES: Route[] = [
-  { id: "downtown", name: "Downtown Loop", quota: 10, payPerPackage: 1 },
-  { id: "suburbs", name: "Suburban Sprawl", quota: 40, payPerPackage: 2 },
 ];

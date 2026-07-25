@@ -11,15 +11,16 @@ import {
   genLayout,
   type Layout,
 } from "./gridLogic";
+import {
+  CASH_PER_STOP,
+  ROUTE_BONUS,
+  SPECIAL_BONUS,
+  FULL_COVERAGE_BONUS,
+} from "./config";
 
 const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
-
-const CASH_PER_STOP = 1;
-const ROUTE_BONUS = 25;
-const SPECIAL_BONUS = 10;
-const FULL_COVERAGE_BONUS = 50; // one-time, for covering every reachable cell in a route
 
 const FOOTER = 8;
 const GRID_H = ROWS * CELL;

@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Upgrades, micrographic } from "./Upgrades";
-
-const COSTS: Record<string, number> = { autoDeliver: 10 };
+import { COSTS, SHARE_PER_ROUTE } from "./config";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -48,8 +47,8 @@ export function App() {
   };
 
   // market takeover: their unowned share counts down as you clear routes.
-  const theirShare = 100 - Math.min(100, stats.routes * 5);
-  const routesToMonopoly = Math.max(0, Math.ceil(theirShare / 5));
+  const theirShare = 100 - Math.min(100, stats.routes * SHARE_PER_ROUTE);
+  const routesToMonopoly = Math.max(0, Math.ceil(theirShare / SHARE_PER_ROUTE));
   const displayShare = useAnimatedNumber(theirShare);
   const displayPackages = useAnimatedNumber(stats.packagesLeft);
 
