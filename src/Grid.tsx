@@ -144,7 +144,7 @@ export function Grid() {
     ctx.textBaseline = "middle";
     const labelY = PAD + GRID_H + FOOTER / 2 + 2;
     ctx.fillText(
-      `COVERAGE ${pad3(visited.size).slice(1)}/${TOTAL}`,
+      `REMAINING ${String(TOTAL - visited.size).padStart(2, "0")}/${TOTAL}`,
       PAD,
       labelY,
     );
@@ -157,7 +157,7 @@ export function Grid() {
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-      <Text>{`COVERAGE ${visited.size}/${TOTAL}`}</Text>
+      <Text>{`REMAINING ${TOTAL - visited.size}/${TOTAL}`}</Text>
       <Text>{`ROUTES ${pad3(routes)}`}</Text>
       <Button label="Reset" onClick={reset} />
     </Stack>
