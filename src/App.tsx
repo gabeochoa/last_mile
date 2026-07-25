@@ -37,7 +37,7 @@ export function App() {
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
   const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0 });
-  // latch: once the first upgrade is affordable/owned the shop stays revealed.
+  // latch: the shop appears after the first route is finished, then stays.
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
 
@@ -45,10 +45,10 @@ export function App() {
   useEffect(() => initAudioOnFirstGesture(), []);
 
   useEffect(() => {
-    if (!revealed && cash >= 10) {
+    if (!revealed && stats.routes >= 1) {
       setRevealed(true);
     }
-  }, [cash, revealed]);
+  }, [stats.routes, revealed]);
 
   // Autosave meta whenever it changes (dev never writes the save).
   useEffect(() => {
