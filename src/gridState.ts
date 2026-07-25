@@ -1,8 +1,6 @@
 // Pure grid transition: all of the game's move/collect/completion rules with no
 // React. Grid.tsx drives its UI from this; tests exercise it deterministically.
 import {
-  COLS,
-  ROWS,
   START,
   idx,
   genLayout,
@@ -24,15 +22,17 @@ export type GridState = {
   fullBonusPaid: boolean;
 };
 
-// fresh route: player at depot, nothing collected, new random layout
+// fresh route: player at depot, nothing collected, new random layout at cols×rows
 export function newRoute(
+  cols: number,
+  rows: number,
   packageCount: number,
   routes = 0,
   rng: () => number = Math.random,
 ): GridState {
   return {
     player: { x: 0, y: 0 },
-    layout: genLayout(packageCount, rng),
+    layout: genLayout(cols, rows, packageCount, rng),
     visited: new Set([START]),
     collected: new Set(),
     routes,
@@ -48,6 +48,9 @@ type MoveOpts = {
   autoDeliver: boolean;
   cashMult: number;
   packageCount: number;
+  // dims for the NEXT route seeded on completion (buying expansion mid-run grows it)
+  cols: number;
+  rows: number;
   rng?: () => number;
 };
 
@@ -61,23 +64,24 @@ export function applyMove(
   dy: number,
   opts: MoveOpts,
 ): { state: GridState; earned: number } {
-  const { autoDeliver, cashMult, packageCount, rng } = opts;
+  const { autoDeliver, cashMult, packageCount, cols, rows, rng } = opts;
+  const { cols: gcols, rows: grows } = state.layout;
   const nx = state.player.x + dx;
   const ny = state.player.y + dy;
   if (
     nx < 0 ||
-    nx >= COLS ||
+    nx >= gcols ||
     ny < 0 ||
-    ny >= ROWS ||
-    state.layout.blocked.has(idx(nx, ny))
+    ny >= grows ||
+    state.layout.blocked.has(idx(nx, ny, gcols))
   ) {
     return { state, earned: 0 };
   }
-  const cellIdx = idx(nx, ny);
+  const cellIdx = idx(nx, ny, gcols);
 
   if (isArmed(state) && cellIdx === START) {
     return {
-      state: newRoute(packageCount, state.routes + 1, rng),
+      state: newRoute(cols, rows, packageCount, state.routes + 1, rng),
       earned: Math.round(ROUTE_BONUS * cashMult),
     };
   }
@@ -87,7 +91,7 @@ export function applyMove(
   const visited = new Set(state.visited).add(cellIdx);
 
   let fullBonusPaid = state.fullBonusPaid;
-  const total = COLS * ROWS - state.layout.blocked.size;
+  const total = gcols * grows - state.layout.blocked.size;
   if (!fullBonusPaid && visited.size === total) {
     fullBonusPaid = true;
     earned += Math.round(FULL_COVERAGE_BONUS * cashMult);
@@ -126,7 +130,7 @@ export function collectHere(
   state: GridState,
   opts: { cashMult: number },
 ): { state: GridState; earned: number } {
-  const cellIdx = idx(state.player.x, state.player.y);
+  const cellIdx = idx(state.player.x, state.player.y, state.layout.cols);
   if (!state.layout.specials.has(cellIdx) || state.collected.has(cellIdx)) {
     return { state, earned: 0 };
   }
