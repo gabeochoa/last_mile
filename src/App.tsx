@@ -78,13 +78,30 @@ export function App() {
           minHeight: "100vh",
           width: "100vw",
           display: "flex",
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
+          gap: 14,
           paddingInlineStart: revealed ? 320 : 0,
           paddingBlockStart: 56,
           transition: "padding 400ms ease",
+          fontFamily: "ui-monospace, Menlo, monospace",
+          color: "#ECE7DA",
         }}
       >
+        {/* Deliveries remaining (big) + controls, above the map. */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: 2, lineHeight: 1 }}>
+            {String(stats.packagesLeft).padStart(2, "0")}
+            <span style={{ fontSize: 14, opacity: 0.7, marginInlineStart: 10, letterSpacing: 1 }}>
+              DELIVERIES LEFT
+            </span>
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.55, marginBlockStart: 6, letterSpacing: 1 }}>
+            ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
+          </div>
+        </div>
+
         <Grid
           cash={cash}
           onEarn={(delta) => setCash((c) => c + delta)}
