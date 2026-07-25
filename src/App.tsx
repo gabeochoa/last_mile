@@ -41,6 +41,7 @@ export function App() {
   // latch: the shop appears after the first route is finished, then stays.
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
+  const [autopilotEnabled, _setAutopilotEnabled] = useState(true);
 
   // Current map dims from expansion; Demand Engine's cap = cells on the map.
   const dims = sizeForExpansion(expandLevel(upgrades));
@@ -215,7 +216,7 @@ export function App() {
           onEarn={(delta) => setCash((c) => c + delta)}
           onStats={setStats}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
-          autopilot={(upgrades.autopilot ?? 0) > 0}
+          autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={upgrades.fleet ?? 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
