@@ -1,4 +1,4 @@
-import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
+import { applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_COLS, BASE_ROWS, START, idx, makeRng } from "./gridLogic";
 import { ROUTE_BONUS, SPECIAL_BONUS, upgradeCost, type Upgrade } from "./config";
 
@@ -38,11 +38,12 @@ function bfsPath(from: number, to: number, blocked: Set<number>): [number, numbe
   return steps;
 }
 
-test("playing a full route increments routes exactly once and resets state", () => {
+test("playing a full route ends the day, then startDay begins the next one", () => {
   const rng = makeRng(1234);
   const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
   let s = newRoute(COLS, ROWS, 4, 0, rng);
   const packages = [...s.layout.specials];
+  const layoutBefore = s.layout;
   const blocked = s.layout.blocked;
   let earned = 0;
 
@@ -57,17 +58,26 @@ test("playing a full route increments routes exactly once and resets state", () 
     at = dest;
   }
 
+  // reaching the depot armed ENDS the day: routes bumped, layout untouched
   expect(s.routes).toBe(1); // completed exactly once
-  expect(s.collected.size).toBe(0); // reset
-  expect(s.visited.size).toBe(1);
-  expect([...s.visited]).toEqual([START]);
-  expect(s.player).toEqual({ x: 0, y: 0 });
-  expect(s.layout.specials.size).toBe(4); // packages back to full count
+  expect(s.dayEnded).toBe(true);
+  expect(s.layout).toBe(layoutBefore); // NOT regenerated
+  expect(s.collected.size).toBe(4); // packages stay collected on the finished route
   // cash is exactly route bonus + 4 package deliveries — no movement income
   expect(earned).toBe(ROUTE_BONUS + 4 * SPECIAL_BONUS);
+
+  // startDay begins the next route with the same dims, carrying routes forward
+  const next = startDay(s, { cols: COLS, rows: ROWS, packageCount: 4, rng });
+  expect(next.dayEnded).toBe(false);
+  expect(next.routes).toBe(1); // preserved
+  expect(next.collected.size).toBe(0); // fresh
+  expect(next.visited.size).toBe(1);
+  expect([...next.visited]).toEqual([START]);
+  expect(next.player).toEqual({ x: 0, y: 0 });
+  expect(next.layout.specials.size).toBe(4); // packages back to full count
 });
 
-test("regression: completing a route does not re-complete on the next move", () => {
+test("regression: completing a route ends the day and freezes further moves", () => {
   const rng = makeRng(99);
   // armed state one cell east of the depot with the sole package already collected
   const armed: GridState = {
@@ -76,29 +86,22 @@ test("regression: completing a route does not re-complete on the next move", () 
     collected: new Set([idx(2, 0, COLS)]),
     visited: new Set([START, idx(1, 0, COLS)]),
     routes: 0,
+    dayEnded: false,
   };
   const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
 
-  // move INTO the depot: completes the route
+  // move INTO the depot: ends the day
   const first = applyMove(armed, -1, 0, opts);
   expect(first.earned).toBe(ROUTE_BONUS);
   expect(first.state.routes).toBe(1);
-  expect(first.state.collected.size).toBe(0); // fresh route
-  expect(first.state.player).toEqual({ x: 0, y: 0 });
+  expect(first.state.dayEnded).toBe(true);
 
-  // move AGAIN with the returned fresh state: must NOT complete again
-  const fresh = first.state;
-  const dir = ([[1, 0], [0, 1], [-1, 0], [0, -1]] as const).find(([dx, dy]) => {
-    const nx = 0 + dx;
-    const ny = 0 + dy;
-    return nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && !fresh.layout.blocked.has(idx(nx, ny, COLS));
-  })!;
-  const second = applyMove(fresh, dir[0], dir[1], opts);
-  expect(second.state.routes).toBe(1); // still 1 — no re-completion
-  // ordinary move earns nothing now; a package underfoot (autoDeliver) may add SPECIAL_BONUS
-  expect([0, SPECIAL_BONUS]).toContain(second.earned);
-  expect(second.earned).toBeLessThan(ROUTE_BONUS);
-  expect(second.state.player).toEqual({ x: dir[0], y: dir[1] });
+  // any move AGAIN while the day is ended is a frozen no-op (no re-completion, no pay)
+  const ended = first.state;
+  const second = applyMove(ended, 1, 0, opts);
+  expect(second.state).toBe(ended); // same reference — nothing changed
+  expect(second.earned).toBe(0);
+  expect(second.state.routes).toBe(1);
 });
 
 test("collectHere collects an uncollected package underfoot, else no-op", () => {
@@ -108,6 +111,7 @@ test("collectHere collects an uncollected package underfoot, else no-op", () => 
     collected: new Set(),
     visited: new Set([START]),
     routes: 0,
+    dayEnded: false,
   };
   const hit = collectHere(base, { cashMult: 1 });
   expect(hit.earned).toBe(SPECIAL_BONUS);
@@ -124,6 +128,7 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
     collected: new Set(),
     visited: new Set([START]),
     routes: 0,
+    dayEnded: false,
   };
   const hit = collectAt(base, idx(2, 0, COLS), { cashMult: 1 });
   expect(hit.earned).toBe(SPECIAL_BONUS);

@@ -17,6 +17,8 @@ export type GridState = {
   visited: Set<number>;
   collected: Set<number>;
   routes: number;
+  // true after a route completes: the day is over, awaiting startDay() to begin the next
+  dayEnded: boolean;
 };
 
 // fresh route: player at depot, nothing collected, new random layout at cols×rows
@@ -33,7 +35,16 @@ export function newRoute(
     visited: new Set([START]),
     collected: new Set(),
     routes,
+    dayEnded: false,
   };
+}
+
+// Start the next day: a fresh route carrying the current routes count forward.
+export function startDay(
+  state: GridState,
+  opts: { cols: number; rows: number; packageCount: number; rng?: () => number },
+): GridState {
+  return newRoute(opts.cols, opts.rows, opts.packageCount, state.routes, opts.rng);
 }
 
 // armed once every package is collected — driving back to the depot then finishes
@@ -50,18 +61,19 @@ type MoveOpts = {
   rng?: () => number;
 };
 
-// one grid move in (dx,dy). Off-grid/blocked = no-op. Armed + depot completes the
-// route (returns a fresh route with routes+1, paying ROUTE_BONUS). Otherwise
-// advances a cell (tracking coverage for the map% stat, no payout) and, if
-// autoDeliver, collects any package driven over. Cash comes only from deliveries
-// and finishing a route.
+// one grid move in (dx,dy). Off-grid/blocked = no-op. Armed + depot ENDS the day
+// (same state, routes+1, dayEnded true, paying ROUTE_BONUS — startDay() begins the
+// next route). Otherwise advances a cell (tracking coverage for the map% stat, no
+// payout) and, if autoDeliver, collects any package driven over. Cash comes only
+// from deliveries and finishing a route.
 export function applyMove(
   state: GridState,
   dx: number,
   dy: number,
   opts: MoveOpts,
 ): { state: GridState; earned: number } {
-  const { autoDeliver, cashMult, packageCount, cols, rows, rng } = opts;
+  const { autoDeliver, cashMult } = opts;
+  if (state.dayEnded) return { state, earned: 0 };
   const { cols: gcols, rows: grows } = state.layout;
   const nx = state.player.x + dx;
   const ny = state.player.y + dy;
@@ -78,7 +90,7 @@ export function applyMove(
 
   if (isArmed(state) && cellIdx === START) {
     return {
-      state: newRoute(cols, rows, packageCount, state.routes + 1, rng),
+      state: { ...state, routes: state.routes + 1, dayEnded: true },
       earned: Math.round(ROUTE_BONUS * cashMult),
     };
   }
