@@ -269,6 +269,19 @@ export function Grid() {
       }
     }
 
+    // depot at the start cell: always marked (ink outline box + ⌂ glyph)
+    const depotX = PAD + (START % COLS) * CELL;
+    const depotY = PAD + Math.floor(START / COLS) * CELL;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(depotX + 2.5, depotY + 2.5, CELL - 5, CELL - 5);
+    ctx.fillStyle = INK;
+    ctx.font = "16px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("⌂", depotX + CELL / 2, depotY + CELL / 2 + 1);
+    ctx.textAlign = "left";
+
     // player = solid accent square, slightly inset
     const inset = 6;
     ctx.fillStyle = ACCENT;
