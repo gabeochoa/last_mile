@@ -211,30 +211,20 @@ export function App() {
           zIndex: 1,
         }}
       >
-        <Upgrades cash={cash} upgrades={upgrades} onBuy={onBuy} maxLevels={maxLevels} />
+        <Upgrades
+          cash={cash}
+          upgrades={upgrades}
+          onBuy={onBuy}
+          maxLevels={maxLevels}
+          footer={
+            bigMap ? (
+              <span style={{ color: "#E8541E", fontWeight: 700, fontSize: 22, letterSpacing: 2 }}>
+                {displayShare}% UNOWNED
+              </span>
+            ) : undefined
+          }
+        />
       </div>
-
-      {/* Big-map: unowned share moves out of the hero to a compact sidebar-bottom readout. */}
-      {bigMap && revealed && (
-        <div
-          style={{
-            position: "fixed",
-            insetBlockEnd: 12,
-            insetInlineStart: 12,
-            width: 320,
-            textAlign: "center",
-            fontFamily: "ui-monospace, Menlo, monospace",
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: 2,
-            color: "#E8541E",
-            zIndex: 1,
-            pointerEvents: "none",
-          }}
-        >
-          {displayShare}% UNOWNED
-        </div>
-      )}
 
       {/* Map: centered; slides right (padding grows) once the sidebar reveals. */}
       <div

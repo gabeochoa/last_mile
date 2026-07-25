@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { defineTheme } from "@astryxdesign/core";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Heading, Text } from "@astryxdesign/core/Text";
@@ -42,6 +42,7 @@ type UpgradesProps = {
   upgrades: Record<string, number>;
   onBuy: (id: string) => void;
   maxLevels?: Record<string, number>;
+  footer?: ReactNode;
 };
 
 // Action slot: LOCKED / OWNED / MAX badge, or a buy button whose label IS the
@@ -79,7 +80,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesProps) {
   const [hideCompleted, setHideCompleted] = useState(false);
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
@@ -161,6 +162,17 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
           );
         })}
       </VStack>
+
+      {footer && (
+        <VStack
+          paddingInline={4}
+          paddingBlock={3}
+          hAlign="center"
+          style={{ borderBlockStart: "1px solid var(--color-border-emphasized)" }}
+        >
+          {footer}
+        </VStack>
+      )}
     </VStack>
   );
 }
