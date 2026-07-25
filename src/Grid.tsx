@@ -42,6 +42,7 @@ export function Grid({
   fleet,
   cashMult,
   extraPackages,
+  initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
@@ -50,10 +51,12 @@ export function Grid({
   fleet: number;
   cashMult: number;
   extraPackages: number;
+  initialRoutes?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // single source of truth for the route; pure applyMove/collectHere produce the next one
-  const [gs, setGs] = useState<GridState>(() => newRoute(BASE_PACKAGES + extraPackages));
+  // single source of truth for the route; pure applyMove/collectHere produce the next one.
+  // The route layout starts fresh on load; only the resumed `routes` count carries over.
+  const [gs, setGs] = useState<GridState>(() => newRoute(BASE_PACKAGES + extraPackages, initialRoutes));
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} per van, driven by the fleet tick (ref-mirrored)
   const [vans, setVans] = useState<{ x: number; y: number }[]>([]);

@@ -3,6 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Upgrades, micrographic } from "./Upgrades";
 import { BUCKETS, upgradeCost, cashMult, extraPackages, SHARE_PER_ROUTE } from "./config";
+import { load, save } from "./save";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -27,9 +28,11 @@ function useAnimatedNumber(target: number, ms = 500): number {
 }
 
 export function App() {
-  const [cash, setCash] = useState(DEV ? 9999 : 0);
-  const [upgrades, setUpgrades] = useState<Record<string, number>>({});
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: 0 });
+  // Resume meta from the last session (skipped in ?dev, which starts flush).
+  const [loaded] = useState(() => (DEV ? null : load()));
+  const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
+  const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0 });
   // latch: once the first upgrade is affordable/owned the shop stays revealed.
   const [revealed, setRevealed] = useState(DEV);
 
@@ -38,6 +41,12 @@ export function App() {
       setRevealed(true);
     }
   }, [cash, revealed]);
+
+  // Autosave meta whenever it changes (dev never writes the save).
+  useEffect(() => {
+    if (DEV) return;
+    save({ version: 1, cash, upgrades, routes: stats.routes });
+  }, [cash, upgrades, stats.routes]);
 
   const onBuy = (id: string) => {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
@@ -149,6 +158,7 @@ export function App() {
           fleet={upgrades.fleet ?? 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
+          initialRoutes={loaded?.routes ?? 0}
         />
       </div>
     </Theme>
