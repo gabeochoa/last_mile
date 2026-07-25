@@ -22,8 +22,11 @@ Generative technical-blueprint / risograph look (Kojima Micro-Graphic Generator)
   **special delivery stops**.
 - Move (arrow keys). **Packages** sit on a few blocks; pick one up when there
   (press **Space** early; auto once automated) → **+cash**, small pop.
-- **Route ends when packages remaining → 0** — collect every package: quiet tick,
-  **+route bonus cash**, new layout. No per-shift timer.
+- **Route ends when you return to the depot (start) after collecting every
+  package.** Packages remaining → 0 arms completion; then drive back to the start
+  cell to finish: quiet tick, **+route bonus cash**, new layout. (The depot is
+  highlighted; a "RETURN TO DEPOT" prompt shows once packages are all collected.)
+  No per-shift timer.
 - Covering the WHOLE map (every reachable block) is an **optional full-coverage
   bonus** — extra cash for completionists, not required. Creates a choice: grab
   packages fast and finish, or fully explore first for the bonus.
@@ -91,6 +94,9 @@ bigger grid** (quick zoom animation). Grid also **grows within a tier**.
   shop, dense rows) + **main map** (always visible).
 - Upgrade **tooltips** via astryx Tooltip. No idle nudges. **No tutorial**
   (discoverable); starts **straight into gameplay** (no title gate).
+- **Progressive reveal**: begin with the map **centered, no shop**. When the
+  player can first afford the opening upgrade (~$10), the map **slides right** and
+  the left upgrade sidebar **fades in**. The UI grows as the game does.
 - Numbers: **K/M/B/T**, modest scale (≤ billions); show **$/s and stops/s** rates.
 
 ## Map
