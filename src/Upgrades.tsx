@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { defineTheme } from "@astryxdesign/core";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Heading, Text } from "@astryxdesign/core/Text";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
+import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { List, ListItem } from "@astryxdesign/core/List";
 import { BUCKETS, upgradeCost, type Upgrade } from "./config";
 
@@ -85,6 +87,12 @@ function UpgradeEnd({
 }
 
 export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
+  const [hideCompleted, setHideCompleted] = useState(false);
+  const isDone = (item: Upgrade) => {
+    if (item.locked) return false;
+    const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
+    return level >= (item.maxLevel ?? 1);
+  };
   return (
     <VStack
       width={320}
@@ -106,12 +114,23 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
           <Heading level={2} color="accent">FLEET OPS</Heading>
           <Text type="code" color="accent">+</Text>
         </HStack>
-        <Text type="supporting">UPGRADE SHOP</Text>
+        <HStack justify="between" vAlign="center" gap={2}>
+          <Text type="supporting">UPGRADE SHOP</Text>
+          <CheckboxInput
+            size="sm"
+            label="hide done"
+            value={hideCompleted}
+            onChange={setHideCompleted}
+          />
+        </HStack>
       </VStack>
 
       {/* Upgrade buckets */}
       <VStack isScrollable>
-        {BUCKETS.map((bucket) => (
+        {BUCKETS.map((bucket) => {
+          const items = hideCompleted ? bucket.items.filter((i) => !isDone(i)) : bucket.items;
+          if (items.length === 0) return null;
+          return (
           <List
             key={bucket.name}
             density="compact"
@@ -122,7 +141,7 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
               </Text>
             }
           >
-            {bucket.items.map((item) => {
+            {items.map((item) => {
               const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
               return (
                 <ListItem
@@ -135,7 +154,8 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
               );
             })}
           </List>
-        ))}
+          );
+        })}
       </VStack>
 
       {/* Footer */}
