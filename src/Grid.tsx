@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
-import { BASE_COLS, CELL, PAD, idx, bfsNextStep } from "./gridLogic";
+import { BASE_COLS, BASE_ROWS, CELL, PAD, idx, bfsNextStep } from "./gridLogic";
 import { addPackages, applyMove, collectAt, collectHere, finishIfDone, growState, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
@@ -9,6 +9,12 @@ import { playSfx } from "./audio";
 const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
+const RIVAL = "#4C86E8"; // rival delivery companies (blue), confined to expanded territory
+
+// Expansion cells = anything beyond the original BASE_COLS×BASE_ROWS area. Rivals
+// only operate here (your base map is already yours).
+const isExpansionCell = (c: number, gcols: number) =>
+  c % gcols >= BASE_COLS || Math.floor(c / gcols) >= BASE_ROWS;
 
 // Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
 // below the banner), bounded so it never overflows or collides with the small-map
@@ -305,20 +311,28 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
 
-  // Keep rival vans sized to `rivals`, each spawned on a random open cell. A new
-  // layout (new day / live grow) or a changed count rebuilds them.
+  // Keep rival vans sized to `rivals`, each spawned on a random open EXPANSION cell.
+  // Before you expand there are no expansion cells, so no rivals appear. A new layout
+  // (new day / live grow) or a changed count rebuilds them.
   useEffect(() => {
     const { cols: gcols, rows: grows, blocked } = gs.layout;
     const open: number[] = [];
-    for (let c = 0; c < gcols * grows; c++) if (!blocked.has(c)) open.push(c);
+    for (let c = 0; c < gcols * grows; c++) {
+      if (!blocked.has(c) && isExpansionCell(c, gcols)) open.push(c);
+    }
+    if (open.length === 0) {
+      setRivalVans([]);
+      return;
+    }
     const mk = () => {
-      const c = open[Math.floor(Math.random() * open.length)] ?? 0;
+      const c = open[Math.floor(Math.random() * open.length)];
       return { x: c % gcols, y: Math.floor(c / gcols) };
     };
-    setRivalVans(Array.from({ length: rivals }, mk));
+    setRivalVans(Array.from({ length: Math.min(rivals, open.length) }, mk));
   }, [rivals, gs.layout]);
 
-  // Rival wander tick: each steps to a random adjacent open cell (purely visual).
+  // Rival wander tick: each steps to a random adjacent open EXPANSION cell so they
+  // never wander back into your base territory (purely visual).
   useEffect(() => {
     if (rivals <= 0) return;
     const id = window.setInterval(() => {
@@ -327,7 +341,15 @@ export function Grid({
         vs.map((v) => {
           const nbrs = ([[0, -1], [0, 1], [-1, 0], [1, 0]] as const)
             .map(([dx, dy]) => [v.x + dx, v.y + dy] as [number, number])
-            .filter(([x, y]) => x >= 0 && x < gcols && y >= 0 && y < grows && !blocked.has(idx(x, y, gcols)));
+            .filter(
+              ([x, y]) =>
+                x >= 0 &&
+                x < gcols &&
+                y >= 0 &&
+                y < grows &&
+                !blocked.has(idx(x, y, gcols)) &&
+                isExpansionCell(idx(x, y, gcols), gcols),
+            );
           if (!nbrs.length) return v;
           const [nx, ny] = nbrs[Math.floor(Math.random() * nbrs.length)];
           return { x: nx, y: ny };
@@ -552,16 +574,15 @@ export function Grid({
     }
     ctx.globalAlpha = 1;
 
-    // rival companies: small hollow muted-ink squares, clearly "not yours"
-    ctx.strokeStyle = "rgba(140,135,123,0.9)";
-    ctx.lineWidth = 1;
-    const rinset = Math.max(2, Math.round(cell * 0.32));
+    // rival companies: small BLUE squares in the expansion territory, clearly "not yours"
+    ctx.fillStyle = RIVAL;
+    const rinset = Math.max(2, Math.round(cell * 0.28));
     for (const v of rivalVans) {
-      ctx.strokeRect(
-        offX + v.x * cell + rinset + 0.5,
-        offY + v.y * cell + rinset + 0.5,
-        cell - rinset * 2 - 1,
-        cell - rinset * 2 - 1,
+      ctx.fillRect(
+        offX + v.x * cell + rinset,
+        offY + v.y * cell + rinset,
+        cell - rinset * 2,
+        cell - rinset * 2,
       );
     }
 
