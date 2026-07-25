@@ -5,7 +5,7 @@ import { Heading, Text } from "@astryxdesign/core/Text";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
-import { List, ListItem } from "@astryxdesign/core/List";
+import { List } from "@astryxdesign/core/List";
 import { BUCKETS, upgradeCost, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
@@ -44,6 +44,8 @@ type UpgradesProps = {
   maxLevels?: Record<string, number>;
 };
 
+// Action slot: LOCKED / OWNED / MAX badge, or a buy button whose label IS the
+// price. The current level shows inline with the title instead (see the row).
 function UpgradeEnd({
   item,
   level,
@@ -62,29 +64,18 @@ function UpgradeEnd({
   }
   // one-time upgrades read as OWNED once bought; leveled ones cap at MAX.
   if (level >= maxLevel) {
-    return maxLevel === 1 ? (
-      <Badge label="OWNED" variant="success" />
-    ) : (
-      <HStack gap={2} vAlign="center">
-        <Badge label={`Lv ${level}`} variant="neutral" />
-        <Badge label="MAX" variant="success" />
-      </HStack>
-    );
+    return <Badge label={maxLevel === 1 ? "OWNED" : "MAX"} variant="success" />;
   }
   const cost = upgradeCost(item, level);
   const canBuy = item.id != null && cash >= cost;
   return (
-    <HStack gap={2} vAlign="center">
-      {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
-      <Text type="code" color="accent">{`$${cost}`}</Text>
-      <Button
-        label="BUY"
-        size="sm"
-        variant="primary"
-        isDisabled={!canBuy}
-        onClick={item.id != null ? () => onBuy(item.id!) : undefined}
-      />
-    </HStack>
+    <Button
+      label={`$${cost}`}
+      size="sm"
+      variant="primary"
+      isDisabled={!canBuy}
+      onClick={item.id != null ? () => onBuy(item.id!) : undefined}
+    />
   );
 }
 
@@ -103,30 +94,27 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
       height="100vh"
       style={{
         textAlign: "start",
+        // Clear App's fixed 40px top banner so the header isn't hidden behind it.
+        paddingBlockStart: "var(--spacing-10)",
         background: "var(--color-background-surface)",
         borderInlineEnd: "1px solid var(--color-border-emphasized)",
       }}
     >
-      {/* Header with registration "+" mark */}
+      {/* Header */}
       <VStack
         paddingInline={4}
         paddingBlock={3}
-        gap={1}
+        gap={2}
+        hAlign="center"
         style={{ borderBlockEnd: "1px solid var(--color-border-emphasized)" }}
       >
-        <HStack justify="between" vAlign="start">
-          <Heading level={2} color="accent">FLEET OPS</Heading>
-          <Text type="code" color="accent">+</Text>
-        </HStack>
-        <HStack justify="between" vAlign="center" gap={2}>
-          <Text type="supporting">UPGRADE SHOP</Text>
-          <CheckboxInput
-            size="sm"
-            label="hide done"
-            value={hideCompleted}
-            onChange={setHideCompleted}
-          />
-        </HStack>
+        <Heading level={1} color="accent">UPGRADES</Heading>
+        <CheckboxInput
+          size="sm"
+          label="hide complete"
+          value={hideCompleted}
+          onChange={setHideCompleted}
+        />
       </VStack>
 
       {/* Upgrade buckets */}
@@ -147,14 +135,20 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
           >
             {items.map((item) => {
               const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
+              // Custom row: ListItem.label is string-only, so build the row with
+              // Stacks to keep the level badge inline with the title while the
+              // description spans the full width below.
               return (
-                <ListItem
-                  key={item.name}
-                  label={item.name}
-                  description={item.effect}
-                  isDisabled={item.locked}
-                  endContent={<UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} />}
-                />
+                <VStack key={item.name} gap={1} paddingInline={4} paddingBlock={2}>
+                  <HStack justify="between" vAlign="center" gap={2}>
+                    <HStack gap={2} vAlign="center">
+                      <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
+                      {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
+                    </HStack>
+                    <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} />
+                  </HStack>
+                  <Text type="supporting">{item.effect}</Text>
+                </VStack>
               );
             })}
           </List>
