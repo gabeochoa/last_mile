@@ -13,6 +13,7 @@ const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
 const CASH_PER_STOP = 1;
+const ROUTE_BONUS = 25;
 
 const FOOTER = 30;
 const GRID_H = ROWS * CELL;
@@ -134,8 +135,9 @@ export function Grid() {
       const nv = new Set(visitedRef.current).add(cellIdx);
       const total = COLS * ROWS - blockedRef.current.size;
       if (nv.size === total) {
-        // route complete: bump counter and roll a fresh layout
+        // route complete: bump counter, pay the bonus, roll a fresh layout
         setRoutes((r) => r + 1);
+        setCash((c) => c + ROUTE_BONUS);
         newLayout();
       } else {
         setVisited(nv);
