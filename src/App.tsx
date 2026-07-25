@@ -88,7 +88,6 @@ export function App() {
         <Grid
           cash={cash}
           onEarn={(delta) => setCash((c) => c + delta)}
-          snakeEnabled={(upgrades.momentumDrive ?? 0) > 0}
           onStats={setStats}
         />
       </div>
