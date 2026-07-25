@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
-import { BASE_COLS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
+import { BASE_COLS, CELL, PAD, idx, bfsNextStep } from "./gridLogic";
 import { addPackages, applyMove, collectAt, collectHere, growState, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
@@ -75,8 +75,9 @@ export function Grid({
     newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes),
   );
   const [flash, setFlash] = useState<number | null>(null);
-  // hired fleet vans: {x,y} per van, driven by the fleet tick (ref-mirrored)
-  const [vans, setVans] = useState<{ x: number; y: number }[]>([]);
+  // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
+  // (ref-mirrored). Van i homes to the i-th depot (round-robin over sorted depots).
+  const [vans, setVans] = useState<{ x: number; y: number; home: number }[]>([]);
   const vansRef = useRef(vans);
   vansRef.current = vans;
 
@@ -166,9 +167,10 @@ export function Grid({
         Math.abs((c % gcols) - s.player.x) + Math.abs(Math.floor(c / gcols) - s.player.y);
       // ponytail: Manhattan picks the target package; bfsNextStep still routes
       // around walls. Swap for a BFS-distance nearest if a wall makes it dither.
+      // Once armed, finish at whichever depot is nearest (any depot completes).
       const target = left.length
         ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a))
-        : START;
+        : [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
       const dir = bfsNextStep(s.layout.blocked, here, target, gcols, grows);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
@@ -177,22 +179,29 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot]);
 
-  // Keep the van array sized to `fleet` (new vans spawn at the depot), and reset
-  // all vans home whenever a route completes (gs.routes ticks up).
-  const prevRoutesRef = useRef(gs.routes);
+  // Keep the van array sized to `fleet` with each van spawned AT its home depot.
+  // Van i homes to the i-th sorted depot (round-robin). A new layout (new route or
+  // live grow) re-homes every van; growing `fleet` only appends new vans at homes.
+  const prevLayoutRef = useRef(gs.layout);
   useEffect(() => {
-    const routeChanged = prevRoutesRef.current !== gs.routes;
-    prevRoutesRef.current = gs.routes;
+    const layoutChanged = prevLayoutRef.current !== gs.layout;
+    prevLayoutRef.current = gs.layout;
+    const { cols: gcols } = gs.layout;
+    const sortedDepots = [...gs.layout.depots].sort((a, b) => a - b);
+    const mkVan = (i: number) => {
+      const home = sortedDepots[i % sortedDepots.length];
+      return { x: home % gcols, y: Math.floor(home / gcols), home };
+    };
     setVans((prev) => {
-      if (routeChanged || prev.length > fleet) {
-        return Array.from({ length: fleet }, () => ({ x: 0, y: 0 }));
+      if (layoutChanged || prev.length > fleet) {
+        return Array.from({ length: fleet }, (_, i) => mkVan(i));
       }
       if (prev.length < fleet) {
-        return [...prev, ...Array.from({ length: fleet - prev.length }, () => ({ x: 0, y: 0 }))];
+        return [...prev, ...Array.from({ length: fleet - prev.length }, (_, i) => mkVan(prev.length + i))];
       }
       return prev;
     });
-  }, [fleet, gs.routes]);
+  }, [fleet, gs.layout]);
 
   // Fleet tick: slower than autopilot. Vans fan out — each claims its nearest
   // still-unclaimed uncollected package (claimed per tick so no two share a
@@ -214,11 +223,12 @@ export function Grid({
         const avail = [...layout.specials].filter(
           (c) => !gsRef.current.collected.has(c) && !claimed.has(c),
         );
-        const target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : START;
-        if (target !== START) claimed.add(target);
+        // claim a package if any remain; else head back to this van's HOME depot
+        const target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : van.home;
+        if (avail.length) claimed.add(target);
         const dir = bfsNextStep(layout.blocked, from, target, gcols, grows);
         if (!dir) return van;
-        const nv = { x: van.x + dir[0], y: van.y + dir[1] };
+        const nv = { x: van.x + dir[0], y: van.y + dir[1], home: van.home };
         const { state, earned } = collectAt(gsRef.current, idx(nv.x, nv.y, gcols), {
           cashMult: cashMultRef.current,
         });
