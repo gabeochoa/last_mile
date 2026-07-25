@@ -10,10 +10,22 @@ const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
-// Canvas is a FIXED SQUARE (the old 6×48 grid + padding); cells shrink and the
-// grid is centered as the map grows, so the layout never jumps.
-const MAX_CANVAS_PX = BASE_COLS * CELL;
-const CANVAS = MAX_CANVAS_PX + PAD * 2;
+// Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
+// below the banner), bounded so it never overflows or collides with the small-map
+// hero. The grid is centered inside it and cells shrink as the map grows, so early
+// routes are chunky and late-game maps zoom out to tiny pixel roads.
+const SIDEBAR_PX = 320; // reserved for the upgrades sidebar
+const BANNER_PX = 56; // top banner height
+const HERO_PX = 220; // vertical room the UNOWNED% hero + deliveries take on small maps
+// hero = true when the small-map hero is on screen above the grid (reserve room for it)
+const computeCanvas = (hero: boolean) =>
+  Math.max(
+    BASE_COLS * CELL,
+    Math.min(
+      window.innerWidth - SIDEBAR_PX - PAD * 2,
+      window.innerHeight - BANNER_PX - (hero ? HERO_PX : PAD * 2),
+    ),
+  );
 
 function drawRegistration(
   ctx: CanvasRenderingContext2D,
@@ -73,6 +85,18 @@ export function Grid({
   initialRoutes?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Small-map hero is showing above the grid until the map gets large (mirrors App's
+  // bigMap reflow), so reserve room for it. Canvas fills the right side, re-measured
+  // on resize and whenever the hero appears/disappears.
+  const bigMap = Math.max(cols, rows) >= 9;
+  const [canvas, setCanvas] = useState(() => computeCanvas(!bigMap));
+  useEffect(() => {
+    const recompute = () => setCanvas(computeCanvas(!bigMap));
+    recompute();
+    window.addEventListener("resize", recompute);
+    return () => window.removeEventListener("resize", recompute);
+  }, [bigMap]);
+  const MAX_CANVAS_PX = canvas - PAD * 2;
   // single source of truth for the route; pure applyMove/collectHere produce the next one.
   // The route layout starts fresh on load; only the resumed `routes` count carries over.
   const [gs, setGs] = useState<GridState>(() =>
@@ -359,12 +383,12 @@ export function Grid({
     const gridH = grows * cell;
 
     ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, CANVAS, CANVAS);
+    ctx.fillRect(0, 0, canvas, canvas);
 
     // thin 1px frame hugging the fixed square canvas (grid is centered within)
     ctx.strokeStyle = INK;
     ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, CANVAS - 1, CANVAS - 1);
+    ctx.strokeRect(0.5, 0.5, canvas - 1, canvas - 1);
 
     drawRegistration(ctx, offX, offY, gridW, gridH);
 
@@ -493,7 +517,7 @@ export function Grid({
 
     // draw at cell `c`, centering the (possibly non-square) grid in the fixed square
     const drawAt = (c: number) =>
-      draw(c, Math.floor((CANVAS - gcols * c) / 2), Math.floor((CANVAS - grows * c) / 2));
+      draw(c, Math.floor((canvas - gcols * c) / 2), Math.floor((canvas - grows * c) / 2));
     drawRef.current = drawAt;
 
     const grew = cell < prevCellRef.current;
@@ -529,7 +553,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, gcols, grows, cell, dayEnded]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, gcols, grows, cell, dayEnded, canvas]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
@@ -547,8 +571,8 @@ export function Grid({
     <Stack direction="vertical" gap={4}>
       <canvas
         ref={canvasRef}
-        width={CANVAS}
-        height={CANVAS}
+        width={canvas}
+        height={canvas}
         style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1 }}
       />
       {dayEnded && <Button label="Start Day" variant="primary" onClick={beginDay} />}
