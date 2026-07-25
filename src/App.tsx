@@ -94,11 +94,21 @@ export function App() {
           color: "#ECE7DA",
         }}
       >
-        {/* Deliveries remaining (big) + controls, above the map. */}
+        {/* Hero countdown: unowned market share — hits 0 when you win. */}
+        <div style={{ textAlign: "center", color: "#E8541E" }}>
+          <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>
+            {theirShare}%
+          </div>
+          <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>
+            UNOWNED MARKET ▼
+          </div>
+        </div>
+
+        {/* Deliveries remaining (secondary) + controls, above the map. */}
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: 2, lineHeight: 1 }}>
+          <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 2, lineHeight: 1 }}>
             {String(stats.packagesLeft).padStart(2, "0")}
-            <span style={{ fontSize: 14, opacity: 0.7, marginInlineStart: 10, letterSpacing: 1 }}>
+            <span style={{ fontSize: 12, opacity: 0.7, marginInlineStart: 8, letterSpacing: 1 }}>
               DELIVERIES LEFT
             </span>
           </div>
