@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
+import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
 import { BUCKETS, upgradeCost, cashMult, extraPackages, SHARE_PER_ROUTE } from "./config";
-import { load, save } from "./save";
+import { clearSave, load, save } from "./save";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
+// ?end forces the ending overlay so it can be screenshotted/tested without grinding.
+const END_PREVIEW = new URLSearchParams(window.location.search).get("end") !== null;
 
 // Eases a displayed value toward target via rAF so countdowns visibly tick.
 function useAnimatedNumber(target: number, ms = 500): number {
@@ -62,6 +65,17 @@ export function App() {
   // market takeover: their unowned share counts down as you clear routes.
   const theirShare = 100 - Math.min(100, stats.routes * SHARE_PER_ROUTE);
   const routesToMonopoly = Math.max(0, Math.ceil(theirShare / SHARE_PER_ROUTE));
+
+  // Latch the ending: once you own 100% (or ?end preview), it stays for the session.
+  const [ended, setEnded] = useState(END_PREVIEW);
+  useEffect(() => {
+    if (theirShare <= 0) setEnded(true);
+  }, [theirShare]);
+
+  const onRestart = () => {
+    clearSave();
+    window.location.reload();
+  };
   const displayShare = useAnimatedNumber(theirShare);
   const displayPackages = useAnimatedNumber(stats.packagesLeft);
 
@@ -161,6 +175,8 @@ export function App() {
           initialRoutes={loaded?.routes ?? 0}
         />
       </div>
+
+      {ended && <Ending routes={stats.routes} cash={cash} onRestart={onRestart} />}
     </Theme>
   );
 }
