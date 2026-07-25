@@ -62,7 +62,7 @@ export function App() {
   const maxLevels: Record<string, number> = { demand: Math.max(0, stats.capacity - BASE_PACKAGES) };
   // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
   const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
-    if (!it.id) return true;
+    if (!it.id || it.softCap) return true; // soft caps (Demand) fluctuate — don't gate the ending
     const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
     return (upgrades[it.id] ?? 0) >= max;
   });

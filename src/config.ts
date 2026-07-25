@@ -32,6 +32,9 @@ export type Upgrade = {
   locked?: boolean;
   // hide this upgrade in the shop until the named upgrade is owned (level >= 1)
   requires?: string;
+  // maxLevel is a fluctuating capacity, not true completion: keep the row visible and
+  // just disable the button when full (never show MAX / hide it).
+  softCap?: boolean;
 };
 
 // Round to a clean step that scales with magnitude: 5 (<100), 10 (<1k), 50 (<10k), 100 (>=10k).
@@ -67,7 +70,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "ECONOMY",
     items: [
-      { id: "demand", name: "Demand Engine", effect: "more deliveries per day", baseCost: 5, costMult: 1.2 },
+      { id: "demand", name: "Demand Engine", effect: "more deliveries per day", baseCost: 5, costMult: 1.2, softCap: true },
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
       { id: "dayBonus", name: "Bulk Contracts", effect: "cash bonus for finishing a day", baseCost: 50, costMult: 1.4, maxLevel: 15 },
       { id: "surge", name: "Surge Pricing", effect: "×1.5 delivery pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 20 },

@@ -65,11 +65,16 @@ function UpgradeEnd({
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
   }
-  // one-time upgrades read as OWNED once bought; leveled ones cap at MAX.
+  const cost = upgradeCost(item, level);
   if (level >= maxLevel) {
+    // soft cap (e.g. Demand Engine at grid capacity): keep the button, just disabled —
+    // the cap fluctuates day to day, so it's "no room now", not a permanent MAX.
+    if (item.softCap) {
+      return <Button label={`$${cost}`} size="sm" variant="primary" isDisabled />;
+    }
+    // one-time upgrades read as OWNED once bought; leveled ones cap at MAX.
     return <Badge label={maxLevel === 1 ? "OWNED" : "MAX"} variant="success" />;
   }
-  const cost = upgradeCost(item, level);
   const canBuy = item.id != null && cash >= cost;
   return (
     <Button
@@ -87,7 +92,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
-    if (item.locked) return false;
+    if (item.locked || item.softCap) return false; // soft-capped rows never count as complete
     const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
     return level >= maxLevelFor(item);
   };
