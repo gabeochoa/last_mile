@@ -12,6 +12,10 @@ const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
+// buildings the player cannot enter: two horizontal walls forcing U-shaped
+// detours. cols 0 and 5 stay open so every non-blocked cell is reachable.
+const BLOCKED = new Set([7, 8, 9, 10, 19, 20, 21, 22]);
+
 const FOOTER = 30;
 const TOTAL = COLS * ROWS;
 const GRID_H = ROWS * CELL;
@@ -64,10 +68,17 @@ export function Grid() {
       if (!d) return;
       e.preventDefault();
       setPlayer((p) => {
-        const next = {
-          x: Math.max(0, Math.min(COLS - 1, p.x + d[0])),
-          y: Math.max(0, Math.min(ROWS - 1, p.y + d[1])),
-        };
+        const next = { x: p.x + d[0], y: p.y + d[1] };
+        // ignore moves off-grid or into a blocked building
+        if (
+          next.x < 0 ||
+          next.x >= COLS ||
+          next.y < 0 ||
+          next.y >= ROWS ||
+          BLOCKED.has(idx(next.x, next.y))
+        ) {
+          return p;
+        }
         setVisited((v) => {
           const nv = new Set(v).add(idx(next.x, next.y));
           if (nv.size === TOTAL) {
@@ -97,6 +108,16 @@ export function Grid() {
     ctx.strokeRect(0.5, 0.5, WIDTH - 1, HEIGHT - 1);
 
     drawRegistration(ctx);
+
+    // blocked buildings = solid ink at ~70% alpha
+    ctx.fillStyle = INK;
+    ctx.globalAlpha = 0.7;
+    for (const cell of BLOCKED) {
+      const bx = cell % COLS;
+      const by = Math.floor(cell / COLS);
+      ctx.fillRect(PAD + bx * CELL, PAD + by * CELL, CELL, CELL);
+    }
+    ctx.globalAlpha = 1;
 
     // visited cells filled ink at ~18% alpha
     ctx.fillStyle = INK;
