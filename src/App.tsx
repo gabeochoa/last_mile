@@ -113,6 +113,7 @@ export function App() {
           zIndex: 2,
         }}
       >
+        <span>DAY {stats.routes + 1}</span>
         <span>CASH ${cash}</span>
         <span style={{ color: "#E8541E" }}>
           TERRITORY LEFT {String(territoryLeft).padStart(2, "0")} ▼
