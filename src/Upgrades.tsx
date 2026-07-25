@@ -136,6 +136,11 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
           >
             {items.map((item) => {
               const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
+              // Route Optimization previews the per-delivery payout: current → next.
+              const description =
+                item.id === "routeOpt"
+                  ? `$${1 + level}/delivery → $${1 + level + 1}`
+                  : item.effect;
               // Custom row: ListItem.label is string-only, so build the row with
               // Stacks to keep the level badge inline with the title while the
               // description spans the full width below.
@@ -148,7 +153,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
                     </HStack>
                     <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} />
                   </HStack>
-                  <Text type="supporting">{item.effect}</Text>
+                  <Text type="supporting">{description}</Text>
                 </VStack>
               );
             })}
