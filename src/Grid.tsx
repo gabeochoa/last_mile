@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
 import { BASE_COLS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
-import { applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
+import { addPackages, applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
 
@@ -231,6 +231,19 @@ export function Grid({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet]);
+
+  // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
+  // right away so DELIVERIES LEFT updates instantly (next-route counts already fold
+  // in extraPackages via newRoute/startDay). Skips the initial mount for the loaded
+  // value, and only fires on an increase — so it can't double-add.
+  const prevExtraPackagesRef = useRef(extraPackages);
+  useEffect(() => {
+    const delta = extraPackages - prevExtraPackagesRef.current;
+    prevExtraPackagesRef.current = extraPackages;
+    if (delta <= 0 || gs.dayEnded) return;
+    commit({ state: addPackages(gsRef.current, delta), earned: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extraPackages]);
 
   // Auto-Start Day: once owned, the day-end fade shows for a brief beat, then the
   // next day starts on its own (same commit as the Start Day button). Autopilot +
