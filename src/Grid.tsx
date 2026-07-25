@@ -99,7 +99,7 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
   }
 }
 
-export function Grid() {
+export function Grid({ cash, onEarn }: { cash: number; onEarn: (delta: number) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
   const [layout, setLayout] = useState<Layout>(genLayout);
@@ -107,8 +107,11 @@ export function Grid() {
   const [collected, setCollected] = useState<Set<number>>(() => new Set());
   const [flash, setFlash] = useState<number | null>(null);
   const [routes, setRoutes] = useState(0);
-  const [cash, setCash] = useState(0);
   const [fullBonusPaid, setFullBonusPaid] = useState(false);
+
+  // ref so the keydown handler (bound once) always calls the latest onEarn
+  const onEarnRef = useRef(onEarn);
+  onEarnRef.current = onEarn;
 
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
@@ -150,7 +153,7 @@ export function Grid() {
         const cellIdx = idx(p.x, p.y);
         if (specialsRef.current.has(cellIdx) && !collectedRef.current.has(cellIdx)) {
           const nc = new Set(collectedRef.current).add(cellIdx);
-          setCash((c) => c + SPECIAL_BONUS);
+          onEarnRef.current(SPECIAL_BONUS);
           setFlash(cellIdx);
           window.setTimeout(() => setFlash(null), 200);
           // collecting the last package only arms completion — driving back to
@@ -183,20 +186,20 @@ export function Grid() {
         collectedRef.current.size === specialsRef.current.size;
       if (armed && cellIdx === START) {
         setRoutes((r) => r + 1);
-        setCash((c) => c + ROUTE_BONUS);
+        onEarnRef.current(ROUTE_BONUS);
         newLayout();
         return;
       }
       setPlayer({ x: nx, y: ny });
       // movement-only income: pay once, the first time a cell is covered
-      if (!visitedRef.current.has(cellIdx)) setCash((c) => c + CASH_PER_STOP);
+      if (!visitedRef.current.has(cellIdx)) onEarnRef.current(CASH_PER_STOP);
       const nv = new Set(visitedRef.current).add(cellIdx);
       setVisited(nv);
       // optional one-time bonus for fully exploring the route (never ends the route)
       const total = COLS * ROWS - blockedRef.current.size;
       if (!fullBonusPaidRef.current && nv.size === total) {
         setFullBonusPaid(true);
-        setCash((c) => c + FULL_COVERAGE_BONUS);
+        onEarnRef.current(FULL_COVERAGE_BONUS);
       }
     };
     window.addEventListener("keydown", onKey);
