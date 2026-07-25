@@ -11,6 +11,7 @@ const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
 export function App() {
   const [cash, setCash] = useState(DEV ? 9999 : 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>({});
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: 0 });
   // latch: once the first upgrade is affordable/owned the shop stays revealed.
   const [revealed, setRevealed] = useState(DEV);
 
@@ -29,6 +30,32 @@ export function App() {
 
   return (
     <Theme theme={micrographic} mode="dark">
+      {/* Top banner: map coverage + cash + routes, pinned across the top. */}
+      <div
+        style={{
+          position: "fixed",
+          insetBlockStart: 0,
+          insetInlineStart: 0,
+          insetInlineEnd: 0,
+          height: 40,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 28,
+          background: "#0F0F0F",
+          borderBlockEnd: "1px solid rgba(236,231,218,0.15)",
+          fontFamily: "ui-monospace, Menlo, monospace",
+          fontSize: 13,
+          letterSpacing: 1,
+          color: "#ECE7DA",
+          zIndex: 2,
+        }}
+      >
+        <span>MAP {stats.mapPct}%</span>
+        <span style={{ color: "#E8541E" }}>CASH ${cash}</span>
+        <span>ROUTES {String(stats.routes).padStart(3, "0")}</span>
+      </div>
+
       {/* Sidebar: fixed on the left, slides + fades in on first reveal. */}
       <div
         style={{
@@ -54,6 +81,7 @@ export function App() {
           justifyContent: "center",
           alignItems: "center",
           paddingInlineStart: revealed ? 320 : 0,
+          paddingBlockStart: 56,
           transition: "padding 400ms ease",
         }}
       >
@@ -61,6 +89,7 @@ export function App() {
           cash={cash}
           onEarn={(delta) => setCash((c) => c + delta)}
           snakeEnabled={(upgrades.momentumDrive ?? 0) > 0}
+          onStats={setStats}
         />
       </div>
     </Theme>

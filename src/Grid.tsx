@@ -103,10 +103,12 @@ export function Grid({
   cash,
   onEarn,
   snakeEnabled,
+  onStats,
 }: {
   cash: number;
   onEarn: (delta: number) => void;
   snakeEnabled: boolean;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
@@ -120,6 +122,8 @@ export function Grid({
   // ref so the keydown handler (bound once) always calls the latest onEarn
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;
+  const onStatsRef = useRef(onStats);
+  onStatsRef.current = onStats;
   // mirror snakeEnabled into a ref for the once-bound keydown handler
   const snakeEnabledRef = useRef(snakeEnabled);
   snakeEnabledRef.current = snakeEnabled;
@@ -246,6 +250,15 @@ export function Grid({
       headingRef.current = null;
     };
   }, [snakeEnabled]);
+
+  // report headline stats up to the app HUD
+  useEffect(() => {
+    onStatsRef.current({
+      packagesLeft: specials.size - collected.size,
+      mapPct: TOTAL > 0 ? Math.round((visited.size / TOTAL) * 100) : 0,
+      routes,
+    });
+  }, [specials, collected, visited, TOTAL, routes]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
