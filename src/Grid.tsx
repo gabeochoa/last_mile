@@ -68,6 +68,7 @@ export function Grid({
   extraPackages,
   depotCount,
   autoStartDay,
+  rivals,
   cols,
   rows,
   initialRoutes = 0,
@@ -84,6 +85,9 @@ export function Grid({
   extraPackages: number;
   depotCount: number;
   autoStartDay: boolean;
+  // rival delivery companies still working your area = the unowned market share, made
+  // visible: this many wander the map and thin out as you take share (0 at 0% unowned).
+  rivals: number;
   cols: number;
   rows: number;
   initialRoutes?: number;
@@ -112,6 +116,8 @@ export function Grid({
   const [vans, setVans] = useState<{ x: number; y: number; home: number }[]>([]);
   const vansRef = useRef(vans);
   vansRef.current = vans;
+  // rival company vans (cosmetic): wander open cells, count = `rivals`.
+  const [rivalVans, setRivalVans] = useState<{ x: number; y: number }[]>([]);
 
   // refs so the once-bound keydown handler always sees latest state/props without
   // re-binding — and gsRef updates SYNCHRONOUSLY so rapid/held keys can't re-enter
@@ -298,6 +304,38 @@ export function Grid({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
+
+  // Keep rival vans sized to `rivals`, each spawned on a random open cell. A new
+  // layout (new day / live grow) or a changed count rebuilds them.
+  useEffect(() => {
+    const { cols: gcols, rows: grows, blocked } = gs.layout;
+    const open: number[] = [];
+    for (let c = 0; c < gcols * grows; c++) if (!blocked.has(c)) open.push(c);
+    const mk = () => {
+      const c = open[Math.floor(Math.random() * open.length)] ?? 0;
+      return { x: c % gcols, y: Math.floor(c / gcols) };
+    };
+    setRivalVans(Array.from({ length: rivals }, mk));
+  }, [rivals, gs.layout]);
+
+  // Rival wander tick: each steps to a random adjacent open cell (purely visual).
+  useEffect(() => {
+    if (rivals <= 0) return;
+    const id = window.setInterval(() => {
+      const { cols: gcols, rows: grows, blocked } = gsRef.current.layout;
+      setRivalVans((vs) =>
+        vs.map((v) => {
+          const nbrs = ([[0, -1], [0, 1], [-1, 0], [1, 0]] as const)
+            .map(([dx, dy]) => [v.x + dx, v.y + dy] as [number, number])
+            .filter(([x, y]) => x >= 0 && x < gcols && y >= 0 && y < grows && !blocked.has(idx(x, y, gcols)));
+          if (!nbrs.length) return v;
+          const [nx, ny] = nbrs[Math.floor(Math.random() * nbrs.length)];
+          return { x: nx, y: ny };
+        }),
+      );
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [rivals]);
 
   // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
   // right away so DELIVERIES LEFT updates instantly (next-route counts already fold
@@ -514,6 +552,19 @@ export function Grid({
     }
     ctx.globalAlpha = 1;
 
+    // rival companies: small hollow muted-ink squares, clearly "not yours"
+    ctx.strokeStyle = "rgba(140,135,123,0.9)";
+    ctx.lineWidth = 1;
+    const rinset = Math.max(2, Math.round(cell * 0.32));
+    for (const v of rivalVans) {
+      ctx.strokeRect(
+        offX + v.x * cell + rinset + 0.5,
+        offY + v.y * cell + rinset + 0.5,
+        cell - rinset * 2 - 1,
+        cell - rinset * 2 - 1,
+      );
+    }
+
     // player = solid accent square, slightly inset
     const inset = Math.round(cell * 0.125);
     ctx.fillStyle = ACCENT;
@@ -574,7 +625,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, gcols, grows, cell, dayEnded, canvas]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, rivalVans, gcols, grows, cell, dayEnded, canvas]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>

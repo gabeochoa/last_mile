@@ -330,6 +330,7 @@ export function App() {
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
+          rivals={theirShare > 0 ? Math.max(1, Math.round((theirShare / 100) * 6)) : 0}
           perDelivery={perDelivery(upgrades)}
           routeBonus={routeBonus(upgrades)}
           extraPackages={extraPackages(upgrades)}
