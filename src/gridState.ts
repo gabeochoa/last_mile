@@ -157,6 +157,26 @@ export function applyMove(
   };
 }
 
+// Completion that DOESN'T require a fresh move: if the day is armed (all packages
+// collected) and the player is already standing on a depot, finish the day right
+// now. Covers the case where the fleet (or a remote delivery) collects the last
+// package while the player is parked at the warehouse — otherwise the day would
+// only end after leaving and re-entering the depot. No-op otherwise.
+export function finishIfDone(
+  state: GridState,
+  opts: { routeBonus?: number },
+): { state: GridState; earned: number } {
+  if (state.dayEnded) return { state, earned: 0 };
+  const onDepot = state.layout.depots.has(idx(state.player.x, state.player.y, state.layout.cols));
+  if (isArmed(state) && onDepot) {
+    return {
+      state: { ...state, routes: state.routes + 1, dayEnded: true },
+      earned: opts.routeBonus ?? 0,
+    };
+  }
+  return { state, earned: 0 };
+}
+
 // Collect an arbitrary cell (used by fleet vans): adds an uncollected special to
 // `collected` + pays the bonus, else no-op.
 export function collectAt(

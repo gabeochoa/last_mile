@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
 import { BASE_COLS, CELL, PAD, idx, bfsNextStep } from "./gridLogic";
-import { addPackages, applyMove, collectAt, collectHere, growState, newRoute, startDay, type GridState } from "./gridState";
+import { addPackages, applyMove, collectAt, collectHere, finishIfDone, growState, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
 
@@ -199,6 +199,12 @@ export function Grid({
     const id = window.setInterval(() => {
       const s = gsRef.current;
       if (s.dayEnded) return; // pause autopilot on the day-end screen
+      // already parked on a depot and armed (e.g. fleet grabbed the last one): finish now
+      const fin = finishIfDone(s, { routeBonus: routeBonusRef.current });
+      if (fin.state !== s) {
+        commit(fin);
+        return;
+      }
       const { cols: gcols, rows: grows } = s.layout;
       const here = idx(s.player.x, s.player.y, gcols);
       const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
@@ -280,6 +286,14 @@ export function Grid({
       });
       vansRef.current = next;
       setVans(next);
+      // fleet may have delivered the last package while the player idles on a depot;
+      // end the day now instead of waiting for the player to move onto the depot.
+      const done = finishIfDone(gsRef.current, { routeBonus: routeBonusRef.current });
+      if (done.state !== gsRef.current) {
+        gsRef.current = done.state;
+        setGs(done.state);
+        if (done.earned) onEarnRef.current(done.earned);
+      }
     }, Math.max(60, Math.round(220 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps

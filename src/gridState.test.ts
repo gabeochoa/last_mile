@@ -1,4 +1,4 @@
-import { addPackages, applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
+import { addPackages, applyMove, collectAt, collectHere, finishIfDone, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_COLS, BASE_ROWS, START, idx, makeRng } from "./gridLogic";
 import { ROUTE_BONUS, SPECIAL_BONUS, upgradeCost, type Upgrade } from "./config";
 
@@ -145,6 +145,33 @@ test("applyMove completes the route at ANY depot when armed, not just START", ()
   expect(done.earned).toBe(ROUTE_BONUS);
   expect(done.state.routes).toBe(1);
   expect(done.state.dayEnded).toBe(true);
+});
+
+test("finishIfDone ends the day when armed + parked on a depot, without a move", () => {
+  const onDepotArmed: GridState = {
+    player: { x: 0, y: 0 }, // START depot
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
+    collected: new Set([idx(2, 0, COLS)]), // all packages collected -> armed
+    visited: new Set([START]),
+    routes: 0,
+    dayEnded: false,
+  };
+  const done = finishIfDone(onDepotArmed, { routeBonus: ROUTE_BONUS });
+  expect(done.earned).toBe(ROUTE_BONUS);
+  expect(done.state.routes).toBe(1);
+  expect(done.state.dayEnded).toBe(true);
+
+  // armed but NOT on a depot -> no-op (must still drive back)
+  const offDepot = { ...onDepotArmed, player: { x: 1, y: 0 } };
+  expect(finishIfDone(offDepot, { routeBonus: ROUTE_BONUS }).state).toBe(offDepot);
+
+  // on depot but NOT armed (package left) -> no-op
+  const notArmed = { ...onDepotArmed, collected: new Set<number>() };
+  expect(finishIfDone(notArmed, { routeBonus: ROUTE_BONUS }).state).toBe(notArmed);
+
+  // already ended -> no-op
+  const ended = { ...onDepotArmed, dayEnded: true };
+  expect(finishIfDone(ended, { routeBonus: ROUTE_BONUS }).state).toBe(ended);
 });
 
 test("collectHere collects an uncollected package underfoot, else no-op", () => {
