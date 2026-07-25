@@ -56,6 +56,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "demand", name: "Demand Engine", effect: "more deliveries per day", baseCost: 30, costMult: 1.2 },
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
       { id: "dayBonus", name: "Bulk Contracts", effect: "cash bonus for finishing a day", baseCost: 50, costMult: 1.4, maxLevel: 15 },
+      { id: "surge", name: "Surge Pricing", effect: "×1.5 delivery pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 20 },
     ],
   },
   {
@@ -72,8 +73,10 @@ export const BASE_PACKAGES = 4;
 export function extraPackages(u: Record<string, number>) {
   return u.demand ?? 0;
 }
+// Surge Pricing multiplies the per-delivery payout ×1.5 per level (late-game sink).
+export const SURGE_MULT = 1.5;
 export function perDelivery(u: Record<string, number>) {
-  return SPECIAL_BONUS + (u.routeOpt ?? 0);
+  return Math.round((SPECIAL_BONUS + (u.routeOpt ?? 0)) * SURGE_MULT ** (u.surge ?? 0));
 }
 // Bulk Contracts -> cash bonus for finishing a day (0 until owned, +ROUTE_BONUS/level).
 export function routeBonus(u: Record<string, number>) {

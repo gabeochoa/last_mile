@@ -144,6 +144,8 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
                   ? `$${1 + level}/delivery → $${1 + level + 1}`
                   : item.id === "dayBonus"
                   ? `$${level * 25}/day → $${(level + 1) * 25}`
+                  : item.id === "surge"
+                  ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} pay`
                   : item.effect;
               // Custom row: ListItem.label is string-only, so build the row with
               // Stacks to keep the level badge inline with the title while the
