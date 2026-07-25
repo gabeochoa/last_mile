@@ -153,14 +153,9 @@ export function Grid() {
           setCash((c) => c + SPECIAL_BONUS);
           setFlash(cellIdx);
           window.setTimeout(() => setFlash(null), 200);
-          if (nc.size === specialsRef.current.size) {
-            // all packages delivered: route complete — bonus, bump, fresh layout
-            setRoutes((r) => r + 1);
-            setCash((c) => c + ROUTE_BONUS);
-            newLayout();
-          } else {
-            setCollected(nc);
-          }
+          // collecting the last package only arms completion — driving back to
+          // the depot finishes the route (handled in the movement branch below)
+          setCollected(nc);
         }
         return;
       }
@@ -181,6 +176,17 @@ export function Grid() {
         return;
       }
       const cellIdx = idx(nx, ny);
+      // armed once every package is collected; returning to the depot finishes
+      // the route — pay the bonus, bump the count, and roll a fresh layout
+      const armed =
+        specialsRef.current.size > 0 &&
+        collectedRef.current.size === specialsRef.current.size;
+      if (armed && cellIdx === START) {
+        setRoutes((r) => r + 1);
+        setCash((c) => c + ROUTE_BONUS);
+        newLayout();
+        return;
+      }
       setPlayer({ x: nx, y: ny });
       // movement-only income: pay once, the first time a cell is covered
       if (!visitedRef.current.has(cellIdx)) setCash((c) => c + CASH_PER_STOP);
