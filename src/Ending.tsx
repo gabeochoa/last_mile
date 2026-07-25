@@ -44,16 +44,17 @@ export function Ending({
 
       <div style={{ maxWidth: 520, fontSize: 15, lineHeight: 1.6, opacity: 0.85, letterSpacing: 0.5 }}>
         <p style={{ margin: 0 }}>
-          You've clocked out for the last time. So has everyone else.
+          You own every street now. The map filled in block by block until there was nothing left to
+          expand into.
         </p>
         <p style={{ margin: "10px 0 0" }}>
-          Every doorstep on Earth is a customer now. Total logistics coverage achieved. Thank you for
-          your service. There is nothing left to deliver.
+          The last package was delivered by a machine you bought — on a road you no longer drive.
+          Congratulations on your optimization.
         </p>
       </div>
 
       <div style={{ fontSize: 13, letterSpacing: 1, opacity: 0.75, lineHeight: 1.9 }}>
-        <div>ROUTES RUN {routes}</div>
+        <div>DAYS RUN {routes}</div>
         <div>CASH BANKED ${cash}</div>
         <div style={{ color: "#E8541E" }}>MARKET SHARE 100%</div>
       </div>
