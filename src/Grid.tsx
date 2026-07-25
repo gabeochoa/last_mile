@@ -123,6 +123,8 @@ export function Grid({
   // mirror snakeEnabled into a ref for the once-bound keydown handler
   const snakeEnabledRef = useRef(snakeEnabled);
   snakeEnabledRef.current = snakeEnabled;
+  // current roll direction while momentum drive is owned (null = stopped)
+  const headingRef = useRef<[number, number] | null>(null);
 
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
@@ -222,11 +224,28 @@ export function Grid({
       const d = deltas[e.key];
       if (!d) return;
       e.preventDefault();
+      // momentum drive: arrow steers, then the tick keeps rolling that way
+      if (snakeEnabledRef.current) headingRef.current = d;
       stepRef.current(d[0], d[1]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // momentum drive: roll one cell per tick in the current heading until a wall
+  // (blocked/off-grid) or a completed route stops it. steering is via keydown.
+  useEffect(() => {
+    if (!snakeEnabled) return;
+    const id = window.setInterval(() => {
+      const h = headingRef.current;
+      if (!h) return;
+      if (!stepRef.current(h[0], h[1])) headingRef.current = null; // hit a wall
+    }, 130);
+    return () => {
+      window.clearInterval(id);
+      headingRef.current = null;
+    };
+  }, [snakeEnabled]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
