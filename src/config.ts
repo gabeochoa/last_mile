@@ -1,5 +1,17 @@
 // Single source of game tunables: economy, upgrade costs, share formula, shop.
 
+// Player's brand color. DEFAULT_ACCENT is the original orange; ACCENT_CHOICES are the
+// swatches offered at the start screen. Rivals are always blue, so blue is excluded.
+export const DEFAULT_ACCENT = "#E8541E";
+export const ACCENT_CHOICES = [
+  "#E8541E", // orange (default)
+  "#E5B72E", // amber
+  "#3FB56B", // green
+  "#C13FD6", // magenta
+  "#E23E5C", // red
+  "#2FB6B0", // teal
+];
+
 // Economy: cash comes from delivering a package and, once the Bulk Contracts
 // upgrade is owned, a per-level bonus for finishing a day (0 by default).
 export const ROUTE_BONUS = 25; // bonus per Bulk Contracts level

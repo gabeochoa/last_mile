@@ -8,7 +8,6 @@ import { playSfx } from "./audio";
 
 const BG = "#0F0F0F";
 const INK = "#ECE7DA";
-const ACCENT = "#E8541E";
 const RIVAL = "#4C86E8"; // rival delivery companies (blue), confined to expanded territory
 
 // Expansion cells = anything beyond the original BASE_COLS×BASE_ROWS area. Rivals
@@ -75,6 +74,7 @@ export function Grid({
   depotCount,
   autoStartDay,
   rivals,
+  accent,
   cols,
   rows,
   initialRoutes = 0,
@@ -94,10 +94,13 @@ export function Grid({
   // rival delivery companies still working your area = the unowned market share, made
   // visible: this many wander the map and thin out as you take share (0 at 0% unowned).
   rivals: number;
+  // player's brand color; drives the player, fleet, packages and armed-depot glyphs
+  accent: string;
   cols: number;
   rows: number;
   initialRoutes?: number;
 }) {
+  const ACCENT = accent; // component-scoped so the canvas draw code stays unchanged
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Small-map hero is showing above the grid until the map gets large (mirrors App's
   // bigMap reflow), so reserve room for it. Canvas fills the right side, re-measured
@@ -647,7 +650,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, rivalVans, gcols, grows, cell, dayEnded, canvas]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, rivalVans, gcols, grows, cell, dayEnded, canvas, ACCENT]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>

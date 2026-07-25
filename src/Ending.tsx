@@ -6,11 +6,13 @@ import { useEffect, useState } from "react";
 export function Ending({
   routes,
   cash,
+  accent,
   onRestart,
   onContinue,
 }: {
   routes: number;
   cash: number;
+  accent: string;
   onRestart: () => void;
   onContinue: () => void;
 }) {
@@ -40,7 +42,7 @@ export function Ending({
         transition: "opacity 1200ms ease",
       }}
     >
-      <div style={{ color: "#E8541E" }}>
+      <div style={{ color: accent }}>
         <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>0%</div>
         <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>UNOWNED MARKET</div>
       </div>
@@ -59,7 +61,7 @@ export function Ending({
       <div style={{ fontSize: 13, letterSpacing: 1, opacity: 0.75, lineHeight: 1.9 }}>
         <div>DAYS RUN {routes}</div>
         <div>CASH BANKED ${cash}</div>
-        <div style={{ color: "#E8541E" }}>MARKET SHARE 100%</div>
+        <div style={{ color: accent }}>MARKET SHARE 100%</div>
       </div>
 
       {/* TODO(credits): fill in font + SFX credits when finalized. */}
@@ -72,9 +74,9 @@ export function Ending({
         <button
           onClick={onContinue}
           style={{
-            background: "#E8541E",
+            background: accent,
             color: "#0F0F0F",
-            border: "1px solid #E8541E",
+            border: `1px solid ${accent}`,
             padding: "10px 22px",
             fontFamily: "inherit",
             fontSize: 12,

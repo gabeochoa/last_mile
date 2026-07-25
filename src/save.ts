@@ -9,6 +9,8 @@ export type SaveData = {
   cash: number;
   upgrades: Record<string, number>;
   routes: number;
+  // player's chosen accent color (hex); optional for older saves.
+  accent?: string;
 };
 
 // Pure validator (testable in node): rejects junk, wrong shape, or old versions.
@@ -25,7 +27,8 @@ export function parseSave(json: string): SaveData | null {
   if (typeof o.cash !== "number") return null;
   if (typeof o.routes !== "number") return null;
   if (typeof o.upgrades !== "object" || o.upgrades === null) return null;
-  return { version: 1, cash: o.cash, upgrades: o.upgrades as Record<string, number>, routes: o.routes };
+  const accent = typeof o.accent === "string" ? o.accent : undefined;
+  return { version: 1, cash: o.cash, upgrades: o.upgrades as Record<string, number>, routes: o.routes, accent };
 }
 
 export function save(data: SaveData): void {

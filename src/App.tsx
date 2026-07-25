@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
-import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed } from "./config";
+import { Upgrades, makeMicrographic } from "./Upgrades";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -51,6 +51,9 @@ export function App() {
   const [muted, setMutedState] = useState(isMuted);
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(true);
+  // player's chosen brand color; recolors the whole UI + canvas from one value.
+  const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
+  const theme = useMemo(() => makeMicrographic(accent), [accent]);
 
   // Current map dims from expansion; Demand Engine's cap = cells on the map.
   const dims = sizeForExpansion(expandLevel(upgrades));
@@ -76,8 +79,8 @@ export function App() {
   // Autosave meta whenever it changes (dev never writes the save).
   useEffect(() => {
     if (DEV) return;
-    save({ version: 1, cash, upgrades, routes: stats.routes });
-  }, [cash, upgrades, stats.routes]);
+    save({ version: 1, cash, upgrades, routes: stats.routes, accent });
+  }, [cash, upgrades, stats.routes, accent]);
 
   const onBuy = (id: string) => {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
@@ -125,7 +128,7 @@ export function App() {
   const displayPackages = useAnimatedNumber(stats.packagesLeft);
 
   return (
-    <Theme theme={micrographic} mode="dark">
+    <Theme theme={theme} mode="dark">
       {/* Top banner: map coverage + cash + routes, pinned across the top. */}
       <div
         style={{
@@ -233,8 +236,8 @@ export function App() {
             title="Full reset — wipe save and start from the beginning"
             style={{
               background: "transparent",
-              border: "1px solid rgba(232,84,30,0.5)",
-              color: "#E8541E",
+              border: `1px solid ${accent}`,
+              color: accent,
               fontFamily: "inherit",
               fontSize: 12,
               letterSpacing: 1,
@@ -267,7 +270,7 @@ export function App() {
           maxLevels={maxLevels}
           footer={
             bigMap ? (
-              <span style={{ color: "#E8541E", fontWeight: 700, fontSize: 22, letterSpacing: 2 }}>
+              <span style={{ color: accent, fontWeight: 700, fontSize: 22, letterSpacing: 2 }}>
                 {displayShare}% UNOWNED
               </span>
             ) : undefined
@@ -297,7 +300,7 @@ export function App() {
         {!bigMap && (
           <>
             {/* Hero countdown: unowned market share — hits 0 when you win. */}
-            <div style={{ textAlign: "center", color: "#E8541E" }}>
+            <div style={{ textAlign: "center", color: accent }}>
               <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>
                 {displayShare}%
               </div>
@@ -331,6 +334,7 @@ export function App() {
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
           rivals={theirShare > 0 ? Math.max(1, Math.round((theirShare / 100) * 6)) : 0}
+          accent={accent}
           perDelivery={perDelivery(upgrades)}
           routeBonus={routeBonus(upgrades)}
           extraPackages={extraPackages(upgrades)}
@@ -340,11 +344,12 @@ export function App() {
         />
       </div>
 
-      {intro && <Intro onStart={() => setIntro(false)} />}
+      {intro && <Intro accent={accent} onPickAccent={setAccent} onStart={() => setIntro(false)} />}
       {ended && (
         <Ending
           routes={stats.routes}
           cash={cash}
+          accent={accent}
           onRestart={onRestart}
           onContinue={() => {
             setEnded(false);

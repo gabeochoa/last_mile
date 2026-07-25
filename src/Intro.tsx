@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
+import { ACCENT_CHOICES } from "./config";
 
 // Title / intro screen shown on a fresh start, before the first delivery.
 // Full-screen fixed overlay above the HUD; fades in over ~1.2s (mirrors Ending).
-export function Intro({ onStart }: { onStart: () => void }) {
+// Also lets the player pick their brand color, which recolors the whole game.
+export function Intro({
+  accent,
+  onPickAccent,
+  onStart,
+}: {
+  accent: string;
+  onPickAccent: (color: string) => void;
+  onStart: () => void;
+}) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const raf = requestAnimationFrame(() => setShown(true));
@@ -35,7 +45,7 @@ export function Intro({ onStart }: { onStart: () => void }) {
           transition: "opacity 1200ms ease",
         }}
       >
-      <div style={{ color: "#E8541E" }}>
+      <div style={{ color: accent }}>
         <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: 4, lineHeight: 0.9 }}>
           LAST MILE
         </div>
@@ -46,6 +56,28 @@ export function Intro({ onStart }: { onStart: () => void }) {
         <p style={{ margin: "10px 0 0" }}>
           Deliver the packages, expand your routes, and take over the world's market share.
         </p>
+      </div>
+
+      {/* Brand color picker: recolors the whole game live. */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.6 }}>PICK YOUR COLOR</div>
+        <div style={{ display: "flex", gap: 12 }}>
+          {ACCENT_CHOICES.map((c) => (
+            <button
+              key={c}
+              onClick={() => onPickAccent(c)}
+              title={c}
+              style={{
+                width: 28,
+                height: 28,
+                background: c,
+                border: c === accent ? "2px solid #ECE7DA" : "2px solid transparent",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <button
