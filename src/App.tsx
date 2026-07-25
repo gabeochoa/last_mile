@@ -50,6 +50,7 @@ export function App() {
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
+  const [autoStartEnabled, setAutoStartEnabled] = useState(true);
 
   // Current map dims from expansion; Demand Engine's cap = cells on the map.
   const dims = sizeForExpansion(expandLevel(upgrades));
@@ -177,6 +178,24 @@ export function App() {
               {autopilotEnabled ? "AUTOPILOT ON" : "AUTOPILOT OFF"}
             </button>
           )}
+          {(upgrades.autoStart ?? 0) > 0 && (
+            <button
+              onClick={() => setAutoStartEnabled((v) => !v)}
+              title={autoStartEnabled ? "Days start on their own — click for manual Start Day" : "Manual Start Day — click to auto-start"}
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(236,231,218,0.25)",
+                color: autoStartEnabled ? "#ECE7DA" : "rgba(236,231,218,0.4)",
+                fontFamily: "inherit",
+                fontSize: 12,
+                letterSpacing: 1,
+                padding: "2px 8px",
+                cursor: "pointer",
+              }}
+            >
+              {autoStartEnabled ? "AUTO-START ON" : "AUTO-START OFF"}
+            </button>
+          )}
           {(upgrades.fleet ?? 0) > 0 && (
             <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {upgrades.fleet}</span>
           )}
@@ -302,7 +321,7 @@ export function App() {
           fleet={upgrades.fleet ?? 0}
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
-          autoStartDay={(upgrades.autoStart ?? 0) > 0}
+          autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
           perDelivery={perDelivery(upgrades)}
           routeBonus={routeBonus(upgrades)}
           extraPackages={extraPackages(upgrades)}

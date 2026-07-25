@@ -584,7 +584,9 @@ export function Grid({
       />
       {/* Fixed-height slot so the grid never shifts when the button appears/disappears. */}
       <Stack direction="horizontal" style={{ height: 44, justifyContent: "center", alignItems: "center" }}>
-        {dayEnded && <Button label="Start Day" variant="primary" onClick={beginDay} />}
+        {/* Manual button only when auto-start is off (owned+enabled auto-rolls; the
+            banner AUTO-START toggle controls it once owned). */}
+        {dayEnded && !autoStartDay && <Button label="Start Day" variant="primary" onClick={beginDay} />}
       </Stack>
     </Stack>
   );
