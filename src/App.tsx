@@ -3,7 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Upgrades, micrographic } from "./Upgrades";
 
-const COSTS: Record<string, number> = {};
+const COSTS: Record<string, number> = { autoDeliver: 10 };
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
