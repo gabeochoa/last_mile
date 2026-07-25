@@ -6,8 +6,11 @@ import { Upgrades, micrographic } from "./Upgrades";
 
 const COSTS: Record<string, number> = { momentumDrive: 10 };
 
+// ?dev starts flush so the shop + purchases can be exercised/screenshotted.
+const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
+
 export function App() {
-  const [cash, setCash] = useState(0);
+  const [cash, setCash] = useState(DEV ? 9999 : 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>({});
 
   const onBuy = (id: string) => {
