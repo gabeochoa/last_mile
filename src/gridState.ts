@@ -105,6 +105,22 @@ export function applyMove(
   };
 }
 
+// Collect an arbitrary cell (used by fleet vans): adds an uncollected special to
+// `collected` + pays the bonus, else no-op.
+export function collectAt(
+  state: GridState,
+  cellIdx: number,
+  opts: { cashMult: number },
+): { state: GridState; earned: number } {
+  if (!state.layout.specials.has(cellIdx) || state.collected.has(cellIdx)) {
+    return { state, earned: 0 };
+  }
+  return {
+    state: { ...state, collected: new Set(state.collected).add(cellIdx) },
+    earned: Math.round(SPECIAL_BONUS * opts.cashMult),
+  };
+}
+
 // Space action: collect an uncollected package underfoot (arms completion), else no-op.
 export function collectHere(
   state: GridState,

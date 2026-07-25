@@ -1,4 +1,4 @@
-import { applyMove, collectHere, newRoute, type GridState } from "./gridState";
+import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
 import { COLS, ROWS, START, idx, makeRng } from "./gridLogic";
 import { CASH_PER_STOP, ROUTE_BONUS, SPECIAL_BONUS } from "./config";
 
@@ -112,4 +112,26 @@ test("collectHere collects an uncollected package underfoot, else no-op", () => 
   // no package here -> no-op, same reference
   const miss = collectHere({ ...base, player: { x: 3, y: 0 } }, { cashMult: 1 });
   expect(miss.earned).toBe(0);
+});
+
+test("collectAt collects an uncollected special at any cell, else no-op", () => {
+  const base: GridState = {
+    player: { x: 0, y: 0 },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0)]) },
+    collected: new Set(),
+    visited: new Set([START]),
+    routes: 0,
+    fullBonusPaid: false,
+  };
+  const hit = collectAt(base, idx(2, 0), { cashMult: 1 });
+  expect(hit.earned).toBe(SPECIAL_BONUS);
+  expect(hit.state.collected.has(idx(2, 0))).toBe(true);
+  // already collected -> no-op, same reference
+  const again = collectAt(hit.state, idx(2, 0), { cashMult: 1 });
+  expect(again.earned).toBe(0);
+  expect(again.state).toBe(hit.state);
+  // empty cell -> no-op
+  const empty = collectAt(base, idx(3, 0), { cashMult: 1 });
+  expect(empty.earned).toBe(0);
+  expect(empty.state).toBe(base);
 });
