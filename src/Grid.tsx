@@ -275,13 +275,15 @@ export function Grid() {
       }
     }
 
-    // depot at the start cell: always marked (ink outline box + ⌂ glyph)
+    // depot at the start cell: always marked (ink outline box + ⌂ glyph);
+    // once every package is collected it arms and switches to an accent highlight
+    const armed = specials.size > 0 && collected.size === specials.size;
     const depotX = PAD + (START % COLS) * CELL;
     const depotY = PAD + Math.floor(START / COLS) * CELL;
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = armed ? ACCENT : INK;
+    ctx.lineWidth = armed ? 3 : 1.5;
     ctx.strokeRect(depotX + 2.5, depotY + 2.5, CELL - 5, CELL - 5);
-    ctx.fillStyle = INK;
+    ctx.fillStyle = armed ? ACCENT : INK;
     ctx.font = "16px ui-monospace, Menlo, monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -324,6 +326,13 @@ export function Grid() {
     ctx.textAlign = "right";
     ctx.fillText(`MAP ${mapPct}%`, WIDTH - PAD, rowY1);
     ctx.fillText(`ROUTES ${pad3(routes)}`, WIDTH - PAD, rowY2);
+
+    // armed: prompt the player to drive back to the depot to finish the route
+    if (armed) {
+      ctx.fillStyle = ACCENT;
+      ctx.textAlign = "center";
+      ctx.fillText("RETURN TO DEPOT", WIDTH / 2, PAD + GRID_H - 10);
+    }
     ctx.textAlign = "left";
   }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, cash, TOTAL]);
 
