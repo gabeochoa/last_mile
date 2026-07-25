@@ -51,10 +51,12 @@ export function Grid({
   onEarn,
   onStats,
   autoDeliver,
+  cashMult,
 }: {
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
   autoDeliver: boolean;
+  cashMult: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
@@ -72,6 +74,10 @@ export function Grid({
   onStatsRef.current = onStats;
   const autoDeliverRef = useRef(autoDeliver);
   autoDeliverRef.current = autoDeliver;
+  const cashMultRef = useRef(cashMult);
+  cashMultRef.current = cashMult;
+  // pay `base` cash scaled by the current Route Optimization multiplier
+  const earn = (base: number) => onEarnRef.current(Math.round(base * cashMultRef.current));
 
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
@@ -123,20 +129,20 @@ export function Grid({
       collectedRef.current.size === specialsRef.current.size;
     if (armed && cellIdx === START) {
       setRoutes((r) => r + 1);
-      onEarnRef.current(ROUTE_BONUS);
+      earn(ROUTE_BONUS);
       newLayout();
       return false;
     }
     setPlayer({ x: nx, y: ny });
     // movement-only income: pay once, the first time a cell is covered
-    if (!visitedRef.current.has(cellIdx)) onEarnRef.current(CASH_PER_STOP);
+    if (!visitedRef.current.has(cellIdx)) earn(CASH_PER_STOP);
     const nv = new Set(visitedRef.current).add(cellIdx);
     setVisited(nv);
     // optional one-time bonus for fully exploring the route (never ends the route)
     const total = COLS * ROWS - blockedRef.current.size;
     if (!fullBonusPaidRef.current && nv.size === total) {
       setFullBonusPaid(true);
-      onEarnRef.current(FULL_COVERAGE_BONUS);
+      earn(FULL_COVERAGE_BONUS);
     }
     // auto-deliver: collect a package just by driving over it (no key press)
     if (
@@ -144,7 +150,7 @@ export function Grid({
       specialsRef.current.has(cellIdx) &&
       !collectedRef.current.has(cellIdx)
     ) {
-      onEarnRef.current(SPECIAL_BONUS);
+      earn(SPECIAL_BONUS);
       setFlash(cellIdx);
       window.setTimeout(() => setFlash(null), 200);
       setCollected(new Set(collectedRef.current).add(cellIdx));
@@ -170,7 +176,7 @@ export function Grid({
         const cellIdx = idx(p.x, p.y);
         if (specialsRef.current.has(cellIdx) && !collectedRef.current.has(cellIdx)) {
           const nc = new Set(collectedRef.current).add(cellIdx);
-          onEarnRef.current(SPECIAL_BONUS);
+          earn(SPECIAL_BONUS);
           setFlash(cellIdx);
           window.setTimeout(() => setFlash(null), 200);
           // collecting the last package only arms completion — driving back to
