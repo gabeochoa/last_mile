@@ -49,6 +49,7 @@ export function Grid({
   fleet,
   cashMult,
   extraPackages,
+  autoStartDay,
   cols,
   rows,
   initialRoutes = 0,
@@ -60,6 +61,7 @@ export function Grid({
   fleet: number;
   cashMult: number;
   extraPackages: number;
+  autoStartDay: boolean;
   cols: number;
   rows: number;
   initialRoutes?: number;
@@ -229,6 +231,25 @@ export function Grid({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet]);
+
+  // Auto-Start Day: once owned, the day-end fade shows for a brief beat, then the
+  // next day starts on its own (same commit as the Start Day button). Autopilot +
+  // Fleet pause on day-end and resume once the new route lands, so it loops idle.
+  useEffect(() => {
+    if (!gs.dayEnded || !autoStartDay) return;
+    const id = window.setTimeout(() => {
+      commit({
+        state: startDay(gsRef.current, {
+          cols: colsRef.current,
+          rows: rowsRef.current,
+          packageCount: BASE_PACKAGES + extraPackagesRef.current,
+        }),
+        earned: 0,
+      });
+    }, 900);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs.dayEnded, autoStartDay]);
 
   const { player, layout, visited, collected, routes, dayEnded } = gs;
   const { blocked, specials, cols: gcols, rows: grows } = layout;

@@ -249,6 +249,7 @@ export function App() {
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={upgrades.fleet ?? 0}
+          autoStartDay={(upgrades.autoStart ?? 0) > 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
           {...dims}
