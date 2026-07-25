@@ -42,6 +42,12 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "routeOpt", name: "Route Optimization", effect: "+cash per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
     ],
   },
+  {
+    name: "TERRITORY",
+    items: [
+      { id: "expand", name: "Map Expansion", effect: "adds a street (row/column) to the map", baseCost: 40, costMult: 1.4, maxLevel: 20 },
+    ],
+  },
 ];
 
 // Effect helpers: translate owned upgrade levels into gameplay numbers.
@@ -51,4 +57,8 @@ export function extraPackages(u: Record<string, number>) {
 }
 export function cashMult(u: Record<string, number>) {
   return 1 + (u.routeOpt ?? 0) * 0.25;
+}
+// Map Expansion level -> feed to sizeForExpansion for the current grid dims.
+export function expandLevel(u: Record<string, number>) {
+  return u.expand ?? 0;
 }

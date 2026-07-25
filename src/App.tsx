@@ -3,8 +3,8 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, cashMult, extraPackages, SHARE_PER_ROUTE } from "./config";
-import { BASE_COLS, BASE_ROWS } from "./gridLogic";
+import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, SHARE_PER_ROUTE } from "./config";
+import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
 
@@ -218,8 +218,7 @@ export function App() {
           fleet={upgrades.fleet ?? 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
-          cols={BASE_COLS}
-          rows={BASE_ROWS}
+          {...sizeForExpansion(expandLevel(upgrades))}
           initialRoutes={loaded?.routes ?? 0}
         />
       </div>
