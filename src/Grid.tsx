@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
+import { Button } from "@astryxdesign/core/Button";
 
 const COLS = 8;
 const ROWS = 8;
@@ -45,6 +46,11 @@ export function Grid() {
   const [player, setPlayer] = useState({ x: 0, y: 0 });
   const [visited, setVisited] = useState<Set<number>>(() => new Set([idx(0, 0)]));
   const [routes, setRoutes] = useState(0);
+
+  const reset = () => {
+    setPlayer({ x: 0, y: 0 });
+    setVisited(new Set([idx(0, 0)]));
+  };
 
   useEffect(() => {
     const deltas: Record<string, [number, number]> = {
@@ -153,6 +159,7 @@ export function Grid() {
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
       <Text>{`COVERAGE ${visited.size}/${TOTAL}`}</Text>
       <Text>{`ROUTES ${pad3(routes)}`}</Text>
+      <Button label="Reset" onClick={reset} />
     </Stack>
   );
 }
