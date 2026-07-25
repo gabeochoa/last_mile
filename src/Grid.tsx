@@ -9,21 +9,26 @@ const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
-const FOOTER = 8;
-// Canvas is a FIXED pixel size (the old 6×48 grid); cells shrink as the map grows.
+// Canvas is a FIXED SQUARE (the old 6×48 grid + padding); cells shrink and the
+// grid is centered as the map grows, so the layout never jumps.
 const MAX_CANVAS_PX = BASE_COLS * CELL;
-const WIDTH = MAX_CANVAS_PX + PAD * 2;
-const HEIGHT = MAX_CANVAS_PX + PAD * 2 + FOOTER;
+const CANVAS = MAX_CANVAS_PX + PAD * 2;
 
-function drawRegistration(ctx: CanvasRenderingContext2D, gridW: number, gridH: number) {
+function drawRegistration(
+  ctx: CanvasRenderingContext2D,
+  offX: number,
+  offY: number,
+  gridW: number,
+  gridH: number,
+) {
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1;
   const arm = 5;
   const marks: [number, number][] = [
-    [PAD, PAD],
-    [PAD + gridW, PAD],
-    [PAD, PAD + gridH],
-    [PAD + gridW, PAD + gridH],
+    [offX, offY],
+    [offX + gridW, offY],
+    [offX, offY + gridH],
+    [offX + gridW, offY + gridH],
   ];
   for (const [x, y] of marks) {
     ctx.beginPath();
@@ -228,6 +233,9 @@ export function Grid({
   const cell = Math.floor(MAX_CANVAS_PX / Math.max(gcols, grows));
   const gridW = gcols * cell;
   const gridH = grows * cell;
+  // center the (possibly non-square) grid within the fixed square canvas
+  const offX = Math.floor((CANVAS - gridW) / 2);
+  const offY = Math.floor((CANVAS - gridH) / 2);
 
   // SFX on collect + route-complete, effect-based so Space, auto-deliver, fleet,
   // and autopilot all trigger it uniformly (they all flow through gs).
@@ -256,14 +264,14 @@ export function Grid({
     if (!ctx) return;
 
     ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillRect(0, 0, CANVAS, CANVAS);
 
-    // thin 1px frame
+    // thin 1px frame hugging the fixed square canvas (grid is centered within)
     ctx.strokeStyle = INK;
     ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, WIDTH - 1, HEIGHT - 1);
+    ctx.strokeRect(0.5, 0.5, CANVAS - 1, CANVAS - 1);
 
-    drawRegistration(ctx, gridW, gridH);
+    drawRegistration(ctx, offX, offY, gridW, gridH);
 
     // blocked buildings = solid ink at ~70% alpha
     ctx.fillStyle = INK;
@@ -271,7 +279,7 @@ export function Grid({
     for (const c of blocked) {
       const bx = c % gcols;
       const by = Math.floor(c / gcols);
-      ctx.fillRect(PAD + bx * cell, PAD + by * cell, cell, cell);
+      ctx.fillRect(offX + bx * cell, offY + by * cell, cell, cell);
     }
     ctx.globalAlpha = 1;
 
@@ -281,7 +289,7 @@ export function Grid({
     for (const c of visited) {
       const cx = c % gcols;
       const cy = Math.floor(c / gcols);
-      ctx.fillRect(PAD + cx * cell, PAD + cy * cell, cell, cell);
+      ctx.fillRect(offX + cx * cell, offY + cy * cell, cell, cell);
     }
     ctx.globalAlpha = 1;
 
@@ -290,17 +298,17 @@ export function Grid({
     ctx.globalAlpha = 0.15;
     ctx.lineWidth = 1;
     for (let c = 0; c <= gcols; c++) {
-      const x = PAD + c * cell + 0.5;
+      const x = offX + c * cell + 0.5;
       ctx.beginPath();
-      ctx.moveTo(x, PAD);
-      ctx.lineTo(x, PAD + gridH);
+      ctx.moveTo(x, offY);
+      ctx.lineTo(x, offY + gridH);
       ctx.stroke();
     }
     for (let r = 0; r <= grows; r++) {
-      const y = PAD + r * cell + 0.5;
+      const y = offY + r * cell + 0.5;
       ctx.beginPath();
-      ctx.moveTo(PAD, y);
-      ctx.lineTo(PAD + gridW, y);
+      ctx.moveTo(offX, y);
+      ctx.lineTo(offX + gridW, y);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -308,8 +316,8 @@ export function Grid({
     // special stops: accent ring (uncollected) or dim filled dot (collected)
     const dot = Math.max(4, Math.round(cell * 0.15));
     for (const c of specials) {
-      const cx = PAD + (c % gcols) * cell + cell / 2;
-      const cy = PAD + Math.floor(c / gcols) * cell + cell / 2;
+      const cx = offX + (c % gcols) * cell + cell / 2;
+      const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
       ctx.beginPath();
       ctx.arc(cx, cy, dot, 0, Math.PI * 2);
       if (collected.has(c)) {
@@ -327,8 +335,8 @@ export function Grid({
     // depot at the start cell: always marked (ink outline box + ⌂ glyph);
     // once every package is collected it arms and switches to an accent highlight
     const armed = specials.size > 0 && collected.size === specials.size;
-    const depotX = PAD + (START % gcols) * cell;
-    const depotY = PAD + Math.floor(START / gcols) * cell;
+    const depotX = offX + (START % gcols) * cell;
+    const depotY = offY + Math.floor(START / gcols) * cell;
     ctx.strokeStyle = armed ? ACCENT : INK;
     ctx.lineWidth = armed ? 3 : 1.5;
     ctx.strokeRect(depotX + 2.5, depotY + 2.5, cell - 5, cell - 5);
@@ -345,8 +353,8 @@ export function Grid({
     const vinset = Math.round(cell * 0.25);
     for (const v of vans) {
       ctx.fillRect(
-        PAD + v.x * cell + vinset,
-        PAD + v.y * cell + vinset,
+        offX + v.x * cell + vinset,
+        offY + v.y * cell + vinset,
         cell - vinset * 2,
         cell - vinset * 2,
       );
@@ -357,27 +365,27 @@ export function Grid({
     const inset = Math.round(cell * 0.125);
     ctx.fillStyle = ACCENT;
     ctx.fillRect(
-      PAD + player.x * cell + inset,
-      PAD + player.y * cell + inset,
+      offX + player.x * cell + inset,
+      offY + player.y * cell + inset,
       cell - inset * 2,
       cell - inset * 2,
     );
 
     // brief accent pop when a special is collected
     if (flash !== null) {
-      const fx = PAD + (flash % gcols) * cell + cell / 2;
-      const fy = PAD + Math.floor(flash / gcols) * cell + cell / 2;
+      const fx = offX + (flash % gcols) * cell + cell / 2;
+      const fy = offY + Math.floor(flash / gcols) * cell + cell / 2;
       ctx.beginPath();
       ctx.arc(fx, fy, dot * 2, 0, Math.PI * 2);
       ctx.strokeStyle = ACCENT;
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH]);
+  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH, offX, offY]);
 
   return (
     <Stack direction="vertical" gap={4}>
-      <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
+      <canvas ref={canvasRef} width={CANVAS} height={CANVAS} />
     </Stack>
   );
 }
