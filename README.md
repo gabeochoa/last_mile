@@ -2,13 +2,15 @@
 
 An incremental / idle delivery-dispatch game for **GMTK Game Jam 2026** (theme: **COUNT DOWN**).
 
-You run a last-mile delivery operation. Every shift a package **quota counts down to zero**;
-clear it to bank cash, buy upgrades, and automate the fleet. As the days tick down to
-**the Last Mile**, humans are replaced by self-driving vans until the whole planet is
-covered and everything — quota, days, humans — has counted down to nothing.
+You run a last-mile delivery operation. Every route the packages **count down to zero**;
+clear them and drive back to the depot to bank cash, buy upgrades, and automate the fleet.
+As you take over the market, the **unowned share counts down to zero** — human driving
+replaced by self-driving vans and a hired fleet — until you own every route on Earth: the
+Last Mile.
 
 ## Stack
-Vite + vanilla TypeScript. No framework, no engine. Built from scratch for the jam.
+Vite + React 19 + TypeScript, styled with the **astryx** design system (MIT). Built from
+scratch for the jam.
 
 **Pitch:** run a last-mile delivery op where the package quota counts down to
 zero every shift — clear it, buy upgrades, and automate the fleet until humans,
