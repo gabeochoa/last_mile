@@ -120,14 +120,14 @@ export function Grid({
   extraPackages,
   depotCount,
   autoStartDay,
-  rivals,
+  rivalFraction,
   accent,
   cols,
   rows,
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; reserved: number; total: number; dayEnded: boolean }) => void;
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
@@ -138,9 +138,8 @@ export function Grid({
   extraPackages: number;
   depotCount: number;
   autoStartDay: boolean;
-  // rival delivery companies still working your area = the unowned market share, made
-  // visible: this many wander the map and thin out as you take share (0 at 0% unowned).
-  rivals: number;
+  // fraction (0..1) of the expansion frontier held by rivals; buying them out lowers it
+  rivalFraction: number;
   // player's brand color; drives the player, fleet, packages and armed-depot glyphs
   accent: string;
   cols: number;
@@ -164,7 +163,7 @@ export function Grid({
   // single source of truth for the route; pure applyMove/collectHere produce the next one.
   // The route layout starts fresh on load; only the resumed `routes` count carries over.
   const [gs, setGs] = useState<GridState>(() =>
-    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, rivals),
+    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, rivalFraction),
   );
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
@@ -172,8 +171,8 @@ export function Grid({
   const [vans, setVans] = useState<{ x: number; y: number; home: number }[]>([]);
   const vansRef = useRef(vans);
   vansRef.current = vans;
-  const rivalsRef = useRef(rivals);
-  rivalsRef.current = rivals;
+  const rivalFractionRef = useRef(rivalFraction);
+  rivalFractionRef.current = rivalFraction;
   // blue rival delivery vans driving in from offscreen to service rival points (cosmetic)
   const [rivalVans, setRivalVans] = useState<RivalVan[]>([]);
 
@@ -415,7 +414,7 @@ export function Grid({
     prevColsRef.current = cols;
     prevRowsRef.current = rows;
     if (!grew || gsRef.current.dayEnded) return;
-    const next = growState(gsRef.current, cols, rows);
+    const next = growState(gsRef.current, cols, rows, rivalFractionRef.current);
     gsRef.current = next;
     setGs(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -433,7 +432,7 @@ export function Grid({
           rows: rowsRef.current,
           packageCount: BASE_PACKAGES + extraPackagesRef.current,
           depotCount: depotCountRef.current,
-          rivalCount: rivalsRef.current,
+          rivalFraction: rivalFractionRef.current,
         }),
         earned: 0,
       });
@@ -485,9 +484,11 @@ export function Grid({
       mapPct: TOTAL > 0 ? Math.round((visited.size / TOTAL) * 100) : 0,
       routes,
       capacity,
+      reserved: reserved.size,
+      total: gcols * grows,
       dayEnded,
     });
-  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity]);
+  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, reserved, gcols, grows]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -697,7 +698,7 @@ export function Grid({
         rows: rowsRef.current,
         packageCount: BASE_PACKAGES + extraPackagesRef.current,
         depotCount: depotCountRef.current,
-        rivalCount: rivalsRef.current,
+        rivalFraction: rivalFractionRef.current,
       }),
       earned: 0,
     });

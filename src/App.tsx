@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -45,7 +45,7 @@ export function App() {
   );
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false });
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, reserved: 0, total: 0, dayEnded: false });
   // latch: the shop appears after the first route is finished, then stays.
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
@@ -122,8 +122,10 @@ export function App() {
   }, []);
   const showRate = (upgrades.autopilot ?? 0) > 0;
 
-  // market takeover: unowned share counts down as you EXPAND the map.
-  const theirShare = unownedShare(upgrades);
+  // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
+  const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
+  // Market share you DON'T own = rival delivery cells / total cells (Grid reports both).
+  const theirShare = stats.total > 0 ? Math.round((100 * stats.reserved) / stats.total) : 0;
 
   // Show the ending once every upgrade is maxed (or ?end preview). Continue dismisses
   // it and sets keepPlaying so it won't pop again this session.
@@ -355,10 +357,7 @@ export function App() {
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
-          rivals={Math.max(
-            0,
-            (theirShare > 0 ? Math.max(1, Math.round((theirShare / 100) * 6)) : 0) - (upgrades.buyout ?? 0),
-          )}
+          rivalFraction={rivalFraction}
           accent={accent}
           perDelivery={perDelivery(upgrades)}
           routeBonus={routeBonus(upgrades)}

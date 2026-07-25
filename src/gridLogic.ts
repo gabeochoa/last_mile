@@ -131,22 +131,23 @@ export type Layout = {
   rows: number;
 };
 
-// Place `count` rival delivery points on open EXPANSION cells (non-START, non-depot).
+// Reserve `fraction` (0..1) of the open EXPANSION cells (non-START, non-depot) as
+// rival delivery points — the new frontier is mostly rival-held until you buy them out.
 export function genReserved(
   blocked: Set<number>,
   cols: number,
   rows: number,
-  count: number,
+  fraction: number,
   rng: () => number = Math.random,
   exclude: Set<number> = new Set(),
 ): Set<number> {
   const reserved = new Set<number>();
-  if (count <= 0) return reserved;
+  if (fraction <= 0) return reserved;
   const open: number[] = [];
   for (let c = 0; c < cols * rows; c++) {
     if (c !== START && !blocked.has(c) && !exclude.has(c) && isExpansionCell(c, cols)) open.push(c);
   }
-  const want = Math.min(count, open.length);
+  const want = Math.min(open.length, Math.round(fraction * open.length));
   while (reserved.size < want) reserved.add(open[Math.floor(rng() * open.length)]);
   return reserved;
 }
@@ -264,14 +265,39 @@ function ensureReachable(blocked: Set<number>, cols: number, rows: number): void
 // blocked/specials are remapped to the wider row-width; the appended column(s)/row(s)
 // are OPEN streets (never added to blocked). Reachability is then guaranteed by
 // opening seam/bridge cells so the new streets connect to the existing network.
-export function growLayout(layout: Layout, newCols: number, newRows: number): Layout {
+export function growLayout(
+  layout: Layout,
+  newCols: number,
+  newRows: number,
+  rivalFraction = 0,
+  rng: () => number = Math.random,
+): Layout {
   const { cols: oldCols, rows: oldRows } = layout;
   if (newCols <= oldCols && newRows <= oldRows) return layout;
   const blocked = remapIndices(layout.blocked, oldCols, newCols);
   const specials = remapIndices(layout.specials, oldCols, newCols);
   const depots = remapIndices(layout.depots, oldCols, newCols);
   const reserved = remapIndices(layout.reserved ?? new Set(), oldCols, newCols);
+  // newly-appended cells (the grown column(s)/row(s))
+  const newCells: number[] = [];
+  for (let c = 0; c < newCols * newRows; c++) {
+    if (c % newCols >= oldCols || Math.floor(c / newCols) >= oldRows) newCells.push(c);
+  }
+  // Populate the new frontier: some buildings, then reserve a fraction as rivals. Gated
+  // on rivalFraction>0 so the plain grow (tests) still just opens the new streets.
+  if (rivalFraction > 0) {
+    for (const c of newCells) if (c !== START && rng() < 0.35) blocked.add(c);
+  }
   ensureReachable(blocked, newCols, newRows);
+  if (rivalFraction > 0) {
+    const openNew = newCells.filter((c) => c !== START && !blocked.has(c) && !depots.has(c));
+    for (let i = openNew.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [openNew[i], openNew[j]] = [openNew[j], openNew[i]];
+    }
+    const want = Math.round(rivalFraction * openNew.length);
+    for (let i = 0; i < want; i++) reserved.add(openNew[i]);
+  }
   return { blocked, specials, depots, reserved, cols: newCols, rows: newRows };
 }
 
@@ -283,13 +309,13 @@ export function genLayout(
   count = BASE_PACKAGES,
   depotCount = 1,
   rng: () => number = Math.random,
-  rivalCount = 0,
+  rivalFraction = 0,
 ): Layout {
   // depots first, then rivals claim expansion cells, then your deliveries fill what's
   // left (avoiding both) — so rivals genuinely take space away from you.
   const build = (blocked: Set<number>): Layout => {
     const depots = genDepots(blocked, cols, rows, depotCount, rng);
-    const reserved = genReserved(blocked, cols, rows, rivalCount, rng, depots);
+    const reserved = genReserved(blocked, cols, rows, rivalFraction, rng, depots);
     const exclude = new Set<number>([...depots, ...reserved]);
     return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, exclude), depots, reserved, cols, rows };
   };
