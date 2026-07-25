@@ -105,7 +105,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
         paddingInline={4}
         paddingBlock={3}
         gap={3}
-        justify="center"
+        justify="between"
         vAlign="center"
         style={{ borderBlockEnd: "1px solid var(--color-border-emphasized)" }}
       >
