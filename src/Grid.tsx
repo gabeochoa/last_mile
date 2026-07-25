@@ -47,6 +47,7 @@ export function Grid({
   autoDeliver,
   autopilot,
   fleet,
+  vanSpeed,
   perDelivery,
   extraPackages,
   depotCount,
@@ -60,6 +61,7 @@ export function Grid({
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
+  vanSpeed: number;
   perDelivery: number;
   extraPackages: number;
   depotCount: number;
@@ -95,6 +97,8 @@ export function Grid({
   autopilotRef.current = autopilot;
   const fleetRef = useRef(fleet);
   fleetRef.current = fleet;
+  const vanSpeedRef = useRef(vanSpeed);
+  vanSpeedRef.current = vanSpeed;
   const perDeliveryRef = useRef(perDelivery);
   perDeliveryRef.current = perDelivery;
   const extraPackagesRef = useRef(extraPackages);
@@ -174,10 +178,10 @@ export function Grid({
       const dir = bfsNextStep(s.layout.blocked, here, target, gcols, grows);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, 150);
+    }, Math.max(40, Math.round(150 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autopilot]);
+  }, [autopilot, vanSpeed]);
 
   // Keep the van array sized to `fleet` with each van spawned AT its home depot.
   // Van i homes to the i-th sorted depot (round-robin). A new layout (new route or
@@ -241,10 +245,10 @@ export function Grid({
       });
       vansRef.current = next;
       setVans(next);
-    }, 220);
+    }, Math.max(60, Math.round(220 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fleet]);
+  }, [fleet, vanSpeed]);
 
   // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
   // right away so DELIVERIES LEFT updates instantly (next-route counts already fold
