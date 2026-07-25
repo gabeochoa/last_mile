@@ -1,6 +1,6 @@
 import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
 import { BASE_COLS, BASE_ROWS, START, idx, makeRng } from "./gridLogic";
-import { ROUTE_BONUS, SPECIAL_BONUS } from "./config";
+import { ROUTE_BONUS, SPECIAL_BONUS, upgradeCost, type Upgrade } from "./config";
 
 const COLS = BASE_COLS;
 const ROWS = BASE_ROWS;
@@ -136,4 +136,17 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
   const empty = collectAt(base, idx(3, 0, COLS), { cashMult: 1 });
   expect(empty.earned).toBe(0);
   expect(empty.state).toBe(base);
+});
+
+test("upgradeCost is round, starts at baseCost, and strictly increases", () => {
+  const u: Upgrade = { name: "x", effect: "", baseCost: 30, costMult: 1.6, maxLevel: 15 };
+  expect(upgradeCost(u, 0)).toBe(30); // level 0 == baseCost
+  let prev = 0;
+  for (let l = 0; l < 15; l++) {
+    const c = upgradeCost(u, l);
+    expect(c).toBeGreaterThan(prev); // strictly increasing
+    const step = c < 100 ? 5 : c < 1000 ? 10 : c < 10000 ? 50 : 100;
+    expect(c % step).toBe(0); // rounded to a nice step
+    prev = c;
+  }
 });

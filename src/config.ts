@@ -19,9 +19,22 @@ export type Upgrade = {
   locked?: boolean;
 };
 
-// Cost of the next level: baseCost grows by costMult per level already owned.
+// Round to a clean step that scales with magnitude: 5 (<100), 10 (<1k), 50 (<10k), 100 (>=10k).
+const niceStep = (n: number) => (n < 100 ? 5 : n < 1000 ? 10 : n < 10000 ? 50 : 100);
+const roundNice = (n: number) => Math.round(n / niceStep(n)) * niceStep(n);
+
+// Cost of the next level: baseCost grows by costMult per level already owned, then
+// rounded to a nice number. Walk levels 0..level so the result stays strictly
+// increasing (bump by one step if rounding collides with the previous level).
 export function upgradeCost(u: Upgrade, level: number): number {
-  return Math.floor((u.baseCost ?? 0) * (u.costMult ?? 1) ** level);
+  const base = u.baseCost ?? 0;
+  const mult = u.costMult ?? 1;
+  let cost = -Infinity;
+  for (let l = 0; l <= level; l++) {
+    const rounded = roundNice(base * mult ** l);
+    cost = rounded <= cost ? cost + niceStep(cost) : rounded;
+  }
+  return cost;
 }
 
 export const BUCKETS: { name: string; items: Upgrade[] }[] = [
