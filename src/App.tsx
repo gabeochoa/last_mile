@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -124,8 +124,8 @@ export function App() {
 
   // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
   const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
-  // Market share you DON'T own = rival delivery cells / total cells (Grid reports both).
-  const theirShare = stats.total > 0 ? Math.round((100 * stats.reserved) / stats.total) : 0;
+  // Planet-wide unowned market share (starts 100%, → 0 when you own every spot).
+  const theirShare = unownedShare(upgrades);
 
   // Show the ending once every upgrade is maxed (or ?end preview). Continue dismisses
   // it and sets keepPlaying so it won't pop again this session.

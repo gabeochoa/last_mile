@@ -130,10 +130,16 @@ export function depotCount(u: Record<string, number>) {
 export function expandLevel(u: Record<string, number>) {
   return u.expand ?? 0;
 }
-// Owning the market IS fully expanding the map: each Map Expansion level claims
-// an equal slice, so unowned share counts down to 0 at full expansion.
 export const EXPAND_MAX =
   BUCKETS.flatMap((b) => b.items).find((i) => i.id === "expand")?.maxLevel ?? 20;
+export const BUYOUT_MAX =
+  BUCKETS.flatMap((b) => b.items).find((i) => i.id === "buyout")?.maxLevel ?? 6;
+// Planet-wide market share (NOT just the visible grid): you own the fraction of the
+// planet you've expanded into AND cleared of rivals. Starts at 100% unowned and only
+// hits 0% once you've expanded everywhere (EXPAND_MAX) and bought out every rival
+// (BUYOUT_MAX) — i.e. you own every empty spot on the planet.
 export function unownedShare(u: Record<string, number>): number {
-  return Math.max(0, Math.round(100 * (1 - expandLevel(u) / EXPAND_MAX)));
+  const reached = expandLevel(u) / EXPAND_MAX; // how much of the planet you've expanded into
+  const claimed = (u.buyout ?? 0) / BUYOUT_MAX; // how much of it you've taken from rivals
+  return Math.max(0, Math.round(100 * (1 - reached * claimed)));
 }
