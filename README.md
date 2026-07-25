@@ -10,13 +10,35 @@ covered and everything — quota, days, humans — has counted down to nothing.
 ## Stack
 Vite + vanilla TypeScript. No framework, no engine. Built from scratch for the jam.
 
+**Pitch:** run a last-mile delivery op where the package quota counts down to
+zero every shift — clear it, buy upgrades, and automate the fleet until humans,
+days, and quota have all counted down to nothing.
+
+**Controls:** Arrow keys drive, Space delivers — or buy Auto-Deliver / Autopilot
+to automate it.
+
 ## Develop
 ```
 npm install
 npm run dev      # http://localhost:5173  (hot reload)
 npm run test     # vitest
-npm run build    # -> dist/  (itch.io build; index.html at zip root)
+npm run build    # -> dist/  (index.html + assets/, relative paths)
 ```
 
+## Build & submit to itch.io
+```
+npm run package  # build + zip -> the_last_mile_web.zip (index.html at zip ROOT)
+```
+Then on itch.io:
+1. Create/edit a project, set **Kind of project** to **HTML**.
+2. Upload `the_last_mile_web.zip` and tick **This file will be played in the browser**.
+3. Set the embed **viewport to ~1280x800**.
+4. Enable the **fullscreen button**.
+5. Save & view — the game runs standalone in the iframe (assets use relative
+   paths via `base: "./"`, so no server config is needed).
+
 ## Credits
-Art/audio: code-drawn + free asset packs (credited in-game). No generative AI.
+- **Visuals:** code-drawn micrographic art, no generative AI.
+- **Audio:** WebAudio SFX synthesized in code (starts on first input gesture).
+- **UI:** components by **astryx** (MIT, github.com/facebook/astryx).
+- TODO: credit any fonts if added later.
