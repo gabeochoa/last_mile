@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
@@ -84,6 +84,21 @@ export function App() {
     playSfx("purchase");
   };
 
+  // Cash rate ($/s): sample the cash delta once a second. Shown in the banner once
+  // Autopilot is owned (that's when income runs hands-off and a rate is meaningful).
+  const [rate, setRate] = useState(0);
+  const cashRef = useRef(cash);
+  cashRef.current = cash;
+  const lastCashRef = useRef(cash);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setRate(cashRef.current - lastCashRef.current);
+      lastCashRef.current = cashRef.current;
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const showRate = (upgrades.autopilot ?? 0) > 0;
+
   // market takeover: unowned share counts down as you EXPAND the map.
   const theirShare = unownedShare(upgrades);
 
@@ -124,7 +139,14 @@ export function App() {
         }}
       >
         <span>DAY {stats.routes + 1}</span>
-        <span>CASH ${cash}</span>
+        <span>
+          CASH ${cash}
+          {showRate && (
+            <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
+              {rate >= 0 ? "+" : "−"}${Math.abs(rate)}/s
+            </span>
+          )}
+        </span>
         {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
 
         {/* Controls grouped right: autopilot toggle · drivers · SFX · reset */}
