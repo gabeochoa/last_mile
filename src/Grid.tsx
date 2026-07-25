@@ -17,7 +17,8 @@ const ACCENT = "#E8541E";
 const BLOCKED = new Set([7, 8, 9, 10, 19, 20, 21, 22]);
 
 const FOOTER = 30;
-const TOTAL = COLS * ROWS;
+// only non-blocked cells count toward a completed route
+const TOTAL = COLS * ROWS - BLOCKED.size;
 const GRID_H = ROWS * CELL;
 const WIDTH = COLS * CELL + PAD * 2;
 const HEIGHT = GRID_H + PAD * 2 + FOOTER;
