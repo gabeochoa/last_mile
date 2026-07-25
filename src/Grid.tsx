@@ -563,10 +563,9 @@ export function Grid({
     const armed = specials.size > 0 && collected.size === specials.size;
     for (const c of depots) drawDepot(c, armed);
 
-    // hired fleet = YOUR drivers: your accent color, smaller + dimmer so the main
-    // player still reads as "you" (rivals are the blue ones).
+    // hired fleet = YOUR drivers: solid accent, just smaller than the main player so
+    // it still reads as "you" (rivals are the blue ones).
     ctx.fillStyle = ACCENT;
-    ctx.globalAlpha = 0.6;
     const vinset = Math.round(cell * 0.25);
     for (const v of vans) {
       ctx.fillRect(
@@ -576,7 +575,6 @@ export function Grid({
         cell - vinset * 2,
       );
     }
-    ctx.globalAlpha = 1;
 
     // rival companies: small BLUE squares in the expansion territory, clearly "not yours"
     ctx.fillStyle = RIVAL;
