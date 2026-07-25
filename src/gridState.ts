@@ -8,10 +8,6 @@ import {
   remapIndices,
   type Layout,
 } from "./gridLogic";
-import {
-  ROUTE_BONUS,
-} from "./config";
-
 export type GridState = {
   player: { x: number; y: number };
   layout: Layout;
@@ -102,6 +98,8 @@ const isArmed = (s: GridState) =>
 type MoveOpts = {
   autoDeliver: boolean;
   perDelivery: number;
+  // cash paid when a day is completed at a depot (0 until Bulk Contracts is owned)
+  routeBonus?: number;
   packageCount: number;
   // dims for the NEXT route seeded on completion (buying expansion mid-run grows it)
   cols: number;
@@ -110,8 +108,9 @@ type MoveOpts = {
 };
 
 // one grid move in (dx,dy). Off-grid/blocked = no-op. Armed + depot ENDS the day
-// (same state, routes+1, dayEnded true, paying ROUTE_BONUS — startDay() begins the
-// next route). Otherwise advances a cell (tracking coverage for the map% stat, no
+// (same state, routes+1, dayEnded true, paying opts.routeBonus — 0 unless Bulk
+// Contracts is owned — and startDay() begins the next route). Otherwise advances a
+// cell (tracking coverage for the map% stat, no
 // payout) and, if autoDeliver, collects any package driven over. Cash comes only
 // from deliveries and finishing a route.
 export function applyMove(
@@ -139,7 +138,7 @@ export function applyMove(
   if (isArmed(state) && state.layout.depots.has(cellIdx)) {
     return {
       state: { ...state, routes: state.routes + 1, dayEnded: true },
-      earned: ROUTE_BONUS,
+      earned: opts.routeBonus ?? 0,
     };
   }
 

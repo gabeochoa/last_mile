@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -282,6 +282,7 @@ export function App() {
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0}
           perDelivery={perDelivery(upgrades)}
+          routeBonus={routeBonus(upgrades)}
           extraPackages={extraPackages(upgrades)}
           depotCount={depotCount(upgrades)}
           {...dims}

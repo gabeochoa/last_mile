@@ -40,7 +40,7 @@ function bfsPath(from: number, to: number, blocked: Set<number>): [number, numbe
 
 test("playing a full route ends the day, then startDay begins the next one", () => {
   const rng = makeRng(1234);
-  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
+  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, routeBonus: ROUTE_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
   let s = newRoute(COLS, ROWS, 4, 1, 0, rng);
   const packages = [...s.layout.specials];
   const layoutBefore = s.layout;
@@ -88,7 +88,7 @@ test("regression: completing a route ends the day and freezes further moves", ()
     routes: 0,
     dayEnded: false,
   };
-  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
+  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, routeBonus: ROUTE_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
 
   // move INTO the depot: ends the day
   const first = applyMove(armed, -1, 0, opts);
@@ -102,6 +102,21 @@ test("regression: completing a route ends the day and freezes further moves", ()
   expect(second.state).toBe(ended); // same reference — nothing changed
   expect(second.earned).toBe(0);
   expect(second.state.routes).toBe(1);
+});
+
+test("completing a day pays no bonus by default (routeBonus omitted)", () => {
+  const armed: GridState = {
+    player: { x: 1, y: 0 },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
+    collected: new Set([idx(2, 0, COLS)]),
+    visited: new Set([START, idx(1, 0, COLS)]),
+    routes: 0,
+    dayEnded: false,
+  };
+  // no routeBonus in opts -> finishing the day pays $0 (bonus is upgrade-gated)
+  const done = applyMove(armed, -1, 0, { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS });
+  expect(done.earned).toBe(0);
+  expect(done.state.dayEnded).toBe(true);
 });
 
 test("applyMove completes the route at ANY depot when armed, not just START", () => {
@@ -122,7 +137,7 @@ test("applyMove completes the route at ANY depot when armed, not just START", ()
     routes: 0,
     dayEnded: false,
   };
-  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
+  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, routeBonus: ROUTE_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
 
   // stepping east onto the non-START depot ends the day + pays the route bonus
   const done = applyMove(armed, 1, 0, opts);

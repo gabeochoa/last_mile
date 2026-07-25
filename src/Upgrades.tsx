@@ -142,6 +142,8 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
               const description =
                 item.id === "routeOpt"
                   ? `$${1 + level}/delivery → $${1 + level + 1}`
+                  : item.id === "dayBonus"
+                  ? `$${level * 25}/day → $${(level + 1) * 25}`
                   : item.effect;
               // Custom row: ListItem.label is string-only, so build the row with
               // Stacks to keep the level badge inline with the title while the

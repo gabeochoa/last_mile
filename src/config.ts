@@ -1,7 +1,8 @@
 // Single source of game tunables: economy, upgrade costs, share formula, shop.
 
-// Economy: cash comes only from delivering a package and finishing a route.
-export const ROUTE_BONUS = 25;
+// Economy: cash comes from delivering a package and, once the Bulk Contracts
+// upgrade is owned, a per-level bonus for finishing a day (0 by default).
+export const ROUTE_BONUS = 25; // bonus per Bulk Contracts level
 export const SPECIAL_BONUS = 1;
 
 // Market-takeover math: each cleared route claims this much share.
@@ -54,6 +55,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "demand", name: "Demand Engine", effect: "more deliveries per day", baseCost: 30, costMult: 1.2 },
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
+      { id: "dayBonus", name: "Bulk Contracts", effect: "cash bonus for finishing a day", baseCost: 50, costMult: 1.4, maxLevel: 15 },
     ],
   },
   {
@@ -72,6 +74,10 @@ export function extraPackages(u: Record<string, number>) {
 }
 export function perDelivery(u: Record<string, number>) {
   return SPECIAL_BONUS + (u.routeOpt ?? 0);
+}
+// Bulk Contracts -> cash bonus for finishing a day (0 until owned, +ROUTE_BONUS/level).
+export function routeBonus(u: Record<string, number>) {
+  return (u.dayBonus ?? 0) * ROUTE_BONUS;
 }
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {

@@ -64,6 +64,7 @@ export function Grid({
   vanSpeed,
   daySpeed,
   perDelivery,
+  routeBonus,
   extraPackages,
   depotCount,
   autoStartDay,
@@ -79,6 +80,7 @@ export function Grid({
   vanSpeed: number;
   daySpeed: number;
   perDelivery: number;
+  routeBonus: number;
   extraPackages: number;
   depotCount: number;
   autoStartDay: boolean;
@@ -131,6 +133,8 @@ export function Grid({
   daySpeedRef.current = daySpeed;
   const perDeliveryRef = useRef(perDelivery);
   perDeliveryRef.current = perDelivery;
+  const routeBonusRef = useRef(routeBonus);
+  routeBonusRef.current = routeBonus;
   const extraPackagesRef = useRef(extraPackages);
   extraPackagesRef.current = extraPackages;
   const depotCountRef = useRef(depotCount);
@@ -158,6 +162,7 @@ export function Grid({
   const moveOpts = () => ({
     autoDeliver: autoDeliverRef.current,
     perDelivery: perDeliveryRef.current,
+    routeBonus: routeBonusRef.current,
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
     rows: rowsRef.current,
