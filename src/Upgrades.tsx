@@ -101,11 +101,12 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
       }}
     >
       {/* Header */}
-      <VStack
+      <HStack
         paddingInline={4}
         paddingBlock={3}
-        gap={2}
-        hAlign="center"
+        gap={3}
+        justify="center"
+        vAlign="center"
         style={{ borderBlockEnd: "1px solid var(--color-border-emphasized)" }}
       >
         <Heading level={1} color="accent">UPGRADES</Heading>
@@ -115,7 +116,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels }: UpgradesProps) {
           value={hideCompleted}
           onChange={setHideCompleted}
         />
-      </VStack>
+      </HStack>
 
       {/* Upgrade buckets */}
       <VStack isScrollable>
