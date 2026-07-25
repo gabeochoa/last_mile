@@ -146,6 +146,7 @@ export function App() {
           onStats={setStats}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           autopilot={(upgrades.autopilot ?? 0) > 0}
+          fleet={upgrades.fleet ?? 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
         />

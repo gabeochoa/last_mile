@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
 import { COLS, ROWS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
-import { applyMove, collectHere, newRoute, type GridState } from "./gridState";
+import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 
 const BG = "#0F0F0F";
@@ -39,6 +39,7 @@ export function Grid({
   onStats,
   autoDeliver,
   autopilot,
+  fleet,
   cashMult,
   extraPackages,
 }: {
@@ -46,6 +47,7 @@ export function Grid({
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
   autoDeliver: boolean;
   autopilot: boolean;
+  fleet: number;
   cashMult: number;
   extraPackages: number;
 }) {
@@ -53,6 +55,10 @@ export function Grid({
   // single source of truth for the route; pure applyMove/collectHere produce the next one
   const [gs, setGs] = useState<GridState>(() => newRoute(BASE_PACKAGES + extraPackages));
   const [flash, setFlash] = useState<number | null>(null);
+  // hired fleet vans: {x,y} per van, driven by the fleet tick (ref-mirrored)
+  const [vans, setVans] = useState<{ x: number; y: number }[]>([]);
+  const vansRef = useRef(vans);
+  vansRef.current = vans;
 
   // refs so the once-bound keydown handler always sees latest state/props without
   // re-binding — and gsRef updates SYNCHRONOUSLY so rapid/held keys can't re-enter
@@ -66,6 +72,8 @@ export function Grid({
   autoDeliverRef.current = autoDeliver;
   const autopilotRef = useRef(autopilot);
   autopilotRef.current = autopilot;
+  const fleetRef = useRef(fleet);
+  fleetRef.current = fleet;
   const cashMultRef = useRef(cashMult);
   cashMultRef.current = cashMult;
   const extraPackagesRef = useRef(extraPackages);
@@ -147,6 +155,57 @@ export function Grid({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot]);
+
+  // Keep the van array sized to `fleet` (new vans spawn at the depot), and reset
+  // all vans home whenever a route completes (gs.routes ticks up).
+  const prevRoutesRef = useRef(gs.routes);
+  useEffect(() => {
+    const routeChanged = prevRoutesRef.current !== gs.routes;
+    prevRoutesRef.current = gs.routes;
+    setVans((prev) => {
+      if (routeChanged || prev.length > fleet) {
+        return Array.from({ length: fleet }, () => ({ x: 0, y: 0 }));
+      }
+      if (prev.length < fleet) {
+        return [...prev, ...Array.from({ length: fleet - prev.length }, () => ({ x: 0, y: 0 }))];
+      }
+      return prev;
+    });
+  }, [fleet, gs.routes]);
+
+  // Fleet tick: slower than autopilot. Each van drives one step toward its nearest
+  // uncollected package (or home if none) and collects on arrival via collectAt —
+  // updating the shared route so completion arms + cash is paid. Vans never
+  // complete routes; only the main van reaching the depot does.
+  useEffect(() => {
+    if (fleet <= 0) return;
+    const id = window.setInterval(() => {
+      const { layout } = gsRef.current;
+      const next = vansRef.current.map((van) => {
+        const from = idx(van.x, van.y);
+        const left = [...layout.specials].filter((c) => !gsRef.current.collected.has(c));
+        const dist = (c: number) =>
+          Math.abs((c % COLS) - van.x) + Math.abs(Math.floor(c / COLS) - van.y);
+        const target = left.length ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : START;
+        const dir = bfsNextStep(layout.blocked, from, target);
+        if (!dir) return van;
+        const nv = { x: van.x + dir[0], y: van.y + dir[1] };
+        const { state, earned } = collectAt(gsRef.current, idx(nv.x, nv.y), {
+          cashMult: cashMultRef.current,
+        });
+        if (earned) {
+          gsRef.current = state;
+          setGs(state);
+          onEarnRef.current(earned);
+        }
+        return nv;
+      });
+      vansRef.current = next;
+      setVans(next);
+    }, 220);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleet]);
 
   const { player, layout, visited, collected, routes } = gs;
   const { blocked, specials } = layout;
@@ -248,6 +307,20 @@ export function Grid({
     ctx.fillText("⌂", depotX + CELL / 2, depotY + CELL / 2 + 1);
     ctx.textAlign = "left";
 
+    // hired fleet vans: smaller, dimmer ink squares so the orange player stays "you"
+    ctx.fillStyle = INK;
+    ctx.globalAlpha = 0.6;
+    const vinset = 12;
+    for (const v of vans) {
+      ctx.fillRect(
+        PAD + v.x * CELL + vinset,
+        PAD + v.y * CELL + vinset,
+        CELL - vinset * 2,
+        CELL - vinset * 2,
+      );
+    }
+    ctx.globalAlpha = 1;
+
     // player = solid accent square, slightly inset
     const inset = 6;
     ctx.fillStyle = ACCENT;
@@ -268,7 +341,7 @@ export function Grid({
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL]);
+  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL, vans]);
 
   return (
     <Stack direction="vertical" gap={4}>
