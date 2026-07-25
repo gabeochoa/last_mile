@@ -132,6 +132,25 @@ export function App() {
         >
           {muted ? "SFX OFF" : "SFX ON"}
         </button>
+        {/* temporary: full reset (wipe save + reload) for testing */}
+        <button
+          onClick={onRestart}
+          title="Full reset — wipe save and start from the beginning"
+          style={{
+            position: "absolute",
+            insetInlineEnd: 12,
+            background: "transparent",
+            border: "1px solid rgba(232,84,30,0.5)",
+            color: "#E8541E",
+            fontFamily: "inherit",
+            fontSize: 12,
+            letterSpacing: 1,
+            padding: "2px 8px",
+            cursor: "pointer",
+          }}
+        >
+          RESET
+        </button>
       </div>
 
       {/* Sidebar: fixed on the left, slides + fades in on first reveal. */}
