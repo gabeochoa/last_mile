@@ -340,15 +340,6 @@ export function Grid({
       ctx.stroke();
     }
 
-    // armed: prompt the player to drive back to the depot to finish the route
-    if (armed) {
-      ctx.fillStyle = ACCENT;
-      ctx.font = "12px ui-monospace, Menlo, monospace";
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "center";
-      ctx.fillText("RETURN TO DEPOT", WIDTH / 2, PAD + GRID_H - 10);
-      ctx.textAlign = "left";
-    }
   }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL]);
 
   return (
