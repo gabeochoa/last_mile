@@ -44,10 +44,10 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
-      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 5 },
+      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 10 },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1 },
-      { id: "vanSpeed", name: "Faster Vans", effect: "vans drive faster", baseCost: 100, costMult: 1.5, maxLevel: 8 },
-      { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 5 },
+      { id: "vanSpeed", name: "Faster Vans", effect: "vans drive faster", baseCost: 100, costMult: 1.5, maxLevel: 12 },
+      { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 8 },
     ],
   },
   {
@@ -63,7 +63,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "TERRITORY",
     items: [
       { id: "expand", name: "Map Expansion", effect: "adds a street (row/column) to the map", baseCost: 40, costMult: 1.2, maxLevel: 20 },
-      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 5 },
+      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 8 },
     ],
   },
 ];
