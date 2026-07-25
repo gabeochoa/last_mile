@@ -44,6 +44,7 @@ export function Grid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
   const [visited, setVisited] = useState<Set<number>>(() => new Set([idx(0, 0)]));
+  const [routes, setRoutes] = useState(0);
 
   useEffect(() => {
     const deltas: Record<string, [number, number]> = {
@@ -61,7 +62,15 @@ export function Grid() {
           x: Math.max(0, Math.min(COLS - 1, p.x + d[0])),
           y: Math.max(0, Math.min(ROWS - 1, p.y + d[1])),
         };
-        setVisited((v) => new Set(v).add(idx(next.x, next.y)));
+        setVisited((v) => {
+          const nv = new Set(v).add(idx(next.x, next.y));
+          if (nv.size === TOTAL) {
+            // route complete: bump counter, clear for a fresh run
+            setRoutes((r) => r + 1);
+            return new Set([idx(next.x, next.y)]);
+          }
+          return nv;
+        });
         return next;
       });
     };
@@ -127,17 +136,23 @@ export function Grid() {
     ctx.fillStyle = INK;
     ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.textBaseline = "middle";
+    const labelY = PAD + GRID_H + FOOTER / 2 + 2;
     ctx.fillText(
       `COVERAGE ${pad3(visited.size).slice(1)}/${TOTAL}`,
       PAD,
-      PAD + GRID_H + FOOTER / 2 + 2,
+      labelY,
     );
-  }, [player.x, player.y, visited]);
+    const routesLabel = `ROUTES ${pad3(routes)}`;
+    ctx.textAlign = "right";
+    ctx.fillText(routesLabel, WIDTH - PAD, labelY);
+    ctx.textAlign = "left";
+  }, [player.x, player.y, visited, routes]);
 
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
       <Text>{`COVERAGE ${visited.size}/${TOTAL}`}</Text>
+      <Text>{`ROUTES ${pad3(routes)}`}</Text>
     </Stack>
   );
 }
