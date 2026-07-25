@@ -26,6 +26,11 @@ const micrographic = defineTheme({
     "--color-on-accent": ["#0F0F0F", "#0F0F0F"],
     "--color-border": ["#ECE7DA26", "#ECE7DA26"],
     "--color-border-emphasized": ["#ECE7DA40", "#ECE7DA40"],
+    // Sharp micrographic corners everywhere.
+    "--radius-inner": ["0px", "0px"],
+    "--radius-element": ["0px", "0px"],
+    "--radius-container": ["0px", "0px"],
+    "--radius-full": ["0px", "0px"],
   },
 });
 
@@ -72,10 +77,14 @@ export function UpgradesMock() {
     <Theme theme={micrographic} mode="dark">
       <VStack
         width={320}
-        minHeight="100vh"
+        height="100vh"
         style={{
+          position: "fixed",
+          insetBlockStart: 0,
+          insetInlineStart: 0,
+          textAlign: "start",
           background: "var(--color-background-surface)",
-          borderInlineEnd: "1px solid var(--color-border)",
+          borderInlineEnd: "1px solid var(--color-border-emphasized)",
         }}
       >
         {/* Header with registration "+" mark */}
