@@ -12,6 +12,8 @@ const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
+const CASH_PER_STOP = 1;
+
 const FOOTER = 30;
 const GRID_H = ROWS * CELL;
 const WIDTH = COLS * CELL + PAD * 2;
@@ -83,6 +85,7 @@ export function Grid() {
   const [blocked, setBlocked] = useState<Set<number>>(() => genLayout());
   const [visited, setVisited] = useState<Set<number>>(() => new Set([START]));
   const [routes, setRoutes] = useState(0);
+  const [cash, setCash] = useState(0);
 
   const TOTAL = COLS * ROWS - blocked.size;
 
@@ -126,6 +129,8 @@ export function Grid() {
       }
       const cellIdx = idx(nx, ny);
       setPlayer({ x: nx, y: ny });
+      // movement-only income: pay once, the first time a cell is covered
+      if (!visitedRef.current.has(cellIdx)) setCash((c) => c + CASH_PER_STOP);
       const nv = new Set(visitedRef.current).add(cellIdx);
       const total = COLS * ROWS - blockedRef.current.size;
       if (nv.size === total) {
@@ -214,16 +219,19 @@ export function Grid() {
       PAD,
       labelY,
     );
+    ctx.textAlign = "center";
+    ctx.fillText(`CASH $${cash}`, WIDTH / 2, labelY);
     const routesLabel = `ROUTES ${pad3(routes)}`;
     ctx.textAlign = "right";
     ctx.fillText(routesLabel, WIDTH - PAD, labelY);
     ctx.textAlign = "left";
-  }, [player.x, player.y, visited, blocked, routes, TOTAL]);
+  }, [player.x, player.y, visited, blocked, routes, cash, TOTAL]);
 
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
       <Text>{`REMAINING ${TOTAL - visited.size}/${TOTAL}`}</Text>
+      <Text>{`CASH $${cash}`}</Text>
       <Text>{`ROUTES ${pad3(routes)}`}</Text>
       <Button label="Reset" onClick={newLayout} />
     </Stack>
