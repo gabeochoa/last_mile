@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fmtNum } from "./config";
 
 // End card shown when the player has maxed every upgrade (nothing left to buy).
 // Full-screen fixed overlay above the HUD; fades in over ~1.2s. Continue dismisses
@@ -60,7 +61,7 @@ export function Ending({
 
       <div style={{ fontSize: 13, letterSpacing: 1, opacity: 0.75, lineHeight: 1.9 }}>
         <div>DAYS RUN {routes}</div>
-        <div>CASH BANKED ${cash}</div>
+        <div>CASH BANKED ${fmtNum(cash)}</div>
         <div style={{ color: accent }}>MARKET SHARE 100%</div>
       </div>
 

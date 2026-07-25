@@ -6,7 +6,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { List } from "@astryxdesign/core/List";
-import { BUCKETS, upgradeCost, type Upgrade } from "./config";
+import { BUCKETS, upgradeCost, fmtNum, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme). Built from the player's chosen
@@ -78,7 +78,7 @@ function UpgradeEnd({
   const canBuy = item.id != null && cash >= cost;
   return (
     <Button
-      label={`$${cost}`}
+      label={`$${fmtNum(cost)}`}
       size="sm"
       variant="primary"
       isDisabled={!canBuy}

@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -165,10 +165,10 @@ export function App() {
       >
         <span>DAY {stats.routes + 1}</span>
         <span>
-          CASH ${cash}
+          CASH ${fmtNum(cash)}
           {showRate && (
             <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
-              {rate >= 0 ? "+" : "−"}${Math.abs(rate)}/s
+              {rate >= 0 ? "+" : "−"}${fmtNum(Math.abs(rate))}/s
             </span>
           )}
         </span>

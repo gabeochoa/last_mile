@@ -37,6 +37,20 @@ export type Upgrade = {
   softCap?: boolean;
 };
 
+// Compact number formatting for big values: 30000 -> "30k", 1_500_000 -> "1.5m".
+export function fmtNum(n: number): string {
+  const abs = Math.abs(n);
+  if (abs < 1000) return `${n}`;
+  const units: [number, string][] = [[1e9, "b"], [1e6, "m"], [1e3, "k"]];
+  for (const [v, s] of units) {
+    if (abs >= v) {
+      const x = n / v;
+      return `${x >= 100 ? Math.round(x) : x.toFixed(1).replace(/\.0$/, "")}${s}`;
+    }
+  }
+  return `${n}`;
+}
+
 // Round to a clean step that scales with magnitude: 5 (<100), 10 (<1k), 50 (<10k), 100 (>=10k).
 const niceStep = (n: number) => (n < 100 ? 5 : n < 1000 ? 10 : n < 10000 ? 50 : 100);
 const roundNice = (n: number) => Math.round(n / niceStep(n)) * niceStep(n);
