@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 // End card shown when the player owns 100% of the market (UNOWNED hits 0).
 // Full-screen fixed overlay above the HUD; fades in over ~1.2s.
 export function Ending({
-  routes: _routes,
-  cash: _cash,
+  routes,
+  cash,
   onRestart,
 }: {
   routes: number;
@@ -19,7 +19,6 @@ export function Ending({
 
   return (
     <div
-      onClick={onRestart}
       style={{
         position: "fixed",
         inset: 0,
@@ -42,6 +41,45 @@ export function Ending({
         <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>0%</div>
         <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>UNOWNED MARKET</div>
       </div>
+
+      <div style={{ maxWidth: 520, fontSize: 15, lineHeight: 1.6, opacity: 0.85, letterSpacing: 0.5 }}>
+        <p style={{ margin: 0 }}>
+          You've clocked out for the last time. So has everyone else.
+        </p>
+        <p style={{ margin: "10px 0 0" }}>
+          Every doorstep on Earth is a customer now. Total logistics coverage achieved. Thank you for
+          your service. There is nothing left to deliver.
+        </p>
+      </div>
+
+      <div style={{ fontSize: 13, letterSpacing: 1, opacity: 0.75, lineHeight: 1.9 }}>
+        <div>ROUTES RUN {routes}</div>
+        <div>CASH BANKED ${cash}</div>
+        <div style={{ color: "#E8541E" }}>MARKET SHARE 100%</div>
+      </div>
+
+      {/* TODO(credits): fill in font + SFX credits when finalized. */}
+      <div style={{ fontSize: 11, letterSpacing: 1, opacity: 0.45, maxWidth: 560, lineHeight: 1.7 }}>
+        LAST MILE — GMTK Game Jam 2026 · built with code-drawn micrographics (no generative AI) · UI by
+        astryx (MIT)
+      </div>
+
+      <button
+        onClick={onRestart}
+        style={{
+          marginBlockStart: 8,
+          background: "transparent",
+          color: "#ECE7DA",
+          border: "1px solid rgba(236,231,218,0.4)",
+          padding: "10px 22px",
+          fontFamily: "inherit",
+          fontSize: 12,
+          letterSpacing: 2,
+          cursor: "pointer",
+        }}
+      >
+        START OVER
+      </button>
     </div>
   );
 }
