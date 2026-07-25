@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
-import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 
 const COLS = 6;
@@ -17,14 +16,13 @@ const ROUTE_BONUS = 25;
 const SPECIAL_BONUS = 10;
 const FULL_COVERAGE_BONUS = 50; // one-time, for covering every reachable cell in a route
 
-const FOOTER = 44; // two label rows
+const FOOTER = 8;
 const GRID_H = ROWS * CELL;
 const WIDTH = COLS * CELL + PAD * 2;
 const HEIGHT = GRID_H + PAD * 2 + FOOTER;
 
 const idx = (x: number, y: number) => y * COLS + x;
 const START = idx(0, 0);
-const pad3 = (n: number) => String(n).padStart(3, "0");
 
 // BFS from START over non-blocked cells; true only if every open cell is reachable
 function allReachable(blocked: Set<number>): boolean {
@@ -100,11 +98,9 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
 }
 
 export function Grid({
-  cash,
   onEarn,
   onStats,
 }: {
-  cash: number;
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
 }) {
@@ -344,38 +340,20 @@ export function Grid({
       ctx.stroke();
     }
 
-    // micrographic monospace labels under the grid (two rows)
-    // primary objective = PACKAGES remaining, secondary = MAP coverage %
-    const packagesLeft = specials.size - collected.size;
-    const mapPct = Math.round((visited.size / TOTAL) * 100);
-    ctx.fillStyle = INK;
-    ctx.font = "12px ui-monospace, Menlo, monospace";
-    ctx.textBaseline = "middle";
-    const rowY1 = PAD + GRID_H + 13;
-    const rowY2 = PAD + GRID_H + 31;
-    ctx.textAlign = "left";
-    ctx.fillText(`PACKAGES ${String(packagesLeft).padStart(2, "0")}`, PAD, rowY1);
-    ctx.fillText(`CASH $${cash}`, PAD, rowY2);
-    ctx.textAlign = "right";
-    ctx.fillText(`MAP ${mapPct}%`, WIDTH - PAD, rowY1);
-    ctx.fillText(`ROUTES ${pad3(routes)}`, WIDTH - PAD, rowY2);
-
     // armed: prompt the player to drive back to the depot to finish the route
     if (armed) {
       ctx.fillStyle = ACCENT;
+      ctx.font = "12px ui-monospace, Menlo, monospace";
+      ctx.textBaseline = "middle";
       ctx.textAlign = "center";
       ctx.fillText("RETURN TO DEPOT", WIDTH / 2, PAD + GRID_H - 10);
+      ctx.textAlign = "left";
     }
-    ctx.textAlign = "left";
-  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, cash, TOTAL]);
+  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL]);
 
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-      <Text>{`PACKAGES ${String(specials.size - collected.size).padStart(2, "0")}`}</Text>
-      <Text>{`MAP ${Math.round((visited.size / TOTAL) * 100)}%`}</Text>
-      <Text>{`CASH $${cash}`}</Text>
-      <Text>{`ROUTES ${pad3(routes)}`}</Text>
       <Button label="Reset" onClick={newLayout} />
     </Stack>
   );

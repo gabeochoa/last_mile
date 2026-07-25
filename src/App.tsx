@@ -103,7 +103,6 @@ export function App() {
         </div>
 
         <Grid
-          cash={cash}
           onEarn={(delta) => setCash((c) => c + delta)}
           onStats={setStats}
         />
