@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
+import { Text } from "@astryxdesign/core/Text";
 
 const COLS = 8;
 const ROWS = 8;
@@ -10,8 +11,14 @@ const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
+const FOOTER = 30;
+const TOTAL = COLS * ROWS;
+const GRID_H = ROWS * CELL;
 const WIDTH = COLS * CELL + PAD * 2;
-const HEIGHT = ROWS * CELL + PAD * 2;
+const HEIGHT = GRID_H + PAD * 2 + FOOTER;
+
+const idx = (x: number, y: number) => y * COLS + x;
+const pad3 = (n: number) => String(n).padStart(3, "0");
 
 function drawRegistration(ctx: CanvasRenderingContext2D) {
   ctx.strokeStyle = INK;
@@ -20,8 +27,8 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
   const marks: [number, number][] = [
     [PAD, PAD],
     [WIDTH - PAD, PAD],
-    [PAD, HEIGHT - PAD],
-    [WIDTH - PAD, HEIGHT - PAD],
+    [PAD, PAD + GRID_H],
+    [WIDTH - PAD, PAD + GRID_H],
   ];
   for (const [x, y] of marks) {
     ctx.beginPath();
@@ -36,6 +43,7 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
 export function Grid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
+  const [visited, setVisited] = useState<Set<number>>(() => new Set([idx(0, 0)]));
 
   useEffect(() => {
     const deltas: Record<string, [number, number]> = {
@@ -48,10 +56,14 @@ export function Grid() {
       const d = deltas[e.key];
       if (!d) return;
       e.preventDefault();
-      setPlayer((p) => ({
-        x: Math.max(0, Math.min(COLS - 1, p.x + d[0])),
-        y: Math.max(0, Math.min(ROWS - 1, p.y + d[1])),
-      }));
+      setPlayer((p) => {
+        const next = {
+          x: Math.max(0, Math.min(COLS - 1, p.x + d[0])),
+          y: Math.max(0, Math.min(ROWS - 1, p.y + d[1])),
+        };
+        setVisited((v) => new Set(v).add(idx(next.x, next.y)));
+        return next;
+      });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -70,6 +82,16 @@ export function Grid() {
     ctx.strokeRect(0.5, 0.5, WIDTH - 1, HEIGHT - 1);
 
     drawRegistration(ctx);
+
+    // visited cells filled ink at ~18% alpha
+    ctx.fillStyle = INK;
+    ctx.globalAlpha = 0.18;
+    for (const cell of visited) {
+      const cx = cell % COLS;
+      const cy = Math.floor(cell / COLS);
+      ctx.fillRect(PAD + cx * CELL, PAD + cy * CELL, CELL, CELL);
+    }
+    ctx.globalAlpha = 1;
 
     // grid lines at ~15% ink alpha
     ctx.strokeStyle = INK;
@@ -100,11 +122,22 @@ export function Grid() {
       CELL - inset * 2,
       CELL - inset * 2,
     );
-  }, [player.x, player.y]);
+
+    // micrographic monospace label under the grid
+    ctx.fillStyle = INK;
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      `COVERAGE ${pad3(visited.size).slice(1)}/${TOTAL}`,
+      PAD,
+      PAD + GRID_H + FOOTER / 2 + 2,
+    );
+  }, [player.x, player.y, visited]);
 
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
+      <Text>{`COVERAGE ${visited.size}/${TOTAL}`}</Text>
     </Stack>
   );
 }
