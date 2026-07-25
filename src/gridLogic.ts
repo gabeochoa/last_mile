@@ -144,6 +144,82 @@ export function cityBlocked(cols: number, rows: number, rng: () => number = Math
   return blocked;
 }
 
+// Remap an index Set from an old row-width to a new one. idx = y*cols + x, so a
+// wider row shifts every cell with y>0; x,y (and thus the depot at 0) are preserved.
+export function remapIndices(set: Set<number>, oldCols: number, newCols: number): Set<number> {
+  if (oldCols === newCols) return new Set(set);
+  const out = new Set<number>();
+  for (const c of set) out.add(Math.floor(c / oldCols) * newCols + (c % oldCols));
+  return out;
+}
+
+// Guarantee every open cell is reachable from START by bridging: while some open
+// cell is stranded, BFS over ALL cells from it to the nearest reached cell and open
+// the blocked cells along that path. Mutates `blocked`. Terminates because each pass
+// makes >=1 stranded cell reached and never strands a reached one.
+function ensureReachable(blocked: Set<number>, cols: number, rows: number): void {
+  const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+  for (;;) {
+    // open cells reachable from START
+    const reached = new Set([START]);
+    const q = [START];
+    while (q.length) {
+      const c = q.shift()!;
+      const x = c % cols;
+      const y = Math.floor(c / cols);
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+        const n = idx(nx, ny, cols);
+        if (blocked.has(n) || reached.has(n)) continue;
+        reached.add(n);
+        q.push(n);
+      }
+    }
+    // find any open cell that isn't reached
+    let target = -1;
+    for (let c = 0; c < cols * rows; c++) {
+      if (!blocked.has(c) && !reached.has(c)) { target = c; break; }
+    }
+    if (target === -1) return; // all open cells reachable
+    // BFS over all cells (blocked included) from target to the nearest reached cell
+    const prev = new Map<number, number>([[target, -1]]);
+    const bq = [target];
+    let hit = -1;
+    while (bq.length) {
+      const c = bq.shift()!;
+      if (reached.has(c)) { hit = c; break; }
+      const x = c % cols;
+      const y = Math.floor(c / cols);
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+        const n = idx(nx, ny, cols);
+        if (prev.has(n)) continue;
+        prev.set(n, c);
+        bq.push(n);
+      }
+    }
+    // open every blocked cell on the bridge from the reached side back to target
+    for (let c = hit; c !== -1; c = prev.get(c)!) blocked.delete(c);
+  }
+}
+
+// Grow a layout to newCols x newRows (only ever grows; never shrinks). Existing
+// blocked/specials are remapped to the wider row-width; the appended column(s)/row(s)
+// are OPEN streets (never added to blocked). Reachability is then guaranteed by
+// opening seam/bridge cells so the new streets connect to the existing network.
+export function growLayout(layout: Layout, newCols: number, newRows: number): Layout {
+  const { cols: oldCols, rows: oldRows } = layout;
+  if (newCols <= oldCols && newRows <= oldRows) return layout;
+  const blocked = remapIndices(layout.blocked, oldCols, newCols);
+  const specials = remapIndices(layout.specials, oldCols, newCols);
+  ensureReachable(blocked, newCols, newRows);
+  return { blocked, specials, cols: newCols, rows: newRows };
+}
+
 // fresh city layout: open streets + building blocks, START open & fully reachable
 export function genLayout(
   cols: number,

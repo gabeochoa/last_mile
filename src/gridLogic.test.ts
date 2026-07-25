@@ -1,6 +1,7 @@
 import {
   allReachable,
   genLayout,
+  growLayout,
   bfsNextStep,
   idx,
   START,
@@ -8,6 +9,7 @@ import {
   BASE_ROWS,
   sizeForExpansion,
   makeRng,
+  type Layout,
 } from "./gridLogic";
 
 const COLS = BASE_COLS;
@@ -79,6 +81,63 @@ test("bfsNextStep routes around a wall and reduces distance", () => {
   expect(bfsNextStep(blocked, from, from, COLS, ROWS)).toBeNull();
   const sealed = new Set<number>([idx(1, 0, COLS), idx(0, 1, COLS)]); // isolate START
   expect(bfsNextStep(sealed, START, idx(2, 2, COLS), COLS, ROWS)).toBeNull();
+});
+
+test("growLayout: remaps blocked/specials to (x,y), opens new cells, stays reachable", () => {
+  // 4x3 layout, roads on col 0 and row 0, a special at (2,0) and (0,2)
+  const oldCols = 4;
+  const oldRows = 3;
+  const blocked = new Set<number>();
+  for (let y = 0; y < oldRows; y++)
+    for (let x = 0; x < oldCols; x++)
+      if (x !== 0 && y !== 0) blocked.add(idx(x, y, oldCols));
+  const specials = new Set<number>([idx(2, 0, oldCols), idx(0, 2, oldCols)]);
+  const layout: Layout = { blocked, specials, cols: oldCols, rows: oldRows };
+  expect(allReachable(blocked, oldCols, oldRows)).toBe(true);
+
+  // grow +1 col and +1 row at once
+  const g = growLayout(layout, oldCols + 1, oldRows + 1);
+  expect(g.cols).toBe(oldCols + 1);
+  expect(g.rows).toBe(oldRows + 1);
+
+  // every old special keeps its (x,y) at the new row-width
+  const toXY = (c: number, cols: number) => [c % cols, Math.floor(c / cols)];
+  const gspecials = [...g.specials].map((c) => toXY(c, g.cols)).sort();
+  expect(gspecials).toEqual([[0, 2], [2, 0]].sort());
+  // every old blocked keeps its (x,y)
+  for (const c of blocked) {
+    const [x, y] = toXY(c, oldCols);
+    expect(g.blocked.has(idx(x, y, g.cols))).toBe(true);
+  }
+  // the appended column (x=oldCols) and row (y=oldRows) are OPEN streets
+  for (let y = 0; y < g.rows; y++) expect(g.blocked.has(idx(oldCols, y, g.cols))).toBe(false);
+  for (let x = 0; x < g.cols; x++) expect(g.blocked.has(idx(x, oldRows, g.cols))).toBe(false);
+  // fully reachable
+  expect(allReachable(g.blocked, g.cols, g.rows)).toBe(true);
+});
+
+test("growLayout: bridges a seam that would otherwise strand the new column", () => {
+  // 3x2 with the whole LAST column (x=2) blocked; open cells {0,1,3,4} reachable
+  const layout: Layout = {
+    blocked: new Set<number>([idx(2, 0, 3), idx(2, 1, 3)]),
+    specials: new Set<number>([idx(1, 1, 3)]),
+    cols: 3,
+    rows: 2,
+  };
+  expect(allReachable(layout.blocked, 3, 2)).toBe(true);
+
+  // add a column: the new x=3 column is open but sits behind a fully-blocked seam
+  // (old x=2), so without bridging it would be stranded from START.
+  const g = growLayout(layout, 4, 2);
+  expect(g.cols).toBe(4);
+  // new column is open
+  expect(g.blocked.has(idx(3, 0, 4))).toBe(false);
+  expect(g.blocked.has(idx(3, 1, 4))).toBe(false);
+  // special remapped from (1,1) to the wider width and still open
+  expect(g.specials.has(idx(1, 1, 4))).toBe(true);
+  expect(g.blocked.has(idx(1, 1, 4))).toBe(false);
+  // bridging opened a seam cell so everything is reachable
+  expect(allReachable(g.blocked, g.cols, g.rows)).toBe(true);
 });
 
 test("allReachable is false when a cell is walled off", () => {
