@@ -46,6 +46,8 @@ export function App() {
   // Current map dims from expansion; Demand Engine's cap = cells on the map.
   const dims = sizeForExpansion(expandLevel(upgrades));
   const maxLevels: Record<string, number> = { demand: dims.cols * dims.rows };
+  // Once the map is large, the center HUD reflows to give the grid room.
+  const bigMap = Math.max(dims.cols, dims.rows) >= 9;
 
   // Create/resume the AudioContext on the first user gesture (autoplay policy).
   useEffect(() => initAudioOnFirstGesture(), []);
@@ -115,6 +117,7 @@ export function App() {
       >
         <span>DAY {stats.routes + 1}</span>
         <span>CASH ${cash}</span>
+        {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
 
         {/* Controls grouped right: autopilot toggle · drivers · SFX · reset */}
         <div
@@ -203,6 +206,28 @@ export function App() {
         <Upgrades cash={cash} upgrades={upgrades} onBuy={onBuy} maxLevels={maxLevels} />
       </div>
 
+      {/* Big-map: unowned share moves out of the hero to a compact sidebar-bottom readout. */}
+      {bigMap && revealed && (
+        <div
+          style={{
+            position: "fixed",
+            insetBlockEnd: 12,
+            insetInlineStart: 12,
+            width: 320,
+            textAlign: "center",
+            fontFamily: "ui-monospace, Menlo, monospace",
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: 2,
+            color: "#E8541E",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        >
+          {displayShare}% UNOWNED
+        </div>
+      )}
+
       {/* Map: centered; slides right (padding grows) once the sidebar reveals. */}
       <div
         style={{
@@ -220,28 +245,34 @@ export function App() {
           color: "#ECE7DA",
         }}
       >
-        {/* Hero countdown: unowned market share — hits 0 when you win. */}
-        <div style={{ textAlign: "center", color: "#E8541E" }}>
-          <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>
-            {displayShare}%
-          </div>
-          <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>
-            UNOWNED MARKET ▼
-          </div>
-        </div>
+        {/* Small map: big centered hero + deliveries + instructions above the grid.
+            Big map: these reflow into the banner / sidebar, leaving just the grid. */}
+        {!bigMap && (
+          <>
+            {/* Hero countdown: unowned market share — hits 0 when you win. */}
+            <div style={{ textAlign: "center", color: "#E8541E" }}>
+              <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>
+                {displayShare}%
+              </div>
+              <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>
+                UNOWNED MARKET ▼
+              </div>
+            </div>
 
-        {/* Deliveries remaining (secondary) + controls, above the map. */}
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 2, lineHeight: 1 }}>
-            {String(displayPackages).padStart(2, "0")}
-            <span style={{ fontSize: 12, opacity: 0.7, marginInlineStart: 8, letterSpacing: 1 }}>
-              DELIVERIES LEFT
-            </span>
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.55, marginBlockStart: 6, letterSpacing: 1 }}>
-            ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
-          </div>
-        </div>
+            {/* Deliveries remaining (secondary) + controls, above the map. */}
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 2, lineHeight: 1 }}>
+                {String(displayPackages).padStart(2, "0")}
+                <span style={{ fontSize: 12, opacity: 0.7, marginInlineStart: 8, letterSpacing: 1 }}>
+                  DELIVERIES LEFT
+                </span>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.55, marginBlockStart: 6, letterSpacing: 1 }}>
+                ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
+              </div>
+            </div>
+          </>
+        )}
 
         <Grid
           onEarn={(delta) => setCash((c) => c + delta)}
