@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 
 const COLS = 8;
@@ -35,7 +35,27 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
 
 export function Grid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const player = { x: 0, y: 0 };
+  const [player, setPlayer] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const deltas: Record<string, [number, number]> = {
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const d = deltas[e.key];
+      if (!d) return;
+      e.preventDefault();
+      setPlayer((p) => ({
+        x: Math.max(0, Math.min(COLS - 1, p.x + d[0])),
+        y: Math.max(0, Math.min(ROWS - 1, p.y + d[1])),
+      }));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
