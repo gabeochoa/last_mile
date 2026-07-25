@@ -18,6 +18,51 @@ const allDriversHome = (
   vans: { x: number; y: number }[],
 ) => vans.every((v) => layout.depots.has(idx(v.x, v.y, layout.cols)));
 
+// ── rival delivery vans (cosmetic) ───────────────────────────────────────────
+// The world exists past your map: blue vans drive IN from offscreen to a rival
+// delivery point, drop off, then drive back OUT and respawn. Positions may be
+// off-grid (drawn in the padding = "offscreen"). Purely visual.
+type RivalVan = { x: number; y: number; tx: number; ty: number; stage: "in" | "out"; wait: number };
+type RLayout = { reserved?: Set<number>; cols: number; rows: number };
+
+const spawnRivalVan = (layout: RLayout): RivalVan | null => {
+  const res = layout.reserved ? [...layout.reserved] : [];
+  if (!res.length) return null;
+  const cell = res[Math.floor(Math.random() * res.length)];
+  const tx = cell % layout.cols;
+  const ty = Math.floor(cell / layout.cols);
+  // enter from one of the four edges, just offscreen, aligned to the target
+  const side = Math.floor(Math.random() * 4);
+  const start =
+    side === 0 ? { x: -1, y: ty } :
+    side === 1 ? { x: layout.cols, y: ty } :
+    side === 2 ? { x: tx, y: -1 } :
+    { x: tx, y: layout.rows };
+  return { ...start, tx, ty, stage: "in", wait: 0 };
+};
+
+const stepRivalVan = (v: RivalVan, layout: RLayout): RivalVan => {
+  const toward = (): RivalVan => {
+    const dx = Math.sign(v.tx - v.x);
+    const dy = Math.sign(v.ty - v.y);
+    if (dx !== 0) return { ...v, x: v.x + dx };
+    if (dy !== 0) return { ...v, y: v.y + dy };
+    return v;
+  };
+  if (v.stage === "in") {
+    if (v.x === v.tx && v.y === v.ty) {
+      // delivered: head back out to the nearest horizontal edge, pause a beat first
+      const exitX = v.tx < layout.cols / 2 ? -1 : layout.cols;
+      return { ...v, stage: "out", wait: 3, tx: exitX, ty: v.ty };
+    }
+    return toward();
+  }
+  if (v.wait > 0) return { ...v, wait: v.wait - 1 };
+  const moved = toward();
+  const off = moved.x < -1 || moved.x > layout.cols || moved.y < -1 || moved.y > layout.rows;
+  return off ? spawnRivalVan(layout) ?? moved : moved;
+};
+
 // Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
 // below the banner), bounded so it never overflows or collides with the small-map
 // hero. The grid is centered inside it and cells shrink as the map grows, so early
@@ -130,6 +175,8 @@ export function Grid({
   vansRef.current = vans;
   const rivalsRef = useRef(rivals);
   rivalsRef.current = rivals;
+  // blue rival delivery vans driving in from offscreen to service rival points (cosmetic)
+  const [rivalVans, setRivalVans] = useState<RivalVan[]>([]);
 
   // refs so the once-bound keydown handler always sees latest state/props without
   // re-binding — and gsRef updates SYNCHRONOUSLY so rapid/held keys can't re-enter
@@ -323,6 +370,25 @@ export function Grid({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
+
+  // Keep a few rival delivery vans alive whenever rival points exist; re-seed on a
+  // new layout. They drive in from offscreen, service a point, and drive back out.
+  useEffect(() => {
+    const count = gs.layout.reserved ? Math.min(gs.layout.reserved.size, 4) : 0;
+    setRivalVans(
+      Array.from({ length: count }, () => spawnRivalVan(gs.layout)).filter(
+        (v): v is RivalVan => v !== null,
+      ),
+    );
+  }, [gs.layout]);
+
+  useEffect(() => {
+    if (!gs.layout.reserved?.size) return;
+    const id = window.setInterval(() => {
+      setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout)));
+    }, 130);
+    return () => window.clearInterval(id);
+  }, [gs.layout]);
 
   // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
   // right away so DELIVERIES LEFT updates instantly (next-route counts already fold
@@ -554,6 +620,13 @@ export function Grid({
       ctx.stroke();
     }
 
+    // rival delivery vans: solid blue squares driving in from offscreen (may be off-grid)
+    ctx.fillStyle = RIVAL;
+    const rvi = Math.round(cell * 0.28);
+    for (const v of rivalVans) {
+      ctx.fillRect(offX + v.x * cell + rvi, offY + v.y * cell + rvi, cell - rvi * 2, cell - rvi * 2);
+    }
+
     // player = solid accent square, slightly inset
     const inset = Math.round(cell * 0.125);
     ctx.fillStyle = ACCENT;
@@ -614,7 +687,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, gcols, grows, cell, dayEnded, canvas, ACCENT]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, rivalVans, gcols, grows, cell, dayEnded, canvas, ACCENT]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
