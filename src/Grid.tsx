@@ -15,6 +15,13 @@ const RIVAL = "#4C86E8"; // rival delivery companies (blue), confined to expande
 const isExpansionCell = (c: number, gcols: number) =>
   c % gcols >= BASE_COLS || Math.floor(c / gcols) >= BASE_ROWS;
 
+// Every hired driver back on a depot? (Trivially true with no fleet out.) The day
+// only completes once this holds AND the player is home AND all deliveries are done.
+const allDriversHome = (
+  layout: { depots: Set<number>; cols: number },
+  vans: { x: number; y: number }[],
+) => vans.every((v) => layout.depots.has(idx(v.x, v.y, layout.cols)));
+
 // Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
 // below the banner), bounded so it never overflows or collides with the small-map
 // hero. The grid is centered inside it and cells shrink as the map grows, so early
@@ -178,6 +185,7 @@ export function Grid({
     autoDeliver: autoDeliverRef.current,
     perDelivery: perDeliveryRef.current,
     routeBonus: routeBonusRef.current,
+    driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
     rows: rowsRef.current,
@@ -214,8 +222,11 @@ export function Grid({
     const id = window.setInterval(() => {
       const s = gsRef.current;
       if (s.dayEnded) return; // pause autopilot on the day-end screen
-      // already parked on a depot and armed (e.g. fleet grabbed the last one): finish now
-      const fin = finishIfDone(s, { routeBonus: routeBonusRef.current });
+      // armed + everyone home (player parked, fleet back): finish now, no move needed
+      const fin = finishIfDone(s, {
+        routeBonus: routeBonusRef.current,
+        driversHome: allDriversHome(s.layout, vansRef.current),
+      });
       if (fin.state !== s) {
         commit(fin);
         return;
@@ -301,9 +312,12 @@ export function Grid({
       });
       vansRef.current = next;
       setVans(next);
-      // fleet may have delivered the last package while the player idles on a depot;
-      // end the day now instead of waiting for the player to move onto the depot.
-      const done = finishIfDone(gsRef.current, { routeBonus: routeBonusRef.current });
+      // fleet may have just delivered the last package and/or driven the last van home
+      // while the player idles on a depot; end the day once everyone's back.
+      const done = finishIfDone(gsRef.current, {
+        routeBonus: routeBonusRef.current,
+        driversHome: allDriversHome(gsRef.current.layout, next),
+      });
       if (done.state !== gsRef.current) {
         gsRef.current = done.state;
         setGs(done.state);

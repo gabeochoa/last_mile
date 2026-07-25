@@ -100,6 +100,9 @@ type MoveOpts = {
   perDelivery: number;
   // cash paid when a day is completed at a depot (0 until Bulk Contracts is owned)
   routeBonus?: number;
+  // the day only ends once every hired driver is back at a depot too (default true =
+  // no fleet out). The player reaching the depot alone won't finish while vans deliver.
+  driversHome?: boolean;
   packageCount: number;
   // dims for the NEXT route seeded on completion (buying expansion mid-run grows it)
   cols: number;
@@ -135,7 +138,7 @@ export function applyMove(
   }
   const cellIdx = idx(nx, ny, gcols);
 
-  if (isArmed(state) && state.layout.depots.has(cellIdx)) {
+  if (isArmed(state) && state.layout.depots.has(cellIdx) && (opts.driversHome ?? true)) {
     return {
       state: { ...state, routes: state.routes + 1, dayEnded: true },
       earned: opts.routeBonus ?? 0,
@@ -164,11 +167,11 @@ export function applyMove(
 // only end after leaving and re-entering the depot. No-op otherwise.
 export function finishIfDone(
   state: GridState,
-  opts: { routeBonus?: number },
+  opts: { routeBonus?: number; driversHome?: boolean },
 ): { state: GridState; earned: number } {
   if (state.dayEnded) return { state, earned: 0 };
   const onDepot = state.layout.depots.has(idx(state.player.x, state.player.y, state.layout.cols));
-  if (isArmed(state) && onDepot) {
+  if (isArmed(state) && onDepot && (opts.driversHome ?? true)) {
     return {
       state: { ...state, routes: state.routes + 1, dayEnded: true },
       earned: opts.routeBonus ?? 0,

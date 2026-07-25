@@ -174,6 +174,28 @@ test("finishIfDone ends the day when armed + parked on a depot, without a move",
   expect(finishIfDone(ended, { routeBonus: ROUTE_BONUS }).state).toBe(ended);
 });
 
+test("driversHome:false defers completion — player on depot moves in but day stays open", () => {
+  const armed: GridState = {
+    player: { x: 1, y: 0 },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
+    collected: new Set([idx(2, 0, COLS)]),
+    visited: new Set([START, idx(1, 0, COLS)]),
+    routes: 0,
+    dayEnded: false,
+  };
+  // a van is still out -> arriving at the depot does NOT end the day; the player just moves
+  const moved = applyMove(armed, -1, 0, { autoDeliver: true, perDelivery: SPECIAL_BONUS, routeBonus: ROUTE_BONUS, driversHome: false, packageCount: 4, cols: COLS, rows: ROWS });
+  expect(moved.state.dayEnded).toBe(false);
+  expect(moved.state.player).toEqual({ x: 0, y: 0 }); // moved onto the depot
+  expect(moved.earned).toBe(0);
+  // finishIfDone also defers while drivers are out
+  expect(finishIfDone(moved.state, { routeBonus: ROUTE_BONUS, driversHome: false }).state).toBe(moved.state);
+  // once everyone's home it finishes
+  const done = finishIfDone(moved.state, { routeBonus: ROUTE_BONUS, driversHome: true });
+  expect(done.state.dayEnded).toBe(true);
+  expect(done.earned).toBe(ROUTE_BONUS);
+});
+
 test("collectHere collects an uncollected package underfoot, else no-op", () => {
   const base: GridState = {
     player: { x: 2, y: 0 },
