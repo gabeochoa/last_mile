@@ -30,6 +30,8 @@ export type Upgrade = {
   costMult?: number;
   maxLevel?: number;
   locked?: boolean;
+  // hide this upgrade in the shop until the named upgrade is owned (level >= 1)
+  requires?: string;
 };
 
 // Round to a clean step that scales with magnitude: 5 (<100), 10 (<1k), 50 (<10k), 100 (>=10k).
@@ -58,7 +60,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
       { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 10 },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1 },
-      { id: "vanSpeed", name: "Faster Vans", effect: "vans drive faster", baseCost: 100, costMult: 1.5, maxLevel: 12 },
+      { id: "vanSpeed", name: "Faster Vans", effect: "vans drive faster", baseCost: 100, costMult: 1.5, maxLevel: 12, requires: "fleet" },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 8 },
     ],
   },

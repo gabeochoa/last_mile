@@ -125,7 +125,11 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
           100vh column instead of pushing the header/footer off-screen. */}
       <VStack isScrollable style={{ flex: 1, minHeight: 0 }}>
         {BUCKETS.map((bucket) => {
-          const items = hideCompleted ? bucket.items.filter((i) => !isDone(i)) : bucket.items;
+          // hide upgrades whose prerequisite isn't owned yet, then optionally completed ones
+          const visible = bucket.items.filter(
+            (i) => !i.requires || (upgrades[i.requires] ?? 0) >= 1,
+          );
+          const items = hideCompleted ? visible.filter((i) => !isDone(i)) : visible;
           if (items.length === 0) return null;
           return (
           <List
