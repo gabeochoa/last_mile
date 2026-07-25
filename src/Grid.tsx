@@ -14,6 +14,7 @@ const ACCENT = "#E8541E";
 
 const CASH_PER_STOP = 1;
 const ROUTE_BONUS = 25;
+const SPECIAL_BONUS = 10;
 
 const FOOTER = 30;
 const GRID_H = ROWS * CELL;
@@ -46,8 +47,24 @@ function allReachable(blocked: Set<number>): boolean {
   return seen.size === total;
 }
 
+// 3-5 special stops on random open (non-blocked, non-start) cells
+function genSpecials(blocked: Set<number>): Set<number> {
+  const open: number[] = [];
+  for (let c = 0; c < COLS * ROWS; c++) {
+    if (c !== START && !blocked.has(c)) open.push(c);
+  }
+  const specials = new Set<number>();
+  const count = Math.min(open.length, 3 + Math.floor(Math.random() * 3)); // 3-5
+  while (specials.size < count) {
+    specials.add(open[Math.floor(Math.random() * open.length)]);
+  }
+  return specials;
+}
+
+type Layout = { blocked: Set<number>; specials: Set<number> };
+
 // fresh random layout: 6-9 blocked cells (never START), guaranteed fully reachable
-function genLayout(): Set<number> {
+function genLayout(): Layout {
   for (let attempt = 0; attempt < 50; attempt++) {
     const blocked = new Set<number>();
     const count = 6 + Math.floor(Math.random() * 4); // 6-9
@@ -55,9 +72,10 @@ function genLayout(): Set<number> {
       const c = Math.floor(Math.random() * COLS * ROWS);
       if (c !== START) blocked.add(c);
     }
-    if (allReachable(blocked)) return blocked;
+    if (allReachable(blocked)) return { blocked, specials: genSpecials(blocked) };
   }
-  return new Set(); // fallback: no blocked cells is trivially reachable
+  const blocked = new Set<number>(); // fallback: no blocked cells is trivially reachable
+  return { blocked, specials: genSpecials(blocked) };
 }
 
 function drawRegistration(ctx: CanvasRenderingContext2D) {
@@ -83,11 +101,14 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
 export function Grid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
-  const [blocked, setBlocked] = useState<Set<number>>(() => genLayout());
+  const [layout, setLayout] = useState<Layout>(genLayout);
   const [visited, setVisited] = useState<Set<number>>(() => new Set([START]));
+  const [collected, setCollected] = useState<Set<number>>(() => new Set());
+  const [flash, setFlash] = useState<number | null>(null);
   const [routes, setRoutes] = useState(0);
   const [cash, setCash] = useState(0);
 
+  const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
 
   // refs so the keydown handler always sees current state without re-binding
@@ -97,11 +118,16 @@ export function Grid() {
   blockedRef.current = blocked;
   const visitedRef = useRef(visited);
   visitedRef.current = visited;
+  const specialsRef = useRef(specials);
+  specialsRef.current = specials;
+  const collectedRef = useRef(collected);
+  collectedRef.current = collected;
 
   const newLayout = () => {
-    setBlocked(genLayout());
+    setLayout(genLayout());
     setPlayer({ x: 0, y: 0 });
     setVisited(new Set([START]));
+    setCollected(new Set());
   };
 
   useEffect(() => {
@@ -112,6 +138,19 @@ export function Grid() {
       ArrowRight: [1, 0],
     };
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === " ") {
+        // space: collect an uncollected special stop underfoot
+        e.preventDefault();
+        const p = playerRef.current;
+        const cellIdx = idx(p.x, p.y);
+        if (specialsRef.current.has(cellIdx) && !collectedRef.current.has(cellIdx)) {
+          setCollected((s) => new Set(s).add(cellIdx));
+          setCash((c) => c + SPECIAL_BONUS);
+          setFlash(cellIdx);
+          window.setTimeout(() => setFlash(null), 200);
+        }
+        return;
+      }
       const d = deltas[e.key];
       if (!d) return;
       e.preventDefault();
@@ -201,6 +240,24 @@ export function Grid() {
     }
     ctx.globalAlpha = 1;
 
+    // special stops: accent ring (uncollected) or dim filled dot (collected)
+    for (const cell of specials) {
+      const cx = PAD + (cell % COLS) * CELL + CELL / 2;
+      const cy = PAD + Math.floor(cell / COLS) * CELL + CELL / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      if (collected.has(cell)) {
+        ctx.fillStyle = INK;
+        ctx.globalAlpha = 0.35;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.strokeStyle = ACCENT;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
     // player = solid accent square, slightly inset
     const inset = 6;
     ctx.fillStyle = ACCENT;
@@ -210,6 +267,17 @@ export function Grid() {
       CELL - inset * 2,
       CELL - inset * 2,
     );
+
+    // brief accent pop when a special is collected
+    if (flash !== null) {
+      const fx = PAD + (flash % COLS) * CELL + CELL / 2;
+      const fy = PAD + Math.floor(flash / COLS) * CELL + CELL / 2;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 14, 0, Math.PI * 2);
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // micrographic monospace label under the grid
     ctx.fillStyle = INK;
@@ -227,7 +295,7 @@ export function Grid() {
     ctx.textAlign = "right";
     ctx.fillText(routesLabel, WIDTH - PAD, labelY);
     ctx.textAlign = "left";
-  }, [player.x, player.y, visited, blocked, routes, cash, TOTAL]);
+  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, cash, TOTAL]);
 
   return (
     <Stack direction="vertical" gap={4}>
