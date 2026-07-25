@@ -41,7 +41,7 @@ export function App() {
   // latch: the shop appears after the first route is finished, then stays.
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
-  const [autopilotEnabled, _setAutopilotEnabled] = useState(true);
+  const [autopilotEnabled, setAutopilotEnabled] = useState(true);
 
   // Current map dims from expansion; Demand Engine's cap = cells on the map.
   const dims = sizeForExpansion(expandLevel(upgrades));
@@ -115,45 +115,76 @@ export function App() {
       >
         <span>DAY {stats.routes + 1}</span>
         <span>CASH ${cash}</span>
-        <button
-          onClick={() => {
-            const next = !muted;
-            setMuted(next);
-            setMutedState(next);
-          }}
-          title={muted ? "Sound off" : "Sound on"}
-          style={{
-            background: "transparent",
-            border: "1px solid rgba(236,231,218,0.25)",
-            color: muted ? "rgba(236,231,218,0.4)" : "#ECE7DA",
-            fontFamily: "inherit",
-            fontSize: 12,
-            letterSpacing: 1,
-            padding: "2px 8px",
-            cursor: "pointer",
-          }}
-        >
-          {muted ? "SFX OFF" : "SFX ON"}
-        </button>
-        {/* temporary: full reset (wipe save + reload) for testing */}
-        <button
-          onClick={onRestart}
-          title="Full reset — wipe save and start from the beginning"
+
+        {/* Controls grouped right: autopilot toggle · drivers · SFX · reset */}
+        <div
           style={{
             position: "absolute",
             insetInlineEnd: 12,
-            background: "transparent",
-            border: "1px solid rgba(232,84,30,0.5)",
-            color: "#E8541E",
-            fontFamily: "inherit",
-            fontSize: 12,
-            letterSpacing: 1,
-            padding: "2px 8px",
-            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          RESET
-        </button>
+          {(upgrades.autopilot ?? 0) > 0 && (
+            <button
+              onClick={() => setAutopilotEnabled((v) => !v)}
+              title={autopilotEnabled ? "Autopilot on — click for manual" : "Autopilot off — click to resume"}
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(236,231,218,0.25)",
+                color: autopilotEnabled ? "#ECE7DA" : "rgba(236,231,218,0.4)",
+                fontFamily: "inherit",
+                fontSize: 12,
+                letterSpacing: 1,
+                padding: "2px 8px",
+                cursor: "pointer",
+              }}
+            >
+              {autopilotEnabled ? "AUTOPILOT ON" : "AUTOPILOT OFF"}
+            </button>
+          )}
+          {(upgrades.fleet ?? 0) > 0 && (
+            <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {upgrades.fleet}</span>
+          )}
+          <button
+            onClick={() => {
+              const next = !muted;
+              setMuted(next);
+              setMutedState(next);
+            }}
+            title={muted ? "Sound off" : "Sound on"}
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(236,231,218,0.25)",
+              color: muted ? "rgba(236,231,218,0.4)" : "#ECE7DA",
+              fontFamily: "inherit",
+              fontSize: 12,
+              letterSpacing: 1,
+              padding: "2px 8px",
+              cursor: "pointer",
+            }}
+          >
+            {muted ? "SFX OFF" : "SFX ON"}
+          </button>
+          {/* temporary: full reset (wipe save + reload) for testing */}
+          <button
+            onClick={onRestart}
+            title="Full reset — wipe save and start from the beginning"
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(232,84,30,0.5)",
+              color: "#E8541E",
+              fontFamily: "inherit",
+              fontSize: 12,
+              letterSpacing: 1,
+              padding: "2px 8px",
+              cursor: "pointer",
+            }}
+          >
+            RESET
+          </button>
+        </div>
       </div>
 
       {/* Sidebar: fixed on the left, slides + fades in on first reveal. */}
