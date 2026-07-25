@@ -100,9 +100,11 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
 export function Grid({
   onEarn,
   onStats,
+  autoDeliver,
 }: {
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
+  autoDeliver: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
@@ -118,6 +120,8 @@ export function Grid({
   onEarnRef.current = onEarn;
   const onStatsRef = useRef(onStats);
   onStatsRef.current = onStats;
+  const autoDeliverRef = useRef(autoDeliver);
+  autoDeliverRef.current = autoDeliver;
 
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
@@ -183,6 +187,17 @@ export function Grid({
     if (!fullBonusPaidRef.current && nv.size === total) {
       setFullBonusPaid(true);
       onEarnRef.current(FULL_COVERAGE_BONUS);
+    }
+    // auto-deliver: collect a package just by driving over it (no key press)
+    if (
+      autoDeliverRef.current &&
+      specialsRef.current.has(cellIdx) &&
+      !collectedRef.current.has(cellIdx)
+    ) {
+      onEarnRef.current(SPECIAL_BONUS);
+      setFlash(cellIdx);
+      window.setTimeout(() => setFlash(null), 200);
+      setCollected(new Set(collectedRef.current).add(cellIdx));
     }
     return true;
   };

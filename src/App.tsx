@@ -141,6 +141,7 @@ export function App() {
         <Grid
           onEarn={(delta) => setCash((c) => c + delta)}
           onStats={setStats}
+          autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
         />
       </div>
     </Theme>
