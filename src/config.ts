@@ -42,7 +42,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "AUTOMATION",
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
-      { id: "autopilot", name: "Autopilot Module", effect: "self-drives the route", baseCost: 250, costMult: 1, maxLevel: 1 },
+      { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
       { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 5 },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1 },
     ],
@@ -50,8 +50,8 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "ECONOMY",
     items: [
-      { id: "demand", name: "Demand Engine", effect: "more deliveries per route", baseCost: 30, costMult: 1.6 },
-      { id: "routeOpt", name: "Route Optimization", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
+      { id: "demand", name: "Demand Engine", effect: "more deliveries per day", baseCost: 30, costMult: 1.6 },
+      { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
     ],
   },
   {
