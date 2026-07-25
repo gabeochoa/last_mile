@@ -19,6 +19,10 @@ export type Route = {
 
 export const STARTING_DAYS = 30;
 export const BASE_QUOTA = 10;
+export const QUOTA_GROWTH = 1.15; // each shift's quota grows by this factor
+export const STARTING_HUMANS = 8_000_000_000;
+export const DRIVER_RATE = 0.5; // packages/sec per hired driver (slower)
+export const AUTO_RATE = 1.0; // packages/sec per self-driving level (faster)
 
 export const UPGRADES: Upgrade[] = [
   {
