@@ -97,6 +97,33 @@ export function bfsNextStep(
 
 export type Layout = { blocked: Set<number>; specials: Set<number> };
 
+// Pick road indices along a 6-long axis: a random spacing (2 or 3) and offset,
+// e.g. cols [0,3] or rows [1,3,5]. Roads are open lanes; the gaps become blocks.
+function roadLines(rng: () => number): number[] {
+  const spacing = 2 + Math.floor(rng() * 2); // 2 or 3
+  const offset = Math.floor(rng() * spacing);
+  const lines: number[] = [];
+  for (let i = offset; i < COLS; i += spacing) lines.push(i);
+  return lines;
+}
+
+// City layout: a connected grid of open streets (road rows x road cols) with the
+// interior gaps filled by solid building blocks (blocked). Road rows and cols
+// always intersect, so every open cell is reachable; START is forced onto a road.
+export function cityBlocked(rng: () => number = Math.random): Set<number> {
+  const roadCols = roadLines(rng);
+  const roadRows = roadLines(rng);
+  // guarantee START (0,0) sits on the street network
+  if (!roadCols.includes(0) && !roadRows.includes(0)) roadCols.push(0);
+  const blocked = new Set<number>();
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (!roadCols.includes(x) && !roadRows.includes(y)) blocked.add(idx(x, y));
+    }
+  }
+  return blocked;
+}
+
 // fresh random layout: 6-9 blocked cells (never START), guaranteed fully reachable
 export function genLayout(count = BASE_PACKAGES, rng: () => number = Math.random): Layout {
   for (let attempt = 0; attempt < 50; attempt++) {
