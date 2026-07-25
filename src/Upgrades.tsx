@@ -106,7 +106,7 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
           <Heading level={2} color="accent">FLEET OPS</Heading>
           <Text type="code" color="accent">+</Text>
         </HStack>
-        <Text type="supporting">{`UPGRADE SHOP   ·   $${cash}`}</Text>
+        <Text type="supporting">UPGRADE SHOP</Text>
       </VStack>
 
       {/* Upgrade buckets */}
