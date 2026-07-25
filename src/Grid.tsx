@@ -47,14 +47,14 @@ function allReachable(blocked: Set<number>): boolean {
   return seen.size === total;
 }
 
-// 3-5 special stops on random open (non-blocked, non-start) cells
+// 4-6 packages on random open (non-blocked, non-start) cells — these are the objective
 function genSpecials(blocked: Set<number>): Set<number> {
   const open: number[] = [];
   for (let c = 0; c < COLS * ROWS; c++) {
     if (c !== START && !blocked.has(c)) open.push(c);
   }
   const specials = new Set<number>();
-  const count = Math.min(open.length, 3 + Math.floor(Math.random() * 3)); // 3-5
+  const count = Math.min(open.length, 4 + Math.floor(Math.random() * 3)); // 4-6
   while (specials.size < count) {
     specials.add(open[Math.floor(Math.random() * open.length)]);
   }
@@ -144,10 +144,18 @@ export function Grid() {
         const p = playerRef.current;
         const cellIdx = idx(p.x, p.y);
         if (specialsRef.current.has(cellIdx) && !collectedRef.current.has(cellIdx)) {
-          setCollected((s) => new Set(s).add(cellIdx));
+          const nc = new Set(collectedRef.current).add(cellIdx);
           setCash((c) => c + SPECIAL_BONUS);
           setFlash(cellIdx);
           window.setTimeout(() => setFlash(null), 200);
+          if (nc.size === specialsRef.current.size) {
+            // all packages delivered: route complete — bonus, bump, fresh layout
+            setRoutes((r) => r + 1);
+            setCash((c) => c + ROUTE_BONUS);
+            newLayout();
+          } else {
+            setCollected(nc);
+          }
         }
         return;
       }
@@ -171,16 +179,7 @@ export function Grid() {
       setPlayer({ x: nx, y: ny });
       // movement-only income: pay once, the first time a cell is covered
       if (!visitedRef.current.has(cellIdx)) setCash((c) => c + CASH_PER_STOP);
-      const nv = new Set(visitedRef.current).add(cellIdx);
-      const total = COLS * ROWS - blockedRef.current.size;
-      if (nv.size === total) {
-        // route complete: bump counter, pay the bonus, roll a fresh layout
-        setRoutes((r) => r + 1);
-        setCash((c) => c + ROUTE_BONUS);
-        newLayout();
-      } else {
-        setVisited(nv);
-      }
+      setVisited(new Set(visitedRef.current).add(cellIdx));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
