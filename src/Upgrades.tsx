@@ -158,14 +158,22 @@ export function Upgrades({ cash, upgrades, onBuy }: UpgradesProps) {
         })}
       </VStack>
 
-      {/* Footer */}
-      <VStack
-        paddingInline={4}
-        paddingBlock={3}
-        style={{ borderBlockStart: "1px solid var(--color-border-emphasized)" }}
-      >
-        <Text type="supporting">{`DRIVERS ${upgrades.fleet ?? 0}   ·   AUTOPILOT ${(upgrades.autopilot ?? 0) > 0 ? "ON" : "—"}`}</Text>
-      </VStack>
+      {/* Footer — only shown once something is owned */}
+      {(() => {
+        const parts = [];
+        if ((upgrades.fleet ?? 0) > 0) parts.push(`DRIVERS ${upgrades.fleet}`);
+        if ((upgrades.autopilot ?? 0) > 0) parts.push("AUTOPILOT ON");
+        if (parts.length === 0) return null;
+        return (
+          <VStack
+            paddingInline={4}
+            paddingBlock={3}
+            style={{ borderBlockStart: "1px solid var(--color-border-emphasized)" }}
+          >
+            <Text type="supporting">{parts.join(" · ")}</Text>
+          </VStack>
+        );
+      })()}
     </VStack>
   );
 }
