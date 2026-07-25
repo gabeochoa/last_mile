@@ -149,6 +149,52 @@ export function Grid({
     setFullBonusPaid(false);
   };
 
+  // one grid move in (dx,dy) — shared by the keydown handler and the snake tick.
+  // returns false if the move was blocked/off-grid or ended the route (i.e. the
+  // caller should stop rolling), true if the player actually advanced a cell.
+  const step = (dx: number, dy: number): boolean => {
+    const p = playerRef.current;
+    const nx = p.x + dx;
+    const ny = p.y + dy;
+    // ignore moves off-grid or into a blocked building
+    if (
+      nx < 0 ||
+      nx >= COLS ||
+      ny < 0 ||
+      ny >= ROWS ||
+      blockedRef.current.has(idx(nx, ny))
+    ) {
+      return false;
+    }
+    const cellIdx = idx(nx, ny);
+    // armed once every package is collected; returning to the depot finishes
+    // the route — pay the bonus, bump the count, and roll a fresh layout
+    const armed =
+      specialsRef.current.size > 0 &&
+      collectedRef.current.size === specialsRef.current.size;
+    if (armed && cellIdx === START) {
+      setRoutes((r) => r + 1);
+      onEarnRef.current(ROUTE_BONUS);
+      newLayout();
+      return false;
+    }
+    setPlayer({ x: nx, y: ny });
+    // movement-only income: pay once, the first time a cell is covered
+    if (!visitedRef.current.has(cellIdx)) onEarnRef.current(CASH_PER_STOP);
+    const nv = new Set(visitedRef.current).add(cellIdx);
+    setVisited(nv);
+    // optional one-time bonus for fully exploring the route (never ends the route)
+    const total = COLS * ROWS - blockedRef.current.size;
+    if (!fullBonusPaidRef.current && nv.size === total) {
+      setFullBonusPaid(true);
+      onEarnRef.current(FULL_COVERAGE_BONUS);
+    }
+    return true;
+  };
+  // ref so the once-bound keydown handler / tick always call the latest step
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
   useEffect(() => {
     const deltas: Record<string, [number, number]> = {
       ArrowUp: [0, -1],
@@ -176,42 +222,7 @@ export function Grid({
       const d = deltas[e.key];
       if (!d) return;
       e.preventDefault();
-      const p = playerRef.current;
-      const nx = p.x + d[0];
-      const ny = p.y + d[1];
-      // ignore moves off-grid or into a blocked building
-      if (
-        nx < 0 ||
-        nx >= COLS ||
-        ny < 0 ||
-        ny >= ROWS ||
-        blockedRef.current.has(idx(nx, ny))
-      ) {
-        return;
-      }
-      const cellIdx = idx(nx, ny);
-      // armed once every package is collected; returning to the depot finishes
-      // the route — pay the bonus, bump the count, and roll a fresh layout
-      const armed =
-        specialsRef.current.size > 0 &&
-        collectedRef.current.size === specialsRef.current.size;
-      if (armed && cellIdx === START) {
-        setRoutes((r) => r + 1);
-        onEarnRef.current(ROUTE_BONUS);
-        newLayout();
-        return;
-      }
-      setPlayer({ x: nx, y: ny });
-      // movement-only income: pay once, the first time a cell is covered
-      if (!visitedRef.current.has(cellIdx)) onEarnRef.current(CASH_PER_STOP);
-      const nv = new Set(visitedRef.current).add(cellIdx);
-      setVisited(nv);
-      // optional one-time bonus for fully exploring the route (never ends the route)
-      const total = COLS * ROWS - blockedRef.current.size;
-      if (!fullBonusPaidRef.current && nv.size === total) {
-        setFullBonusPaid(true);
-        onEarnRef.current(FULL_COVERAGE_BONUS);
-      }
+      stepRef.current(d[0], d[1]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
