@@ -560,8 +560,9 @@ export function Grid({
     const armed = specials.size > 0 && collected.size === specials.size;
     for (const c of depots) drawDepot(c, armed);
 
-    // hired fleet vans: smaller, dimmer ink squares so the orange player stays "you"
-    ctx.fillStyle = INK;
+    // hired fleet = YOUR drivers: your accent color, smaller + dimmer so the main
+    // player still reads as "you" (rivals are the blue ones).
+    ctx.fillStyle = ACCENT;
     ctx.globalAlpha = 0.6;
     const vinset = Math.round(cell * 0.25);
     for (const v of vans) {
