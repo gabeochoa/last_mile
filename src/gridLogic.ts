@@ -61,6 +61,40 @@ export function genSpecials(
   return specials;
 }
 
+// BFS over open (non-blocked) cells; returns the first-step [dx,dy] on a shortest
+// path from `from` to `to`, or null if already there / unreachable.
+export function bfsNextStep(
+  blocked: Set<number>,
+  from: number,
+  to: number,
+): [number, number] | null {
+  if (from === to) return null;
+  const prev = new Map<number, number>();
+  const seen = new Set([from]);
+  const queue = [from];
+  while (queue.length) {
+    const c = queue.shift()!;
+    if (c === to) break;
+    const x = c % COLS;
+    const y = Math.floor(c / COLS);
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      const n = idx(nx, ny);
+      if (blocked.has(n) || seen.has(n)) continue;
+      seen.add(n);
+      prev.set(n, c);
+      queue.push(n);
+    }
+  }
+  if (!prev.has(to)) return null;
+  // walk back from `to` to the cell right after `from`
+  let step = to;
+  while (prev.get(step) !== from) step = prev.get(step)!;
+  return [(step % COLS) - (from % COLS), Math.floor(step / COLS) - Math.floor(from / COLS)];
+}
+
 export type Layout = { blocked: Set<number>; specials: Set<number> };
 
 // fresh random layout: 6-9 blocked cells (never START), guaranteed fully reachable

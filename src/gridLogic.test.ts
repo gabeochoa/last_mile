@@ -1,4 +1,4 @@
-import { allReachable, genLayout, START, COLS, ROWS } from "./gridLogic";
+import { allReachable, genLayout, bfsNextStep, idx, START, COLS, ROWS } from "./gridLogic";
 
 test("genLayout always produces a fully-reachable, valid layout", () => {
   for (let i = 0; i < 500; i++) {
@@ -15,6 +15,26 @@ test("genLayout always produces a fully-reachable, valid layout", () => {
       expect(blocked.has(s)).toBe(false);
     }
   }
+});
+
+test("bfsNextStep routes around a wall and reduces distance", () => {
+  // wall a vertical column at x=1 for y=0..2, forcing a detour downward.
+  const blocked = new Set<number>([idx(1, 0), idx(1, 1), idx(1, 2)]);
+  const from = idx(0, 0);
+  const to = idx(2, 0);
+  const step = bfsNextStep(blocked, from, to)!;
+  expect(step).not.toBeNull();
+  // first step must be a valid single move into an open cell...
+  expect(Math.abs(step[0]) + Math.abs(step[1])).toBe(1);
+  const nx = 0 + step[0];
+  const ny = 0 + step[1];
+  expect(blocked.has(idx(nx, ny))).toBe(false);
+  // ...and can't go straight right (walled), so it detours down.
+  expect(step).toEqual([0, 1]);
+  // already-there / unreachable cases
+  expect(bfsNextStep(blocked, from, from)).toBeNull();
+  const sealed = new Set<number>([idx(1, 0), idx(0, 1)]); // isolate START
+  expect(bfsNextStep(sealed, START, idx(2, 2))).toBeNull();
 });
 
 test("allReachable is false when a cell is walled off", () => {
