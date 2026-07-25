@@ -119,8 +119,9 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
         />
       </HStack>
 
-      {/* Upgrade buckets */}
-      <VStack isScrollable>
+      {/* Upgrade buckets — flex:1 + minHeight:0 so this region scrolls within the
+          100vh column instead of pushing the header/footer off-screen. */}
+      <VStack isScrollable style={{ flex: 1, minHeight: 0 }}>
         {BUCKETS.map((bucket) => {
           const items = hideCompleted ? bucket.items.filter((i) => !isDone(i)) : bucket.items;
           if (items.length === 0) return null;
