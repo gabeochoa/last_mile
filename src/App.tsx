@@ -72,11 +72,22 @@ export function App() {
   // Create/resume the AudioContext on the first user gesture (autoplay policy).
   useEffect(() => initAudioOnFirstGesture(), []);
 
+  // Reveal the shop once you can afford the two cheapest upgrades — enough to make a
+  // real first choice, not a single forced buy. Latches on.
+  const nextCosts = BUCKETS.flatMap((b) => b.items)
+    .map((it) => {
+      if (!it.id) return Infinity;
+      const lvl = upgrades[it.id] ?? 0;
+      const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
+      return lvl >= max ? Infinity : upgradeCost(it, lvl);
+    })
+    .sort((a, b) => a - b);
+  const canAffordTwo = cash >= (nextCosts[0] ?? Infinity) + (nextCosts[1] ?? Infinity);
   useEffect(() => {
-    if (!revealed && stats.routes >= 1) {
+    if (!revealed && canAffordTwo) {
       setRevealed(true);
     }
-  }, [stats.routes, revealed]);
+  }, [canAffordTwo, revealed]);
 
   // Autosave meta whenever it changes (dev never writes the save).
   useEffect(() => {
