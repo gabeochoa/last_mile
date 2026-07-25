@@ -38,12 +38,14 @@ export function Grid({
   onEarn,
   onStats,
   autoDeliver,
+  autopilot,
   cashMult,
   extraPackages,
 }: {
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
   autoDeliver: boolean;
+  autopilot: boolean;
   cashMult: number;
   extraPackages: number;
 }) {
@@ -62,6 +64,8 @@ export function Grid({
   onStatsRef.current = onStats;
   const autoDeliverRef = useRef(autoDeliver);
   autoDeliverRef.current = autoDeliver;
+  const autopilotRef = useRef(autopilot);
+  autopilotRef.current = autopilot;
   const cashMultRef = useRef(cashMult);
   cashMultRef.current = cashMult;
   const extraPackagesRef = useRef(extraPackages);

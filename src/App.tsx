@@ -145,6 +145,7 @@ export function App() {
           onEarn={(delta) => setCash((c) => c + delta)}
           onStats={setStats}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
+          autopilot={(upgrades.autopilot ?? 0) > 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
         />

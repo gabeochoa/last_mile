@@ -31,7 +31,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "AUTOMATION",
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
-      { name: "Autopilot Module", effect: "self-drives the route", locked: true },
+      { id: "autopilot", name: "Autopilot Module", effect: "self-drives the route", baseCost: 250, costMult: 1, maxLevel: 1 },
       { name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", locked: true },
     ],
   },
