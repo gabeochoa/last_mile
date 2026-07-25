@@ -3,7 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, unownedShare, EXPAND_MAX } from "./config";
+import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, unownedShare } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -75,7 +75,6 @@ export function App() {
 
   // market takeover: unowned share counts down as you EXPAND the map.
   const theirShare = unownedShare(upgrades);
-  const territoryLeft = EXPAND_MAX - expandLevel(upgrades);
 
   // Latch the ending: once you own 100% (or ?end preview), it stays for the session.
   const [ended, setEnded] = useState(END_PREVIEW);
@@ -115,9 +114,6 @@ export function App() {
       >
         <span>DAY {stats.routes + 1}</span>
         <span>CASH ${cash}</span>
-        <span style={{ color: "#E8541E" }}>
-          TERRITORY LEFT {String(territoryLeft).padStart(2, "0")} ▼
-        </span>
         <button
           onClick={() => {
             const next = !muted;
