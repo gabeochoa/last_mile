@@ -55,6 +55,12 @@ export function App() {
   // Current map dims from expansion; Demand Engine's cap = cells on the map.
   const dims = sizeForExpansion(expandLevel(upgrades));
   const maxLevels: Record<string, number> = { demand: dims.cols * dims.rows };
+  // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
+  const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
+    if (!it.id) return true;
+    const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
+    return (upgrades[it.id] ?? 0) >= max;
+  });
   // Once the map is large, the center HUD reflows to give the grid room.
   const bigMap = Math.max(dims.cols, dims.rows) >= 9;
 
@@ -103,11 +109,13 @@ export function App() {
   // market takeover: unowned share counts down as you EXPAND the map.
   const theirShare = unownedShare(upgrades);
 
-  // Latch the ending: once you own 100% (or ?end preview), it stays for the session.
+  // Show the ending once every upgrade is maxed (or ?end preview). Continue dismisses
+  // it and sets keepPlaying so it won't pop again this session.
+  const [keepPlaying, setKeepPlaying] = useState(false);
   const [ended, setEnded] = useState(END_PREVIEW);
   useEffect(() => {
-    if (theirShare <= 0) setEnded(true);
-  }, [theirShare]);
+    if (allMaxed && !keepPlaying) setEnded(true);
+  }, [allMaxed, keepPlaying]);
 
   const onRestart = () => {
     clearSave();
@@ -332,7 +340,17 @@ export function App() {
       </div>
 
       {intro && <Intro onStart={() => setIntro(false)} />}
-      {ended && <Ending routes={stats.routes} cash={cash} onRestart={onRestart} />}
+      {ended && (
+        <Ending
+          routes={stats.routes}
+          cash={cash}
+          onRestart={onRestart}
+          onContinue={() => {
+            setEnded(false);
+            setKeepPlaying(true);
+          }}
+        />
+      )}
     </Theme>
   );
 }

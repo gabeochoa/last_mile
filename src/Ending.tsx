@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 
-// End card shown when the player owns 100% of the market (UNOWNED hits 0).
-// Full-screen fixed overlay above the HUD; fades in over ~1.2s.
+// End card shown when the player has maxed every upgrade (nothing left to buy).
+// Full-screen fixed overlay above the HUD; fades in over ~1.2s. Continue dismisses
+// it so the player can keep playing; Start Over wipes the save.
 export function Ending({
   routes,
   cash,
   onRestart,
+  onContinue,
 }: {
   routes: number;
   cash: number;
   onRestart: () => void;
+  onContinue: () => void;
 }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
@@ -65,22 +68,38 @@ export function Ending({
         astryx (MIT)
       </div>
 
-      <button
-        onClick={onRestart}
-        style={{
-          marginBlockStart: 8,
-          background: "transparent",
-          color: "#ECE7DA",
-          border: "1px solid rgba(236,231,218,0.4)",
-          padding: "10px 22px",
-          fontFamily: "inherit",
-          fontSize: 12,
-          letterSpacing: 2,
-          cursor: "pointer",
-        }}
-      >
-        START OVER
-      </button>
+      <div style={{ display: "flex", gap: 14, marginBlockStart: 8 }}>
+        <button
+          onClick={onContinue}
+          style={{
+            background: "#E8541E",
+            color: "#0F0F0F",
+            border: "1px solid #E8541E",
+            padding: "10px 22px",
+            fontFamily: "inherit",
+            fontSize: 12,
+            letterSpacing: 2,
+            cursor: "pointer",
+          }}
+        >
+          CONTINUE
+        </button>
+        <button
+          onClick={onRestart}
+          style={{
+            background: "transparent",
+            color: "#ECE7DA",
+            border: "1px solid rgba(236,231,218,0.4)",
+            padding: "10px 22px",
+            fontFamily: "inherit",
+            fontSize: 12,
+            letterSpacing: 2,
+            cursor: "pointer",
+          }}
+        >
+          START OVER
+        </button>
+      </div>
     </div>
   );
 }
