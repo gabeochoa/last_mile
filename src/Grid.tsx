@@ -15,15 +15,17 @@ const ACCENT = "#E8541E";
 // hero. The grid is centered inside it and cells shrink as the map grows, so early
 // routes are chunky and late-game maps zoom out to tiny pixel roads.
 const SIDEBAR_PX = 320; // reserved for the upgrades sidebar
-const BANNER_PX = 56; // top banner height
+const BANNER_PX = 56; // top banner + its padding
+const BUTTON_PX = 76; // room below the grid for the Start Day button (+ gap) so it never scrolls off
 const HERO_PX = 220; // vertical room the UNOWNED% hero + deliveries take on small maps
-// hero = true when the small-map hero is on screen above the grid (reserve room for it)
+// hero = true when the small-map hero is on screen above the grid (reserve room for it).
+// Everything must fit in the viewport with no scroll, so subtract all vertical chrome.
 const computeCanvas = (hero: boolean) =>
   Math.max(
     BASE_COLS * CELL,
     Math.min(
       window.innerWidth - SIDEBAR_PX - PAD * 2,
-      window.innerHeight - BANNER_PX - (hero ? HERO_PX : PAD * 2),
+      window.innerHeight - BANNER_PX - BUTTON_PX - (hero ? HERO_PX : PAD * 2),
     ),
   );
 
@@ -575,7 +577,10 @@ export function Grid({
         height={canvas}
         style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1 }}
       />
-      {dayEnded && <Button label="Start Day" variant="primary" onClick={beginDay} />}
+      {/* Fixed-height slot so the grid never shifts when the button appears/disappears. */}
+      <Stack direction="horizontal" style={{ height: 44, justifyContent: "center", alignItems: "center" }}>
+        {dayEnded && <Button label="Start Day" variant="primary" onClick={beginDay} />}
+      </Stack>
     </Stack>
   );
 }
