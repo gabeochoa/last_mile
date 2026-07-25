@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
+import { Intro } from "./Intro";
 import { Upgrades, micrographic } from "./Upgrades";
 import { BUCKETS, upgradeCost, perDelivery, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed } from "./config";
 import { sizeForExpansion } from "./gridLogic";
@@ -12,6 +13,8 @@ import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
 // ?end forces the ending overlay so it can be screenshotted/tested without grinding.
 const END_PREVIEW = new URLSearchParams(window.location.search).get("end") !== null;
+// ?intro forces the intro/title overlay so it can be screenshotted/tested.
+const INTRO_PREVIEW = new URLSearchParams(window.location.search).get("intro") !== null;
 
 // Eases a displayed value toward target via rAF so countdowns visibly tick.
 function useAnimatedNumber(target: number, ms = 500): number {
@@ -35,6 +38,11 @@ function useAnimatedNumber(target: number, ms = 500): number {
 export function App() {
   // Resume meta from the last session (skipped in ?dev, which starts flush).
   const [loaded] = useState(() => (DEV ? null : load()));
+  // Show the title screen on a fresh start; skip in ?dev and when resuming
+  // a save with progress; force it with ?intro.
+  const [intro, setIntro] = useState(
+    () => INTRO_PREVIEW || (!DEV && !(loaded && (loaded.routes ?? 0) > 0))
+  );
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
   const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0 });
@@ -291,6 +299,7 @@ export function App() {
         />
       </div>
 
+      {intro && <Intro onStart={() => setIntro(false)} />}
       {ended && <Ending routes={stats.routes} cash={cash} onRestart={onRestart} />}
     </Theme>
   );
