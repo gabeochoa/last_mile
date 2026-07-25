@@ -311,11 +311,20 @@ export function Grid({
   const TOTAL = gcols * grows - blocked.size;
   // cell shrinks so the largest axis fills the fixed canvas ("zoom out")
   const cell = Math.floor(MAX_CANVAS_PX / Math.max(gcols, grows));
-  const gridW = gcols * cell;
-  const gridH = grows * cell;
-  // center the (possibly non-square) grid within the fixed square canvas
-  const offX = Math.floor((CANVAS - gridW) / 2);
-  const offY = Math.floor((CANVAS - gridH) / 2);
+
+  // ── grid-grow "zoom out" animation ──────────────────────────────────────────
+  // A grow shrinks `cell`; instead of snapping, ease the on-screen cell from the
+  // old (larger) size to the new (smaller) one over ~400ms. offX/offY/gridW/gridH
+  // are all derived from the animated cell so the map shrinks-to-fit smoothly.
+  const drawRef = useRef<(c: number) => void>(() => {});
+  const animRafRef = useRef(0);
+  const prevCellRef = useRef(cell);   // last real cell — a drop means the grid grew
+  const cellTargetRef = useRef(cell); // latest real cell = animation target
+  cellTargetRef.current = cell;
+  const animCellRef = useRef(cell);   // current on-screen (interpolated) cell
+  const animFromRef = useRef(cell);   // cell size the current animation started at
+  const animStartRef = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(animRafRef.current), []);
 
   // SFX on collect + route-complete, effect-based so Space, auto-deliver, fleet,
   // and autopilot all trigger it uniformly (they all flow through gs).
@@ -342,6 +351,12 @@ export function Grid({
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
+
+    // full render at a given cell size; gridW/gridH derive from it so the frame
+    // stays the fixed square while everything else scales with the (animated) cell.
+    const draw = (cell: number, offX: number, offY: number) => {
+    const gridW = gcols * cell;
+    const gridH = grows * cell;
 
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, CANVAS, CANVAS);
@@ -474,7 +489,47 @@ export function Grid({
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH, offX, offY, dayEnded]);
+    };
+
+    // draw at cell `c`, centering the (possibly non-square) grid in the fixed square
+    const drawAt = (c: number) =>
+      draw(c, Math.floor((CANVAS - gcols * c) / 2), Math.floor((CANVAS - grows * c) / 2));
+    drawRef.current = drawAt;
+
+    const grew = cell < prevCellRef.current;
+    prevCellRef.current = cell;
+
+    if (grew) {
+      // ease from where we're visually at now → the new smaller target. An
+      // interrupting grow just resets from/start, so the running loop retargets.
+      animFromRef.current = animCellRef.current;
+      animStartRef.current = performance.now();
+      if (!animRafRef.current) {
+        const tick = (now: number) => {
+          const t = Math.min(1, (now - animStartRef.current) / 400);
+          const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+          animCellRef.current =
+            animFromRef.current + (cellTargetRef.current - animFromRef.current) * e;
+          drawRef.current(animCellRef.current);
+          if (t < 1) {
+            animRafRef.current = requestAnimationFrame(tick);
+          } else {
+            animRafRef.current = 0;
+            animCellRef.current = cellTargetRef.current; // settle exactly on real cell
+            drawRef.current(cellTargetRef.current);
+          }
+        };
+        animRafRef.current = requestAnimationFrame(tick);
+      }
+    } else if (animRafRef.current) {
+      // mid-animation state change: reflect it now at the current scale; the rAF
+      // loop keeps easing through the freshly-set drawRef.
+      drawAt(animCellRef.current);
+    } else {
+      animCellRef.current = cell;
+      drawAt(cell);
+    }
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, gcols, grows, cell, dayEnded]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
