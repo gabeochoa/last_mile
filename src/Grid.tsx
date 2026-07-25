@@ -16,7 +16,7 @@ const CASH_PER_STOP = 1;
 const ROUTE_BONUS = 25;
 const SPECIAL_BONUS = 10;
 
-const FOOTER = 30;
+const FOOTER = 44; // two label rows
 const GRID_H = ROWS * CELL;
 const WIDTH = COLS * CELL + PAD * 2;
 const HEIGHT = GRID_H + PAD * 2 + FOOTER;
@@ -278,28 +278,29 @@ export function Grid() {
       ctx.stroke();
     }
 
-    // micrographic monospace label under the grid
+    // micrographic monospace labels under the grid (two rows)
+    // primary objective = PACKAGES remaining, secondary = MAP coverage %
+    const packagesLeft = specials.size - collected.size;
+    const mapPct = Math.round((visited.size / TOTAL) * 100);
     ctx.fillStyle = INK;
     ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.textBaseline = "middle";
-    const labelY = PAD + GRID_H + FOOTER / 2 + 2;
-    ctx.fillText(
-      `REMAINING ${String(TOTAL - visited.size).padStart(2, "0")}/${TOTAL}`,
-      PAD,
-      labelY,
-    );
-    ctx.textAlign = "center";
-    ctx.fillText(`CASH $${cash}`, WIDTH / 2, labelY);
-    const routesLabel = `ROUTES ${pad3(routes)}`;
+    const rowY1 = PAD + GRID_H + 13;
+    const rowY2 = PAD + GRID_H + 31;
+    ctx.textAlign = "left";
+    ctx.fillText(`PACKAGES ${String(packagesLeft).padStart(2, "0")}`, PAD, rowY1);
+    ctx.fillText(`CASH $${cash}`, PAD, rowY2);
     ctx.textAlign = "right";
-    ctx.fillText(routesLabel, WIDTH - PAD, labelY);
+    ctx.fillText(`MAP ${mapPct}%`, WIDTH - PAD, rowY1);
+    ctx.fillText(`ROUTES ${pad3(routes)}`, WIDTH - PAD, rowY2);
     ctx.textAlign = "left";
   }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, cash, TOTAL]);
 
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-      <Text>{`REMAINING ${TOTAL - visited.size}/${TOTAL}`}</Text>
+      <Text>{`PACKAGES ${String(specials.size - collected.size).padStart(2, "0")}`}</Text>
+      <Text>{`MAP ${Math.round((visited.size / TOTAL) * 100)}%`}</Text>
       <Text>{`CASH $${cash}`}</Text>
       <Text>{`ROUTES ${pad3(routes)}`}</Text>
       <Button label="Reset" onClick={newLayout} />
