@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
+import { Button } from "@astryxdesign/core/Button";
 import { BASE_COLS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
-import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
+import { applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
 
@@ -129,6 +130,7 @@ export function Grid({
       ArrowRight: [1, 0],
     };
     const onKey = (e: KeyboardEvent) => {
+      if (gsRef.current.dayEnded) return; // day over: input frozen until Start Day
       if (e.key === " ") {
         e.preventDefault();
         commit(collectHere(gsRef.current, { cashMult: cashMultRef.current }));
@@ -150,6 +152,7 @@ export function Grid({
     if (!autopilot) return;
     const id = window.setInterval(() => {
       const s = gsRef.current;
+      if (s.dayEnded) return; // pause autopilot on the day-end screen
       const { cols: gcols, rows: grows } = s.layout;
       const here = idx(s.player.x, s.player.y, gcols);
       const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
@@ -194,6 +197,7 @@ export function Grid({
   useEffect(() => {
     if (fleet <= 0) return;
     const id = window.setInterval(() => {
+      if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
       const { cols: gcols, rows: grows } = layout;
       const claimed = new Set<number>();
@@ -226,7 +230,7 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet]);
 
-  const { player, layout, visited, collected, routes } = gs;
+  const { player, layout, visited, collected, routes, dayEnded } = gs;
   const { blocked, specials, cols: gcols, rows: grows } = layout;
   const TOTAL = gcols * grows - blocked.size;
   // cell shrinks so the largest axis fills the fixed canvas ("zoom out")
@@ -253,11 +257,11 @@ export function Grid({
   // report headline stats up to the app HUD
   useEffect(() => {
     onStatsRef.current({
-      packagesLeft: specials.size - collected.size,
+      packagesLeft: dayEnded ? 0 : specials.size - collected.size,
       mapPct: TOTAL > 0 ? Math.round((visited.size / TOTAL) * 100) : 0,
       routes,
     });
-  }, [specials, collected, visited, TOTAL, routes]);
+  }, [specials, collected, visited, TOTAL, routes, dayEnded]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -272,6 +276,23 @@ export function Grid({
     ctx.strokeRect(0.5, 0.5, CANVAS - 1, CANVAS - 1);
 
     drawRegistration(ctx, offX, offY, gridW, gridH);
+
+    // day over: the finished route fades to an empty grid — frame, registration
+    // marks and the depot only (no packages/visited/vans/player) until Start Day.
+    if (dayEnded) {
+      const dX = offX + (START % gcols) * cell;
+      const dY = offY + Math.floor(START / gcols) * cell;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(dX + 2.5, dY + 2.5, cell - 5, cell - 5);
+      ctx.fillStyle = INK;
+      ctx.font = `${Math.round(cell / 3)}px ui-monospace, Menlo, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("⌂", dX + cell / 2, dY + cell / 2 + 1);
+      ctx.textAlign = "left";
+      return;
+    }
 
     // blocked buildings = solid ink at ~70% alpha
     ctx.fillStyle = INK;
@@ -381,11 +402,28 @@ export function Grid({
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH, offX, offY]);
+  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH, offX, offY, dayEnded]);
+
+  // begin the next day: fresh route with current dims + package count (upgrades applied)
+  const beginDay = () =>
+    commit({
+      state: startDay(gsRef.current, {
+        cols: colsRef.current,
+        rows: rowsRef.current,
+        packageCount: BASE_PACKAGES + extraPackagesRef.current,
+      }),
+      earned: 0,
+    });
 
   return (
     <Stack direction="vertical" gap={4}>
-      <canvas ref={canvasRef} width={CANVAS} height={CANVAS} />
+      <canvas
+        ref={canvasRef}
+        width={CANVAS}
+        height={CANVAS}
+        style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1 }}
+      />
+      {dayEnded && <Button label="Start Day" variant="primary" onClick={beginDay} />}
     </Stack>
   );
 }
