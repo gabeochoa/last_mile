@@ -15,6 +15,7 @@ const ACCENT = "#E8541E";
 const CASH_PER_STOP = 1;
 const ROUTE_BONUS = 25;
 const SPECIAL_BONUS = 10;
+const FULL_COVERAGE_BONUS = 50; // one-time, for covering every reachable cell in a route
 
 const FOOTER = 44; // two label rows
 const GRID_H = ROWS * CELL;
@@ -107,6 +108,7 @@ export function Grid() {
   const [flash, setFlash] = useState<number | null>(null);
   const [routes, setRoutes] = useState(0);
   const [cash, setCash] = useState(0);
+  const [fullBonusPaid, setFullBonusPaid] = useState(false);
 
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
@@ -122,12 +124,15 @@ export function Grid() {
   specialsRef.current = specials;
   const collectedRef = useRef(collected);
   collectedRef.current = collected;
+  const fullBonusPaidRef = useRef(fullBonusPaid);
+  fullBonusPaidRef.current = fullBonusPaid;
 
   const newLayout = () => {
     setLayout(genLayout());
     setPlayer({ x: 0, y: 0 });
     setVisited(new Set([START]));
     setCollected(new Set());
+    setFullBonusPaid(false);
   };
 
   useEffect(() => {
@@ -179,7 +184,14 @@ export function Grid() {
       setPlayer({ x: nx, y: ny });
       // movement-only income: pay once, the first time a cell is covered
       if (!visitedRef.current.has(cellIdx)) setCash((c) => c + CASH_PER_STOP);
-      setVisited(new Set(visitedRef.current).add(cellIdx));
+      const nv = new Set(visitedRef.current).add(cellIdx);
+      setVisited(nv);
+      // optional one-time bonus for fully exploring the route (never ends the route)
+      const total = COLS * ROWS - blockedRef.current.size;
+      if (!fullBonusPaidRef.current && nv.size === total) {
+        setFullBonusPaid(true);
+        setCash((c) => c + FULL_COVERAGE_BONUS);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
