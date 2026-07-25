@@ -1,4 +1,4 @@
-import { allReachable, genLayout, bfsNextStep, idx, START, COLS, ROWS } from "./gridLogic";
+import { allReachable, genLayout, bfsNextStep, idx, START, COLS, ROWS, makeRng } from "./gridLogic";
 
 test("genLayout always produces a fully-reachable, valid layout", () => {
   for (let i = 0; i < 500; i++) {
@@ -15,6 +15,15 @@ test("genLayout always produces a fully-reachable, valid layout", () => {
       expect(blocked.has(s)).toBe(false);
     }
   }
+});
+
+test("genLayout is deterministic for a given seed", () => {
+  const a = genLayout(4, makeRng(1234));
+  const b = genLayout(4, makeRng(1234));
+  expect([...a.blocked].sort((m, n) => m - n)).toEqual([...b.blocked].sort((m, n) => m - n));
+  expect([...a.specials].sort((m, n) => m - n)).toEqual([...b.specials].sort((m, n) => m - n));
+  // and leaves plenty of open cells for packages (city, not a maze)
+  expect(COLS * ROWS - a.blocked.size).toBeGreaterThanOrEqual(5);
 });
 
 test("bfsNextStep routes around a wall and reduces distance", () => {

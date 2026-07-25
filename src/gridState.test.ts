@@ -93,7 +93,9 @@ test("regression: completing a route does not re-complete on the next move", () 
   })!;
   const second = applyMove(fresh, dir[0], dir[1], opts);
   expect(second.state.routes).toBe(1); // still 1 — no re-completion
-  expect(second.earned).toBe(Math.round(CASH_PER_STOP * 1)); // normal first move income
+  // ordinary move income, never a route bonus (package underfoot may add SPECIAL_BONUS)
+  expect(second.earned).toBeGreaterThanOrEqual(Math.round(CASH_PER_STOP * 1));
+  expect(second.earned).toBeLessThan(ROUTE_BONUS);
   expect(second.state.player).toEqual({ x: dir[0], y: dir[1] });
 });
 

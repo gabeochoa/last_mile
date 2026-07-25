@@ -124,17 +124,20 @@ export function cityBlocked(rng: () => number = Math.random): Set<number> {
   return blocked;
 }
 
-// fresh random layout: 6-9 blocked cells (never START), guaranteed fully reachable
+// fresh city layout: open streets + building blocks, START open & fully reachable
 export function genLayout(count = BASE_PACKAGES, rng: () => number = Math.random): Layout {
   for (let attempt = 0; attempt < 50; attempt++) {
-    const blocked = new Set<number>();
-    const nBlocked = 6 + Math.floor(rng() * 4); // 6-9
-    while (blocked.size < nBlocked) {
-      const c = Math.floor(rng() * COLS * ROWS);
-      if (c !== START) blocked.add(c);
+    const blocked = cityBlocked(rng);
+    if (!blocked.has(START) && allReachable(blocked)) {
+      return { blocked, specials: genSpecials(blocked, count, rng) };
     }
-    if (allReachable(blocked)) return { blocked, specials: genSpecials(blocked, count, rng) };
   }
-  const blocked = new Set<number>(); // fallback: no blocked cells is trivially reachable
+  // fallback: fixed road grid (cols 0,3 x rows 0,3) — always connected
+  const blocked = new Set<number>();
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (x !== 0 && x !== 3 && y !== 0 && y !== 3) blocked.add(idx(x, y));
+    }
+  }
   return { blocked, specials: genSpecials(blocked, count, rng) };
 }
