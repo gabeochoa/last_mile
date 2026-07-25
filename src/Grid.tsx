@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
-import { COLS, ROWS, CELL, PAD, START } from "./gridLogic";
+import { COLS, ROWS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
 import { applyMove, collectHere, newRoute, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 
@@ -117,6 +117,36 @@ export function Grid({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Autopilot: tick toward the nearest uncollected package, then home to the depot
+  // to complete the route — applyMove(autoDeliver) collects en route and, once
+  // armed, reaching the depot rolls a fresh route so it loops forever.
+  useEffect(() => {
+    if (!autopilot) return;
+    const id = window.setInterval(() => {
+      const s = gsRef.current;
+      const here = idx(s.player.x, s.player.y);
+      const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
+      const dist = (c: number) =>
+        Math.abs((c % COLS) - s.player.x) + Math.abs(Math.floor(c / COLS) - s.player.y);
+      // ponytail: Manhattan picks the target package; bfsNextStep still routes
+      // around walls. Swap for a BFS-distance nearest if a wall makes it dither.
+      const target = left.length
+        ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a))
+        : START;
+      const dir = bfsNextStep(s.layout.blocked, here, target);
+      if (!dir) return;
+      commit(
+        applyMove(gsRef.current, dir[0], dir[1], {
+          autoDeliver: true,
+          cashMult: cashMultRef.current,
+          packageCount: BASE_PACKAGES + extraPackagesRef.current,
+        }),
+      );
+    }, 150);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autopilot]);
 
   const { player, layout, visited, collected, routes } = gs;
   const { blocked, specials } = layout;
