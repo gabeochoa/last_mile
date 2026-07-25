@@ -28,6 +28,10 @@ export function App() {
     setUpgrades((u) => ({ ...u, [id]: 1 }));
   };
 
+  // market takeover: your share climbs as you clear routes; theirs counts down.
+  const ourShare = Math.min(100, stats.routes * 5);
+  const theirShare = 100 - ourShare;
+
   return (
     <Theme theme={micrographic} mode="dark">
       {/* Top banner: map coverage + cash + routes, pinned across the top. */}
@@ -51,8 +55,9 @@ export function App() {
           zIndex: 2,
         }}
       >
-        <span>MAP {stats.mapPct}%</span>
-        <span style={{ color: "#E8541E" }}>CASH ${cash}</span>
+        <span>OUR SHARE {ourShare}%</span>
+        <span style={{ color: "#E8541E" }}>THEIR SHARE {theirShare}% ▼</span>
+        <span>CASH ${cash}</span>
         <span>ROUTES {String(stats.routes).padStart(3, "0")}</span>
       </div>
 
