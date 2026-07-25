@@ -10,7 +10,6 @@ import {
 } from "./gridLogic";
 import {
   ROUTE_BONUS,
-  SPECIAL_BONUS,
 } from "./config";
 
 export type GridState = {
@@ -102,7 +101,7 @@ const isArmed = (s: GridState) =>
 
 type MoveOpts = {
   autoDeliver: boolean;
-  cashMult: number;
+  perDelivery: number;
   packageCount: number;
   // dims for the NEXT route seeded on completion (buying expansion mid-run grows it)
   cols: number;
@@ -121,7 +120,7 @@ export function applyMove(
   dy: number,
   opts: MoveOpts,
 ): { state: GridState; earned: number } {
-  const { autoDeliver, cashMult } = opts;
+  const { autoDeliver, perDelivery } = opts;
   if (state.dayEnded) return { state, earned: 0 };
   const { cols: gcols, rows: grows } = state.layout;
   const nx = state.player.x + dx;
@@ -140,7 +139,7 @@ export function applyMove(
   if (isArmed(state) && state.layout.depots.has(cellIdx)) {
     return {
       state: { ...state, routes: state.routes + 1, dayEnded: true },
-      earned: Math.round(ROUTE_BONUS * cashMult),
+      earned: ROUTE_BONUS,
     };
   }
 
@@ -149,7 +148,7 @@ export function applyMove(
 
   let collected = state.collected;
   if (autoDeliver && state.layout.specials.has(cellIdx) && !collected.has(cellIdx)) {
-    earned += Math.round(SPECIAL_BONUS * cashMult);
+    earned += perDelivery;
     collected = new Set(state.collected).add(cellIdx);
   }
 
@@ -164,21 +163,21 @@ export function applyMove(
 export function collectAt(
   state: GridState,
   cellIdx: number,
-  opts: { cashMult: number },
+  opts: { perDelivery: number },
 ): { state: GridState; earned: number } {
   if (!state.layout.specials.has(cellIdx) || state.collected.has(cellIdx)) {
     return { state, earned: 0 };
   }
   return {
     state: { ...state, collected: new Set(state.collected).add(cellIdx) },
-    earned: Math.round(SPECIAL_BONUS * opts.cashMult),
+    earned: opts.perDelivery,
   };
 }
 
 // Space action: collect an uncollected package underfoot (arms completion), else no-op.
 export function collectHere(
   state: GridState,
-  opts: { cashMult: number },
+  opts: { perDelivery: number },
 ): { state: GridState; earned: number } {
   const cellIdx = idx(state.player.x, state.player.y, state.layout.cols);
   if (!state.layout.specials.has(cellIdx) || state.collected.has(cellIdx)) {
@@ -186,6 +185,6 @@ export function collectHere(
   }
   return {
     state: { ...state, collected: new Set(state.collected).add(cellIdx) },
-    earned: Math.round(SPECIAL_BONUS * opts.cashMult),
+    earned: opts.perDelivery,
   };
 }

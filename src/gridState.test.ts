@@ -40,7 +40,7 @@ function bfsPath(from: number, to: number, blocked: Set<number>): [number, numbe
 
 test("playing a full route ends the day, then startDay begins the next one", () => {
   const rng = makeRng(1234);
-  const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
+  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
   let s = newRoute(COLS, ROWS, 4, 1, 0, rng);
   const packages = [...s.layout.specials];
   const layoutBefore = s.layout;
@@ -88,7 +88,7 @@ test("regression: completing a route ends the day and freezes further moves", ()
     routes: 0,
     dayEnded: false,
   };
-  const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
+  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
 
   // move INTO the depot: ends the day
   const first = applyMove(armed, -1, 0, opts);
@@ -122,7 +122,7 @@ test("applyMove completes the route at ANY depot when armed, not just START", ()
     routes: 0,
     dayEnded: false,
   };
-  const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
+  const opts = { autoDeliver: true, perDelivery: SPECIAL_BONUS, packageCount: 4, cols: COLS, rows: ROWS, rng };
 
   // stepping east onto the non-START depot ends the day + pays the route bonus
   const done = applyMove(armed, 1, 0, opts);
@@ -141,11 +141,11 @@ test("collectHere collects an uncollected package underfoot, else no-op", () => 
     routes: 0,
     dayEnded: false,
   };
-  const hit = collectHere(base, { cashMult: 1 });
+  const hit = collectHere(base, { perDelivery: SPECIAL_BONUS });
   expect(hit.earned).toBe(SPECIAL_BONUS);
   expect(hit.state.collected.has(idx(2, 0, COLS))).toBe(true);
   // no package here -> no-op, same reference
-  const miss = collectHere({ ...base, player: { x: 3, y: 0 } }, { cashMult: 1 });
+  const miss = collectHere({ ...base, player: { x: 3, y: 0 } }, { perDelivery: SPECIAL_BONUS });
   expect(miss.earned).toBe(0);
 });
 
@@ -158,15 +158,15 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
     routes: 0,
     dayEnded: false,
   };
-  const hit = collectAt(base, idx(2, 0, COLS), { cashMult: 1 });
+  const hit = collectAt(base, idx(2, 0, COLS), { perDelivery: SPECIAL_BONUS });
   expect(hit.earned).toBe(SPECIAL_BONUS);
   expect(hit.state.collected.has(idx(2, 0, COLS))).toBe(true);
   // already collected -> no-op, same reference
-  const again = collectAt(hit.state, idx(2, 0, COLS), { cashMult: 1 });
+  const again = collectAt(hit.state, idx(2, 0, COLS), { perDelivery: SPECIAL_BONUS });
   expect(again.earned).toBe(0);
   expect(again.state).toBe(hit.state);
   // empty cell -> no-op
-  const empty = collectAt(base, idx(3, 0, COLS), { cashMult: 1 });
+  const empty = collectAt(base, idx(3, 0, COLS), { perDelivery: SPECIAL_BONUS });
   expect(empty.earned).toBe(0);
   expect(empty.state).toBe(base);
 });

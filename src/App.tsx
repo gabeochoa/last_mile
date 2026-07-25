@@ -3,7 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, unownedShare, depotCount } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, extraPackages, expandLevel, unownedShare, depotCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -250,7 +250,7 @@ export function App() {
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={upgrades.fleet ?? 0}
           autoStartDay={(upgrades.autoStart ?? 0) > 0}
-          cashMult={cashMult(upgrades)}
+          perDelivery={perDelivery(upgrades)}
           extraPackages={extraPackages(upgrades)}
           depotCount={depotCount(upgrades)}
           {...dims}

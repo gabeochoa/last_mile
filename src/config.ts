@@ -2,7 +2,7 @@
 
 // Economy: cash comes only from delivering a package and finishing a route.
 export const ROUTE_BONUS = 25;
-export const SPECIAL_BONUS = 10;
+export const SPECIAL_BONUS = 1;
 
 // Market-takeover math: each cleared route claims this much share.
 export const SHARE_PER_ROUTE = 5;
@@ -51,7 +51,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "ECONOMY",
     items: [
       { id: "demand", name: "Demand Engine", effect: "more deliveries per route", baseCost: 30, costMult: 1.6 },
-      { id: "routeOpt", name: "Route Optimization", effect: "+cash per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
+      { id: "routeOpt", name: "Route Optimization", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
     ],
   },
   {
@@ -68,8 +68,8 @@ export const BASE_PACKAGES = 4;
 export function extraPackages(u: Record<string, number>) {
   return u.demand ?? 0;
 }
-export function cashMult(u: Record<string, number>) {
-  return 1 + (u.routeOpt ?? 0) * 0.25;
+export function perDelivery(u: Record<string, number>) {
+  return SPECIAL_BONUS + (u.routeOpt ?? 0);
 }
 // Depots upgrade -> number of warehouses (START is always one).
 export function depotCount(u: Record<string, number>) {

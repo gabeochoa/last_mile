@@ -47,7 +47,7 @@ export function Grid({
   autoDeliver,
   autopilot,
   fleet,
-  cashMult,
+  perDelivery,
   extraPackages,
   depotCount,
   autoStartDay,
@@ -60,7 +60,7 @@ export function Grid({
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
-  cashMult: number;
+  perDelivery: number;
   extraPackages: number;
   depotCount: number;
   autoStartDay: boolean;
@@ -95,8 +95,8 @@ export function Grid({
   autopilotRef.current = autopilot;
   const fleetRef = useRef(fleet);
   fleetRef.current = fleet;
-  const cashMultRef = useRef(cashMult);
-  cashMultRef.current = cashMult;
+  const perDeliveryRef = useRef(perDelivery);
+  perDeliveryRef.current = perDelivery;
   const extraPackagesRef = useRef(extraPackages);
   extraPackagesRef.current = extraPackages;
   const depotCountRef = useRef(depotCount);
@@ -123,7 +123,7 @@ export function Grid({
   // shared per-move options, always reading the latest refs
   const moveOpts = () => ({
     autoDeliver: autoDeliverRef.current,
-    cashMult: cashMultRef.current,
+    perDelivery: perDeliveryRef.current,
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
     rows: rowsRef.current,
@@ -140,7 +140,7 @@ export function Grid({
       if (gsRef.current.dayEnded) return; // day over: input frozen until Start Day
       if (e.key === " ") {
         e.preventDefault();
-        commit(collectHere(gsRef.current, { cashMult: cashMultRef.current }));
+        commit(collectHere(gsRef.current, { perDelivery: perDeliveryRef.current }));
         return;
       }
       const d = deltas[e.key];
@@ -230,7 +230,7 @@ export function Grid({
         if (!dir) return van;
         const nv = { x: van.x + dir[0], y: van.y + dir[1], home: van.home };
         const { state, earned } = collectAt(gsRef.current, idx(nv.x, nv.y, gcols), {
-          cashMult: cashMultRef.current,
+          perDelivery: perDeliveryRef.current,
         });
         if (earned) {
           gsRef.current = state;
