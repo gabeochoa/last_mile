@@ -180,6 +180,8 @@ export function Grid({
   // re-binding — and gsRef updates SYNCHRONOUSLY so rapid/held keys can't re-enter
   const gsRef = useRef(gs);
   gsRef.current = gs;
+  // latest beginDay(), so the once-bound keydown handler can start the day on Space
+  const beginDayRef = useRef<() => void>(() => {});
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;
   const onStatsRef = useRef(onStats);
@@ -240,7 +242,14 @@ export function Grid({
       ArrowRight: [1, 0],
     };
     const onKey = (e: KeyboardEvent) => {
-      if (gsRef.current.dayEnded) return; // day over: input frozen until Start Day
+      if (gsRef.current.dayEnded) {
+        // day over: Space starts the next day (same as the button); other keys frozen
+        if (e.key === " ") {
+          e.preventDefault();
+          beginDayRef.current();
+        }
+        return;
+      }
       if (e.key === " ") {
         e.preventDefault();
         commit(collectHere(gsRef.current, { perDelivery: perDeliveryRef.current }));
@@ -702,6 +711,7 @@ export function Grid({
       }),
       earned: 0,
     });
+  beginDayRef.current = beginDay;
 
   return (
     // Canvas sits in a positioned box so the day-not-started controls (instructions +
@@ -724,7 +734,7 @@ export function Grid({
             alignItems: "center",
           }}
         >
-          <Button label="Start Day" variant="primary" onClick={beginDay} />
+          <Button label="Start Day (Space)" variant="primary" onClick={beginDay} />
         </div>
       )}
     </div>
