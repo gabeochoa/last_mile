@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -45,7 +45,7 @@ export function App() {
   );
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0 });
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0 });
   // latch: the shop appears after the first route is finished, then stays.
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
@@ -55,9 +55,11 @@ export function App() {
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
 
-  // Current map dims from expansion; Demand Engine's cap = cells on the map.
+  // Current map dims from expansion. Demand Engine's cap = the empty delivery slots
+  // in the current grid (open, non-depot, minus rival-held cells), so you can't add
+  // more deliveries than there's room for. Grid reports this as stats.capacity.
   const dims = sizeForExpansion(expandLevel(upgrades));
-  const maxLevels: Record<string, number> = { demand: dims.cols * dims.rows };
+  const maxLevels: Record<string, number> = { demand: Math.max(0, stats.capacity - BASE_PACKAGES) };
   // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
   const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
     if (!it.id) return true;

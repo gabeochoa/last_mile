@@ -87,7 +87,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number }) => void;
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
@@ -461,14 +461,17 @@ export function Grid({
     prevSfxRoutesRef.current = routes;
   }, [routes]);
 
-  // report headline stats up to the app HUD
+  // report headline stats up to the app HUD. capacity = cells that can hold one of
+  // YOUR deliveries (open, non-depot) — caps how far Demand Engine can be bought.
+  const capacity = TOTAL - depots.size;
   useEffect(() => {
     onStatsRef.current({
       packagesLeft: dayEnded ? 0 : specials.size - collected.size,
       mapPct: TOTAL > 0 ? Math.round((visited.size / TOTAL) * 100) : 0,
       routes,
+      capacity,
     });
-  }, [specials, collected, visited, TOTAL, routes, dayEnded]);
+  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
