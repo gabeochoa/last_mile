@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
-import { Button } from "@astryxdesign/core/Button";
 import { COLS, ROWS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
 import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
@@ -95,12 +94,6 @@ export function Grid({
     setGs(r.state);
     if (r.earned) onEarnRef.current(r.earned);
   };
-
-  const reset = () =>
-    commit({
-      state: newRoute(BASE_PACKAGES + extraPackagesRef.current, gsRef.current.routes),
-      earned: 0,
-    });
 
   useEffect(() => {
     const deltas: Record<string, [number, number]> = {
@@ -363,7 +356,6 @@ export function Grid({
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-      <Button label="Reset" onClick={reset} />
     </Stack>
   );
 }
