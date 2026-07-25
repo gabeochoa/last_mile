@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
 import { BASE_COLS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
-import { addPackages, applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
+import { addPackages, applyMove, collectAt, collectHere, growState, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
 
@@ -244,6 +244,25 @@ export function Grid({
     commit({ state: addPackages(gsRef.current, delta), earned: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [extraPackages]);
+
+  // Map Expansion bought mid-route: grow the CURRENT route's grid LIVE so the map
+  // gets bigger immediately (the canvas re-reads dims from gs.layout; autopilot/fleet
+  // read the grown dims from gsRef each tick). Skips the initial mount for the loaded
+  // value, only grows (never shrinks), and pauses on the day-end screen (the next day
+  // already starts at the new size via startDay). Sets gs directly rather than via
+  // commit() because the remap changes collected indices, which would trip its flash.
+  const prevColsRef = useRef(cols);
+  const prevRowsRef = useRef(rows);
+  useEffect(() => {
+    const grew = cols > prevColsRef.current || rows > prevRowsRef.current;
+    prevColsRef.current = cols;
+    prevRowsRef.current = rows;
+    if (!grew || gsRef.current.dayEnded) return;
+    const next = growState(gsRef.current, cols, rows);
+    gsRef.current = next;
+    setGs(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cols, rows]);
 
   // Auto-Start Day: once owned, the day-end fade shows for a brief beat, then the
   // next day starts on its own (same commit as the Start Day button). Autopilot +

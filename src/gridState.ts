@@ -4,6 +4,8 @@ import {
   START,
   idx,
   genLayout,
+  growLayout,
+  remapIndices,
   type Layout,
 } from "./gridLogic";
 import {
@@ -45,6 +47,21 @@ export function startDay(
   opts: { cols: number; rows: number; packageCount: number; rng?: () => number },
 ): GridState {
   return newRoute(opts.cols, opts.rows, opts.packageCount, state.routes, opts.rng);
+}
+
+// Grow the CURRENT route's map to newCols x newRows LIVE (mid-route). growLayout
+// remaps blocked/specials + guarantees reachability; visited/collected are remapped
+// to the same wider row-width so coverage/deliveries survive. player {x,y}, routes,
+// and collected semantics are unchanged. Only ever grows (no-op if not bigger).
+export function growState(state: GridState, newCols: number, newRows: number): GridState {
+  const { cols: oldCols, rows: oldRows } = state.layout;
+  if (newCols <= oldCols && newRows <= oldRows) return state;
+  return {
+    ...state,
+    layout: growLayout(state.layout, newCols, newRows),
+    visited: remapIndices(state.visited, oldCols, newCols),
+    collected: remapIndices(state.collected, oldCols, newCols),
+  };
 }
 
 // Add up to `n` new packages to the CURRENT route on eligible cells (open, not the
