@@ -47,6 +47,37 @@ export function startDay(
   return newRoute(opts.cols, opts.rows, opts.packageCount, state.routes, opts.rng);
 }
 
+// Add up to `n` new packages to the CURRENT route on eligible cells (open, not the
+// depot, not already a package). Prefers UNVISITED cells; falls back to visited-
+// eligible only when unvisited run out. Deterministic given `rng`; adds fewer than
+// `n` if too few eligible cells remain (never exceeds available).
+export function addPackages(
+  state: GridState,
+  n: number,
+  rng: () => number = Math.random,
+): GridState {
+  const { cols, rows, blocked, specials } = state.layout;
+  const unvisited: number[] = [];
+  const visited: number[] = [];
+  for (let c = 0; c < cols * rows; c++) {
+    if (c === START || blocked.has(c) || specials.has(c)) continue;
+    (state.visited.has(c) ? visited : unvisited).push(c);
+  }
+  // deterministic shuffle so the pick order is seeded, not index-biased
+  const shuffle = (a: number[]) => {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+  const pick = [...shuffle(unvisited), ...shuffle(visited)].slice(0, n);
+  if (pick.length === 0) return state;
+  const next = new Set(specials);
+  for (const c of pick) next.add(c);
+  return { ...state, layout: { ...state.layout, specials: next } };
+}
+
 // armed once every package is collected — driving back to the depot then finishes
 const isArmed = (s: GridState) =>
   s.layout.specials.size > 0 && s.collected.size === s.layout.specials.size;

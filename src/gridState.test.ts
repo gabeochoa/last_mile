@@ -1,4 +1,4 @@
-import { applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
+import { addPackages, applyMove, collectAt, collectHere, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_COLS, BASE_ROWS, START, idx, makeRng } from "./gridLogic";
 import { ROUTE_BONUS, SPECIAL_BONUS, upgradeCost, type Upgrade } from "./config";
 
@@ -141,6 +141,53 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
   const empty = collectAt(base, idx(3, 0, COLS), { cashMult: 1 });
   expect(empty.earned).toBe(0);
   expect(empty.state).toBe(base);
+});
+
+test("addPackages: adds min(n, eligible), respects exclusions, prefers unvisited, deterministic", () => {
+  const base: GridState = {
+    player: { x: 0, y: 0 },
+    layout: {
+      blocked: new Set([idx(1, 0, COLS)]),
+      specials: new Set([idx(2, 0, COLS)]),
+      cols: COLS,
+      rows: ROWS,
+    },
+    // depot + one already-visited cell (so we can prove unvisited is preferred)
+    visited: new Set([START, idx(3, 0, COLS)]),
+    collected: new Set(),
+    routes: 0,
+    dayEnded: false,
+  };
+
+  const out = addPackages(base, 3, makeRng(7));
+  const added = [...out.layout.specials].filter((c) => !base.layout.specials.has(c));
+  // exactly n new, none on blocked/START/existing specials
+  expect(added.length).toBe(3);
+  for (const c of added) {
+    expect(base.layout.blocked.has(c)).toBe(false);
+    expect(c).not.toBe(START);
+    expect(base.layout.specials.has(c)).toBe(false);
+  }
+  // prefers unvisited: none of the added should be the already-visited cell while
+  // unvisited cells remain plentiful
+  expect(added).not.toContain(idx(3, 0, COLS));
+
+  // deterministic for a seeded rng
+  const a = addPackages(base, 3, makeRng(7)).layout.specials;
+  const b = addPackages(base, 3, makeRng(7)).layout.specials;
+  expect([...a].sort()).toEqual([...b].sort());
+
+  // never exceeds available eligible cells
+  const tiny: GridState = {
+    player: { x: 0, y: 0 },
+    layout: { blocked: new Set(), specials: new Set([idx(1, 0, COLS)]), cols: 2, rows: 1 },
+    visited: new Set([START]),
+    collected: new Set(),
+    routes: 0,
+    dayEnded: false,
+  };
+  // 2x1 grid: depot + one special = 0 eligible cells left
+  expect(addPackages(tiny, 5).layout.specials.size).toBe(1);
 });
 
 test("upgradeCost is round, starts at baseCost, and strictly increases", () => {
