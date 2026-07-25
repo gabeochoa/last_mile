@@ -180,21 +180,27 @@ export function Grid({
     });
   }, [fleet, gs.routes]);
 
-  // Fleet tick: slower than autopilot. Each van drives one step toward its nearest
-  // uncollected package (or home if none) and collects on arrival via collectAt —
-  // updating the shared route so completion arms + cash is paid. Vans never
-  // complete routes; only the main van reaching the depot does.
+  // Fleet tick: slower than autopilot. Vans fan out — each claims its nearest
+  // still-unclaimed uncollected package (claimed per tick so no two share a
+  // target); surplus vans (more vans than packages) head home to the depot.
+  // Each steps one cell and collects on arrival via collectAt — updating the
+  // shared route so completion arms + cash is paid. Vans never complete routes;
+  // only the main van reaching the depot does.
   useEffect(() => {
     if (fleet <= 0) return;
     const id = window.setInterval(() => {
       const { layout } = gsRef.current;
       const { cols: gcols, rows: grows } = layout;
+      const claimed = new Set<number>();
       const next = vansRef.current.map((van) => {
         const from = idx(van.x, van.y, gcols);
-        const left = [...layout.specials].filter((c) => !gsRef.current.collected.has(c));
         const dist = (c: number) =>
           Math.abs((c % gcols) - van.x) + Math.abs(Math.floor(c / gcols) - van.y);
-        const target = left.length ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : START;
+        const avail = [...layout.specials].filter(
+          (c) => !gsRef.current.collected.has(c) && !claimed.has(c),
+        );
+        const target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : START;
+        if (target !== START) claimed.add(target);
         const dir = bfsNextStep(layout.blocked, from, target, gcols, grows);
         if (!dir) return van;
         const nv = { x: van.x + dir[0], y: van.y + dir[1] };
