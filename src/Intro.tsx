@@ -16,19 +16,25 @@ export function Intro({ onStart }: { onStart: () => void }) {
         inset: 0,
         zIndex: 10,
         display: "flex",
-        flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        gap: 28,
         background: "#0F0F0F",
         color: "#ECE7DA",
         fontFamily: "ui-monospace, Menlo, monospace",
         textAlign: "center",
         padding: 24,
-        opacity: shown ? 1 : 0,
-        transition: "opacity 1200ms ease",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 28,
+          opacity: shown ? 1 : 0,
+          transition: "opacity 1200ms ease",
+        }}
+      >
       <div style={{ color: "#E8541E" }}>
         <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: 4, lineHeight: 0.9 }}>
           LAST MILE
@@ -58,6 +64,7 @@ export function Intro({ onStart }: { onStart: () => void }) {
       >
         START DELIVERING
       </button>
+      </div>
     </div>
   );
 }
