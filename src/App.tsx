@@ -8,6 +8,25 @@ const COSTS: Record<string, number> = {};
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
 
+// Eases a displayed value toward target via rAF so countdowns visibly tick.
+function useAnimatedNumber(target: number, ms = 500): number {
+  const [value, setValue] = useState(target);
+  useEffect(() => {
+    const start = value;
+    if (start === target) return;
+    const t0 = performance.now();
+    let raf = requestAnimationFrame(function tick(now) {
+      const t = Math.min(1, (now - t0) / ms);
+      setValue(start + (target - start) * t);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(raf);
+    // value read as the animation's start point only when target changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, ms]);
+  return Math.round(value);
+}
+
 export function App() {
   const [cash, setCash] = useState(DEV ? 9999 : 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>({});
@@ -31,6 +50,8 @@ export function App() {
   // market takeover: their unowned share counts down as you clear routes.
   const theirShare = 100 - Math.min(100, stats.routes * 5);
   const routesToMonopoly = Math.max(0, Math.ceil(theirShare / 5));
+  const displayShare = useAnimatedNumber(theirShare);
+  const displayPackages = useAnimatedNumber(stats.packagesLeft);
 
   return (
     <Theme theme={micrographic} mode="dark">
@@ -97,7 +118,7 @@ export function App() {
         {/* Hero countdown: unowned market share — hits 0 when you win. */}
         <div style={{ textAlign: "center", color: "#E8541E" }}>
           <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>
-            {theirShare}%
+            {displayShare}%
           </div>
           <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>
             UNOWNED MARKET ▼
@@ -107,7 +128,7 @@ export function App() {
         {/* Deliveries remaining (secondary) + controls, above the map. */}
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 2, lineHeight: 1 }}>
-            {String(stats.packagesLeft).padStart(2, "0")}
+            {String(displayPackages).padStart(2, "0")}
             <span style={{ fontSize: 12, opacity: 0.7, marginInlineStart: 8, letterSpacing: 1 }}>
               DELIVERIES LEFT
             </span>
