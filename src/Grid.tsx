@@ -12,19 +12,50 @@ const BG = "#0F0F0F";
 const INK = "#ECE7DA";
 const ACCENT = "#E8541E";
 
-// buildings the player cannot enter: two horizontal walls forcing U-shaped
-// detours. cols 0 and 5 stay open so every non-blocked cell is reachable.
-const BLOCKED = new Set([7, 8, 9, 10, 19, 20, 21, 22]);
-
 const FOOTER = 30;
-// only non-blocked cells count toward a completed route
-const TOTAL = COLS * ROWS - BLOCKED.size;
 const GRID_H = ROWS * CELL;
 const WIDTH = COLS * CELL + PAD * 2;
 const HEIGHT = GRID_H + PAD * 2 + FOOTER;
 
 const idx = (x: number, y: number) => y * COLS + x;
+const START = idx(0, 0);
 const pad3 = (n: number) => String(n).padStart(3, "0");
+
+// BFS from START over non-blocked cells; true only if every open cell is reachable
+function allReachable(blocked: Set<number>): boolean {
+  const total = COLS * ROWS - blocked.size;
+  const seen = new Set([START]);
+  const queue = [START];
+  while (queue.length) {
+    const c = queue.shift()!;
+    const x = c % COLS;
+    const y = Math.floor(c / COLS);
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      const n = idx(nx, ny);
+      if (blocked.has(n) || seen.has(n)) continue;
+      seen.add(n);
+      queue.push(n);
+    }
+  }
+  return seen.size === total;
+}
+
+// fresh random layout: 6-9 blocked cells (never START), guaranteed fully reachable
+function genLayout(): Set<number> {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const blocked = new Set<number>();
+    const count = 6 + Math.floor(Math.random() * 4); // 6-9
+    while (blocked.size < count) {
+      const c = Math.floor(Math.random() * COLS * ROWS);
+      if (c !== START) blocked.add(c);
+    }
+    if (allReachable(blocked)) return blocked;
+  }
+  return new Set(); // fallback: no blocked cells is trivially reachable
+}
 
 function drawRegistration(ctx: CanvasRenderingContext2D) {
   ctx.strokeStyle = INK;
@@ -49,12 +80,24 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
 export function Grid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
-  const [visited, setVisited] = useState<Set<number>>(() => new Set([idx(0, 0)]));
+  const [blocked, setBlocked] = useState<Set<number>>(() => genLayout());
+  const [visited, setVisited] = useState<Set<number>>(() => new Set([START]));
   const [routes, setRoutes] = useState(0);
 
-  const reset = () => {
+  const TOTAL = COLS * ROWS - blocked.size;
+
+  // refs so the keydown handler always sees current state without re-binding
+  const playerRef = useRef(player);
+  playerRef.current = player;
+  const blockedRef = useRef(blocked);
+  blockedRef.current = blocked;
+  const visitedRef = useRef(visited);
+  visitedRef.current = visited;
+
+  const newLayout = () => {
+    setBlocked(genLayout());
     setPlayer({ x: 0, y: 0 });
-    setVisited(new Set([idx(0, 0)]));
+    setVisited(new Set([START]));
   };
 
   useEffect(() => {
@@ -68,29 +111,30 @@ export function Grid() {
       const d = deltas[e.key];
       if (!d) return;
       e.preventDefault();
-      setPlayer((p) => {
-        const next = { x: p.x + d[0], y: p.y + d[1] };
-        // ignore moves off-grid or into a blocked building
-        if (
-          next.x < 0 ||
-          next.x >= COLS ||
-          next.y < 0 ||
-          next.y >= ROWS ||
-          BLOCKED.has(idx(next.x, next.y))
-        ) {
-          return p;
-        }
-        setVisited((v) => {
-          const nv = new Set(v).add(idx(next.x, next.y));
-          if (nv.size === TOTAL) {
-            // route complete: bump counter, clear for a fresh run
-            setRoutes((r) => r + 1);
-            return new Set([idx(next.x, next.y)]);
-          }
-          return nv;
-        });
-        return next;
-      });
+      const p = playerRef.current;
+      const nx = p.x + d[0];
+      const ny = p.y + d[1];
+      // ignore moves off-grid or into a blocked building
+      if (
+        nx < 0 ||
+        nx >= COLS ||
+        ny < 0 ||
+        ny >= ROWS ||
+        blockedRef.current.has(idx(nx, ny))
+      ) {
+        return;
+      }
+      const cellIdx = idx(nx, ny);
+      setPlayer({ x: nx, y: ny });
+      const nv = new Set(visitedRef.current).add(cellIdx);
+      const total = COLS * ROWS - blockedRef.current.size;
+      if (nv.size === total) {
+        // route complete: bump counter and roll a fresh layout
+        setRoutes((r) => r + 1);
+        newLayout();
+      } else {
+        setVisited(nv);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -113,7 +157,7 @@ export function Grid() {
     // blocked buildings = solid ink at ~70% alpha
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.7;
-    for (const cell of BLOCKED) {
+    for (const cell of blocked) {
       const bx = cell % COLS;
       const by = Math.floor(cell / COLS);
       ctx.fillRect(PAD + bx * CELL, PAD + by * CELL, CELL, CELL);
@@ -174,14 +218,14 @@ export function Grid() {
     ctx.textAlign = "right";
     ctx.fillText(routesLabel, WIDTH - PAD, labelY);
     ctx.textAlign = "left";
-  }, [player.x, player.y, visited, routes]);
+  }, [player.x, player.y, visited, blocked, routes, TOTAL]);
 
   return (
     <Stack direction="vertical" gap={4}>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
       <Text>{`REMAINING ${TOTAL - visited.size}/${TOTAL}`}</Text>
       <Text>{`ROUTES ${pad3(routes)}`}</Text>
-      <Button label="Reset" onClick={reset} />
+      <Button label="Reset" onClick={newLayout} />
     </Stack>
   );
 }
