@@ -45,7 +45,7 @@ export function App() {
   );
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0 });
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false });
   // latch: the shop appears after the first route is finished, then stays.
   const [revealed, setRevealed] = useState(DEV);
   const [muted, setMutedState] = useState(isMuted);
@@ -330,9 +330,12 @@ export function App() {
                   DELIVERIES LEFT
                 </span>
               </div>
-              <div style={{ fontSize: 12, opacity: 0.55, marginBlockStart: 6, letterSpacing: 1 }}>
-                ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
-              </div>
+              {/* hidden while the day isn't started — the map box shows them there */}
+              {!stats.dayEnded && (
+                <div style={{ fontSize: 12, opacity: 0.55, marginBlockStart: 6, letterSpacing: 1 }}>
+                  ARROWS DRIVE · SPACE DELIVER · RETURN TO DEPOT
+                </div>
+              )}
             </div>
           </>
         )}

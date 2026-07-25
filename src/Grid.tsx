@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Stack } from "@astryxdesign/core/Stack";
 import { Button } from "@astryxdesign/core/Button";
 import { BASE_COLS, CELL, PAD, idx, bfsNextStep } from "./gridLogic";
 import { addPackages, applyMove, collectAt, collectHere, finishIfDone, growState, newRoute, startDay, type GridState } from "./gridState";
@@ -128,7 +127,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean }) => void;
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
@@ -486,6 +485,7 @@ export function Grid({
       mapPct: TOTAL > 0 ? Math.round((visited.size / TOTAL) * 100) : 0,
       routes,
       capacity,
+      dayEnded,
     });
   }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity]);
 
@@ -703,19 +703,39 @@ export function Grid({
     });
 
   return (
-    <Stack direction="vertical" gap={4}>
+    // Canvas sits in a positioned box so the day-not-started controls (instructions +
+    // Start Day) can overlay centered INSIDE the map instead of shifting layout below it.
+    <div style={{ position: "relative", width: canvas, height: canvas }}>
       <canvas
         ref={canvasRef}
         width={canvas}
         height={canvas}
-        style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1 }}
+        style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1, display: "block" }}
       />
-      {/* Fixed-height slot so the grid never shifts when the button appears/disappears. */}
-      <Stack direction="horizontal" style={{ height: 44, justifyContent: "center", alignItems: "center" }}>
-        {/* Manual button only when auto-start is off (owned+enabled auto-rolls; the
-            banner AUTO-START toggle controls it once owned). */}
-        {dayEnded && !autoStartDay && <Button label="Start Day" variant="primary" onClick={beginDay} />}
-      </Stack>
-    </Stack>
+      {dayEnded && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 18,
+            fontFamily: "ui-monospace, Menlo, monospace",
+            color: INK,
+            letterSpacing: 2,
+          }}
+        >
+          <div style={{ fontSize: 13, lineHeight: 2, opacity: 0.7, textAlign: "center" }}>
+            <div>ARROWS DRIVE</div>
+            <div>SPACE DELIVER</div>
+            <div>RETURN TO DEPOT</div>
+          </div>
+          {/* Manual button only when auto-start is off (owned+enabled auto-rolls). */}
+          {!autoStartDay && <Button label="Start Day" variant="primary" onClick={beginDay} />}
+        </div>
+      )}
+    </div>
   );
 }
