@@ -28,9 +28,9 @@ export function App() {
     setUpgrades((u) => ({ ...u, [id]: 1 }));
   };
 
-  // market takeover: your share climbs as you clear routes; theirs counts down.
-  const ourShare = Math.min(100, stats.routes * 5);
-  const theirShare = 100 - ourShare;
+  // market takeover: their unowned share counts down as you clear routes.
+  const theirShare = 100 - Math.min(100, stats.routes * 5);
+  const routesToMonopoly = Math.max(0, Math.ceil(theirShare / 5));
 
   return (
     <Theme theme={micrographic} mode="dark">
@@ -55,10 +55,10 @@ export function App() {
           zIndex: 2,
         }}
       >
-        <span>OUR SHARE {ourShare}%</span>
-        <span style={{ color: "#E8541E" }}>THEIR SHARE {theirShare}% ▼</span>
         <span>CASH ${cash}</span>
-        <span>ROUTES {String(stats.routes).padStart(3, "0")}</span>
+        <span style={{ color: "#E8541E" }}>
+          ROUTES TO MONOPOLY {String(routesToMonopoly).padStart(2, "0")} ▼
+        </span>
       </div>
 
       {/* Sidebar: fixed on the left, slides + fades in on first reveal. */}
