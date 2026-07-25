@@ -3,8 +3,8 @@ import { Stack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 
-const COLS = 8;
-const ROWS = 8;
+const COLS = 6;
+const ROWS = 6;
 const CELL = 48;
 const PAD = 16;
 
