@@ -4,6 +4,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { COLS, ROWS, CELL, PAD, START, idx, bfsNextStep } from "./gridLogic";
 import { applyMove, collectAt, collectHere, newRoute, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
+import { playSfx } from "./audio";
 
 const BG = "#0F0F0F";
 const INK = "#ECE7DA";
@@ -213,6 +214,19 @@ export function Grid({
   const { player, layout, visited, collected, routes } = gs;
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
+
+  // SFX on collect + route-complete, effect-based so Space, auto-deliver, fleet,
+  // and autopilot all trigger it uniformly (they all flow through gs).
+  const prevCollectedRef = useRef(collected.size);
+  const prevSfxRoutesRef = useRef(routes);
+  useEffect(() => {
+    if (collected.size > prevCollectedRef.current) playSfx("deliver");
+    prevCollectedRef.current = collected.size;
+  }, [collected]);
+  useEffect(() => {
+    if (routes > prevSfxRoutesRef.current) playSfx("route");
+    prevSfxRoutesRef.current = routes;
+  }, [routes]);
 
   // report headline stats up to the app HUD
   useEffect(() => {

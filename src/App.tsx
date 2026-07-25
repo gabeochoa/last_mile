@@ -5,6 +5,7 @@ import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
 import { BUCKETS, upgradeCost, cashMult, extraPackages, SHARE_PER_ROUTE } from "./config";
 import { clearSave, load, save } from "./save";
+import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -38,6 +39,10 @@ export function App() {
   const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0 });
   // latch: once the first upgrade is affordable/owned the shop stays revealed.
   const [revealed, setRevealed] = useState(DEV);
+  const [muted, setMutedState] = useState(isMuted);
+
+  // Create/resume the AudioContext on the first user gesture (autoplay policy).
+  useEffect(() => initAudioOnFirstGesture(), []);
 
   useEffect(() => {
     if (!revealed && cash >= 10) {
@@ -60,6 +65,7 @@ export function App() {
     if (cash < cost) return;
     setCash((c) => c - cost);
     setUpgrades((prev) => ({ ...prev, [id]: level + 1 }));
+    playSfx("purchase");
   };
 
   // market takeover: their unowned share counts down as you clear routes.
@@ -106,6 +112,26 @@ export function App() {
         <span style={{ color: "#E8541E" }}>
           ROUTES TO MONOPOLY {String(routesToMonopoly).padStart(2, "0")} ▼
         </span>
+        <button
+          onClick={() => {
+            const next = !muted;
+            setMuted(next);
+            setMutedState(next);
+          }}
+          title={muted ? "Sound off" : "Sound on"}
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(236,231,218,0.25)",
+            color: muted ? "rgba(236,231,218,0.4)" : "#ECE7DA",
+            fontFamily: "inherit",
+            fontSize: 12,
+            letterSpacing: 1,
+            padding: "2px 8px",
+            cursor: "pointer",
+          }}
+        >
+          {muted ? "SFX OFF" : "SFX ON"}
+        </button>
       </div>
 
       {/* Sidebar: fixed on the left, slides + fades in on first reveal. */}
