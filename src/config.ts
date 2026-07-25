@@ -58,6 +58,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "TERRITORY",
     items: [
       { id: "expand", name: "Map Expansion", effect: "adds a street (row/column) to the map", baseCost: 40, costMult: 1.4, maxLevel: 20 },
+      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 5 },
     ],
   },
 ];
@@ -69,6 +70,10 @@ export function extraPackages(u: Record<string, number>) {
 }
 export function cashMult(u: Record<string, number>) {
   return 1 + (u.routeOpt ?? 0) * 0.25;
+}
+// Depots upgrade -> number of warehouses (START is always one).
+export function depotCount(u: Record<string, number>) {
+  return 1 + (u.depots ?? 0);
 }
 // Map Expansion level -> feed to sizeForExpansion for the current grid dims.
 export function expandLevel(u: Record<string, number>) {

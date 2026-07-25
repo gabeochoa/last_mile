@@ -41,7 +41,7 @@ function bfsPath(from: number, to: number, blocked: Set<number>): [number, numbe
 test("playing a full route ends the day, then startDay begins the next one", () => {
   const rng = makeRng(1234);
   const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
-  let s = newRoute(COLS, ROWS, 4, 0, rng);
+  let s = newRoute(COLS, ROWS, 4, 1, 0, rng);
   const packages = [...s.layout.specials];
   const layoutBefore = s.layout;
   const blocked = s.layout.blocked;
@@ -82,7 +82,7 @@ test("regression: completing a route ends the day and freezes further moves", ()
   // armed state one cell east of the depot with the sole package already collected
   const armed: GridState = {
     player: { x: 1, y: 0 },
-    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), cols: COLS, rows: ROWS },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set([idx(2, 0, COLS)]),
     visited: new Set([START, idx(1, 0, COLS)]),
     routes: 0,
@@ -104,10 +104,38 @@ test("regression: completing a route ends the day and freezes further moves", ()
   expect(second.state.routes).toBe(1);
 });
 
+test("applyMove completes the route at ANY depot when armed, not just START", () => {
+  const rng = makeRng(3);
+  // armed one cell west of a SECOND depot at (2,0); START(0,0) is the other depot
+  const secondDepot = idx(2, 0, COLS);
+  const armed: GridState = {
+    player: { x: 1, y: 0 },
+    layout: {
+      blocked: new Set(),
+      specials: new Set([idx(3, 0, COLS)]),
+      depots: new Set([START, secondDepot]),
+      cols: COLS,
+      rows: ROWS,
+    },
+    collected: new Set([idx(3, 0, COLS)]), // all packages collected -> armed
+    visited: new Set([START, idx(1, 0, COLS)]),
+    routes: 0,
+    dayEnded: false,
+  };
+  const opts = { autoDeliver: true, cashMult: 1, packageCount: 4, cols: COLS, rows: ROWS, rng };
+
+  // stepping east onto the non-START depot ends the day + pays the route bonus
+  const done = applyMove(armed, 1, 0, opts);
+  expect(done.state.player).toEqual(armed.player); // completion doesn't move the player
+  expect(done.earned).toBe(ROUTE_BONUS);
+  expect(done.state.routes).toBe(1);
+  expect(done.state.dayEnded).toBe(true);
+});
+
 test("collectHere collects an uncollected package underfoot, else no-op", () => {
   const base: GridState = {
     player: { x: 2, y: 0 },
-    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), cols: COLS, rows: ROWS },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set(),
     visited: new Set([START]),
     routes: 0,
@@ -124,7 +152,7 @@ test("collectHere collects an uncollected package underfoot, else no-op", () => 
 test("collectAt collects an uncollected special at any cell, else no-op", () => {
   const base: GridState = {
     player: { x: 0, y: 0 },
-    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), cols: COLS, rows: ROWS },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set(),
     visited: new Set([START]),
     routes: 0,
@@ -149,6 +177,7 @@ test("addPackages: adds min(n, eligible), respects exclusions, prefers unvisited
     layout: {
       blocked: new Set([idx(1, 0, COLS)]),
       specials: new Set([idx(2, 0, COLS)]),
+      depots: new Set([START]),
       cols: COLS,
       rows: ROWS,
     },
@@ -180,7 +209,7 @@ test("addPackages: adds min(n, eligible), respects exclusions, prefers unvisited
   // never exceeds available eligible cells
   const tiny: GridState = {
     player: { x: 0, y: 0 },
-    layout: { blocked: new Set(), specials: new Set([idx(1, 0, COLS)]), cols: 2, rows: 1 },
+    layout: { blocked: new Set(), specials: new Set([idx(1, 0, COLS)]), depots: new Set([START]), cols: 2, rows: 1 },
     visited: new Set([START]),
     collected: new Set(),
     routes: 0,

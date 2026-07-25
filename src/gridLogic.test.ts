@@ -32,9 +32,25 @@ test("genLayout always produces a fully-reachable, valid layout", () => {
   }
 });
 
+test("genLayout places depotCount depots (incl START) on open non-package cells", () => {
+  for (let i = 0; i < 200; i++) {
+    const depotCount = 3;
+    const { blocked, specials, depots } = genLayout(COLS, ROWS, 4, depotCount, makeRng(i));
+    // exactly depotCount depots, START always among them
+    expect(depots.size).toBe(depotCount);
+    expect(depots.has(START)).toBe(true);
+    for (const d of depots) {
+      expect(blocked.has(d)).toBe(false); // depots sit on open cells
+      expect(specials.has(d)).toBe(false); // packages never overlap a depot
+    }
+  }
+  // default depotCount is 1 (START only)
+  expect(genLayout(COLS, ROWS, 4, undefined, makeRng(1)).depots.size).toBe(1);
+});
+
 test("genLayout is deterministic for a given seed", () => {
-  const a = genLayout(COLS, ROWS, 4, makeRng(1234));
-  const b = genLayout(COLS, ROWS, 4, makeRng(1234));
+  const a = genLayout(COLS, ROWS, 4, 1, makeRng(1234));
+  const b = genLayout(COLS, ROWS, 4, 1, makeRng(1234));
   expect([...a.blocked].sort((m, n) => m - n)).toEqual([...b.blocked].sort((m, n) => m - n));
   expect([...a.specials].sort((m, n) => m - n)).toEqual([...b.specials].sort((m, n) => m - n));
   // and leaves plenty of open cells for packages (city, not a maze)
@@ -92,13 +108,19 @@ test("growLayout: remaps blocked/specials to (x,y), opens new cells, stays reach
     for (let x = 0; x < oldCols; x++)
       if (x !== 0 && y !== 0) blocked.add(idx(x, y, oldCols));
   const specials = new Set<number>([idx(2, 0, oldCols), idx(0, 2, oldCols)]);
-  const layout: Layout = { blocked, specials, cols: oldCols, rows: oldRows };
+  // START plus a second depot at (0,1) — both must remap to (x,y) at the new width
+  const depots = new Set<number>([START, idx(0, 1, oldCols)]);
+  const layout: Layout = { blocked, specials, depots, cols: oldCols, rows: oldRows };
   expect(allReachable(blocked, oldCols, oldRows)).toBe(true);
 
   // grow +1 col and +1 row at once
   const g = growLayout(layout, oldCols + 1, oldRows + 1);
   expect(g.cols).toBe(oldCols + 1);
   expect(g.rows).toBe(oldRows + 1);
+  // depots keep their (x,y): START stays 0, (0,1) remaps to the wider row-width
+  expect(g.depots.has(START)).toBe(true);
+  expect(g.depots.has(idx(0, 1, g.cols))).toBe(true);
+  expect(g.depots.size).toBe(2);
 
   // every old special keeps its (x,y) at the new row-width
   const toXY = (c: number, cols: number) => [c % cols, Math.floor(c / cols)];
@@ -121,6 +143,7 @@ test("growLayout: bridges a seam that would otherwise strand the new column", ()
   const layout: Layout = {
     blocked: new Set<number>([idx(2, 0, 3), idx(2, 1, 3)]),
     specials: new Set<number>([idx(1, 1, 3)]),
+    depots: new Set<number>([START]),
     cols: 3,
     rows: 2,
   };

@@ -3,7 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Upgrades, micrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, unownedShare } from "./config";
+import { BUCKETS, upgradeCost, cashMult, extraPackages, expandLevel, unownedShare, depotCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -252,6 +252,7 @@ export function App() {
           autoStartDay={(upgrades.autoStart ?? 0) > 0}
           cashMult={cashMult(upgrades)}
           extraPackages={extraPackages(upgrades)}
+          depotCount={depotCount(upgrades)}
           {...dims}
           initialRoutes={loaded?.routes ?? 0}
         />

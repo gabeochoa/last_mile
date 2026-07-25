@@ -49,6 +49,7 @@ export function Grid({
   fleet,
   cashMult,
   extraPackages,
+  depotCount,
   autoStartDay,
   cols,
   rows,
@@ -61,6 +62,7 @@ export function Grid({
   fleet: number;
   cashMult: number;
   extraPackages: number;
+  depotCount: number;
   autoStartDay: boolean;
   cols: number;
   rows: number;
@@ -70,7 +72,7 @@ export function Grid({
   // single source of truth for the route; pure applyMove/collectHere produce the next one.
   // The route layout starts fresh on load; only the resumed `routes` count carries over.
   const [gs, setGs] = useState<GridState>(() =>
-    newRoute(cols, rows, BASE_PACKAGES + extraPackages, initialRoutes),
+    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes),
   );
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} per van, driven by the fleet tick (ref-mirrored)
@@ -96,6 +98,8 @@ export function Grid({
   cashMultRef.current = cashMult;
   const extraPackagesRef = useRef(extraPackages);
   extraPackagesRef.current = extraPackages;
+  const depotCountRef = useRef(depotCount);
+  depotCountRef.current = depotCount;
   // dims the NEXT route should use — grows the instant expansion is bought
   const colsRef = useRef(cols);
   colsRef.current = cols;
@@ -275,6 +279,7 @@ export function Grid({
           cols: colsRef.current,
           rows: rowsRef.current,
           packageCount: BASE_PACKAGES + extraPackagesRef.current,
+          depotCount: depotCountRef.current,
         }),
         earned: 0,
       });
@@ -284,7 +289,7 @@ export function Grid({
   }, [gs.dayEnded, autoStartDay]);
 
   const { player, layout, visited, collected, routes, dayEnded } = gs;
-  const { blocked, specials, cols: gcols, rows: grows } = layout;
+  const { blocked, specials, depots, cols: gcols, rows: grows } = layout;
   const TOTAL = gcols * grows - blocked.size;
   // cell shrinks so the largest axis fills the fixed canvas ("zoom out")
   const cell = Math.floor(MAX_CANVAS_PX / Math.max(gcols, grows));
@@ -330,20 +335,26 @@ export function Grid({
 
     drawRegistration(ctx, offX, offY, gridW, gridH);
 
-    // day over: the finished route fades to an empty grid — frame, registration
-    // marks and the depot only (no packages/visited/vans/player) until Start Day.
-    if (dayEnded) {
-      const dX = offX + (START % gcols) * cell;
-      const dY = offY + Math.floor(START / gcols) * cell;
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 1.5;
+    // depot glyph: ink outline box + ⌂ (accent when armed). Shared by the day-end
+    // screen and the live render so every warehouse draws the same.
+    const drawDepot = (c: number, accent: boolean) => {
+      const dX = offX + (c % gcols) * cell;
+      const dY = offY + Math.floor(c / gcols) * cell;
+      ctx.strokeStyle = accent ? ACCENT : INK;
+      ctx.lineWidth = accent ? 3 : 1.5;
       ctx.strokeRect(dX + 2.5, dY + 2.5, cell - 5, cell - 5);
-      ctx.fillStyle = INK;
+      ctx.fillStyle = accent ? ACCENT : INK;
       ctx.font = `${Math.round(cell / 3)}px ui-monospace, Menlo, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("⌂", dX + cell / 2, dY + cell / 2 + 1);
       ctx.textAlign = "left";
+    };
+
+    // day over: the finished route fades to an empty grid — frame, registration
+    // marks and the depots only (no packages/visited/vans/player) until Start Day.
+    if (dayEnded) {
+      for (const c of depots) drawDepot(c, false);
       return;
     }
 
@@ -406,20 +417,10 @@ export function Grid({
       }
     }
 
-    // depot at the start cell: always marked (ink outline box + ⌂ glyph);
-    // once every package is collected it arms and switches to an accent highlight
+    // every depot marked (ink outline box + ⌂ glyph); once all packages are
+    // collected they arm and switch to an accent highlight (finish at any of them).
     const armed = specials.size > 0 && collected.size === specials.size;
-    const depotX = offX + (START % gcols) * cell;
-    const depotY = offY + Math.floor(START / gcols) * cell;
-    ctx.strokeStyle = armed ? ACCENT : INK;
-    ctx.lineWidth = armed ? 3 : 1.5;
-    ctx.strokeRect(depotX + 2.5, depotY + 2.5, cell - 5, cell - 5);
-    ctx.fillStyle = armed ? ACCENT : INK;
-    ctx.font = `${Math.round(cell / 3)}px ui-monospace, Menlo, monospace`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("⌂", depotX + cell / 2, depotY + cell / 2 + 1);
-    ctx.textAlign = "left";
+    for (const c of depots) drawDepot(c, armed);
 
     // hired fleet vans: smaller, dimmer ink squares so the orange player stays "you"
     ctx.fillStyle = INK;
@@ -455,7 +456,7 @@ export function Grid({
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [player.x, player.y, visited, blocked, specials, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH, offX, offY, dayEnded]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, gcols, grows, cell, gridW, gridH, offX, offY, dayEnded]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
@@ -464,6 +465,7 @@ export function Grid({
         cols: colsRef.current,
         rows: rowsRef.current,
         packageCount: BASE_PACKAGES + extraPackagesRef.current,
+        depotCount: depotCountRef.current,
       }),
       earned: 0,
     });

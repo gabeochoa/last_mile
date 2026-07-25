@@ -54,17 +54,19 @@ export function allReachable(blocked: Set<number>, cols: number, rows: number): 
   return seen.size === total;
 }
 
-// `count` packages on random open (non-blocked, non-start) cells — the objective
+// `count` packages on random open cells (non-blocked, non-start, non-depot) — the
+// objective. `exclude` (the depots) keeps packages off warehouse cells.
 export function genSpecials(
   blocked: Set<number>,
   cols: number,
   rows: number,
   count = BASE_PACKAGES,
   rng: () => number = Math.random,
+  exclude: Set<number> = new Set(),
 ): Set<number> {
   const open: number[] = [];
   for (let c = 0; c < cols * rows; c++) {
-    if (c !== START && !blocked.has(c)) open.push(c);
+    if (c !== START && !blocked.has(c) && !exclude.has(c)) open.push(c);
   }
   const specials = new Set<number>();
   const want = Math.min(open.length, count);
@@ -113,9 +115,31 @@ export function bfsNextStep(
 export type Layout = {
   blocked: Set<number>;
   specials: Set<number>;
+  // warehouse cells the fleet homes to and the player can finish at. START(0) is
+  // ALWAYS a depot; the Depots upgrade adds more on open non-START cells.
+  depots: Set<number>;
   cols: number;
   rows: number;
 };
+
+// Place `depotCount` depots: START plus depotCount-1 on random distinct open,
+// non-START cells (capped by how many open cells exist).
+export function genDepots(
+  blocked: Set<number>,
+  cols: number,
+  rows: number,
+  depotCount = 1,
+  rng: () => number = Math.random,
+): Set<number> {
+  const open: number[] = [];
+  for (let c = 0; c < cols * rows; c++) {
+    if (c !== START && !blocked.has(c)) open.push(c);
+  }
+  const depots = new Set<number>([START]);
+  const want = Math.min(depotCount, open.length + 1);
+  while (depots.size < want) depots.add(open[Math.floor(rng() * open.length)]);
+  return depots;
+}
 
 // Pick road indices along an axis of length `len`: a random spacing (2 or 3) and
 // offset, e.g. cols [0,3] or rows [1,3,5]. Roads are open lanes; gaps become blocks.
@@ -216,21 +240,25 @@ export function growLayout(layout: Layout, newCols: number, newRows: number): La
   if (newCols <= oldCols && newRows <= oldRows) return layout;
   const blocked = remapIndices(layout.blocked, oldCols, newCols);
   const specials = remapIndices(layout.specials, oldCols, newCols);
+  const depots = remapIndices(layout.depots, oldCols, newCols);
   ensureReachable(blocked, newCols, newRows);
-  return { blocked, specials, cols: newCols, rows: newRows };
+  return { blocked, specials, depots, cols: newCols, rows: newRows };
 }
 
-// fresh city layout: open streets + building blocks, START open & fully reachable
+// fresh city layout: open streets + building blocks, START open & fully reachable.
+// Depots are placed first, then packages on the remaining open cells.
 export function genLayout(
   cols: number,
   rows: number,
   count = BASE_PACKAGES,
+  depotCount = 1,
   rng: () => number = Math.random,
 ): Layout {
   for (let attempt = 0; attempt < 50; attempt++) {
     const blocked = cityBlocked(cols, rows, rng);
     if (!blocked.has(START) && allReachable(blocked, cols, rows)) {
-      return { blocked, specials: genSpecials(blocked, cols, rows, count, rng), cols, rows };
+      const depots = genDepots(blocked, cols, rows, depotCount, rng);
+      return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, depots), depots, cols, rows };
     }
   }
   // fallback: fixed road grid (cols 0,3 x rows 0,3) — always connected
@@ -240,5 +268,6 @@ export function genLayout(
       if (x !== 0 && x !== 3 && y !== 0 && y !== 3) blocked.add(idx(x, y, cols));
     }
   }
-  return { blocked, specials: genSpecials(blocked, cols, rows, count, rng), cols, rows };
+  const depots = genDepots(blocked, cols, rows, depotCount, rng);
+  return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, depots), depots, cols, rows };
 }

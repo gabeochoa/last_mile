@@ -28,12 +28,13 @@ export function newRoute(
   cols: number,
   rows: number,
   packageCount: number,
+  depotCount = 1,
   routes = 0,
   rng: () => number = Math.random,
 ): GridState {
   return {
     player: { x: 0, y: 0 },
-    layout: genLayout(cols, rows, packageCount, rng),
+    layout: genLayout(cols, rows, packageCount, depotCount, rng),
     visited: new Set([START]),
     collected: new Set(),
     routes,
@@ -44,9 +45,9 @@ export function newRoute(
 // Start the next day: a fresh route carrying the current routes count forward.
 export function startDay(
   state: GridState,
-  opts: { cols: number; rows: number; packageCount: number; rng?: () => number },
+  opts: { cols: number; rows: number; packageCount: number; depotCount?: number; rng?: () => number },
 ): GridState {
-  return newRoute(opts.cols, opts.rows, opts.packageCount, state.routes, opts.rng);
+  return newRoute(opts.cols, opts.rows, opts.packageCount, opts.depotCount ?? 1, state.routes, opts.rng);
 }
 
 // Grow the CURRENT route's map to newCols x newRows LIVE (mid-route). growLayout
@@ -136,7 +137,7 @@ export function applyMove(
   }
   const cellIdx = idx(nx, ny, gcols);
 
-  if (isArmed(state) && cellIdx === START) {
+  if (isArmed(state) && state.layout.depots.has(cellIdx)) {
     return {
       state: { ...state, routes: state.routes + 1, dayEnded: true },
       earned: Math.round(ROUTE_BONUS * cashMult),
