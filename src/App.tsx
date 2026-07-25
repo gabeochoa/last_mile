@@ -57,7 +57,11 @@ export function App() {
           transition: "padding 400ms ease",
         }}
       >
-        <Grid cash={cash} onEarn={(delta) => setCash((c) => c + delta)} />
+        <Grid
+          cash={cash}
+          onEarn={(delta) => setCash((c) => c + delta)}
+          snakeEnabled={(upgrades.momentumDrive ?? 0) > 0}
+        />
       </div>
     </Theme>
   );

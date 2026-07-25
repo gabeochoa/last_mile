@@ -99,7 +99,15 @@ function drawRegistration(ctx: CanvasRenderingContext2D) {
   }
 }
 
-export function Grid({ cash, onEarn }: { cash: number; onEarn: (delta: number) => void }) {
+export function Grid({
+  cash,
+  onEarn,
+  snakeEnabled,
+}: {
+  cash: number;
+  onEarn: (delta: number) => void;
+  snakeEnabled: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [player, setPlayer] = useState({ x: 0, y: 0 });
   const [layout, setLayout] = useState<Layout>(genLayout);
@@ -112,6 +120,9 @@ export function Grid({ cash, onEarn }: { cash: number; onEarn: (delta: number) =
   // ref so the keydown handler (bound once) always calls the latest onEarn
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;
+  // mirror snakeEnabled into a ref for the once-bound keydown handler
+  const snakeEnabledRef = useRef(snakeEnabled);
+  snakeEnabledRef.current = snakeEnabled;
 
   const { blocked, specials } = layout;
   const TOTAL = COLS * ROWS - blocked.size;
