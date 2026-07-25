@@ -1,64 +1,134 @@
-# Last Mile — design
+# Last Mile — design spec
 
-GMTK Game Jam 2026. Theme: **COUNT DOWN**. Deadline **July 26 1PM**.
+GMTK Game Jam 2026 · theme **COUNT DOWN** · deadline **July 26 1PM**.
+Incremental / idle **delivery-dispatch** game. You take over the entire logistics
+market. **Everything counts down** to zero: stops, unowned market share, human
+drivers on payroll. Optimize hard for the **Creativity** category.
 
-## What it is
-An incremental / idle **delivery-dispatch** clicker. You play the dispatcher /
-fleet manager of a last-mile delivery operation — mostly managing and watching
-numbers fall. Drive manually for the first loop or two, then automate everything.
+## Stack
+Vite + React 19 + TypeScript + **astryx** (MIT, facebook/astryx) design system.
+vitest; localStorage saves. From scratch (no forks). No generative-AI art/audio —
+visuals are a UI library + code-drawn canvas; audio from free/self-made assets.
 
-Fictional quirky brand. **No generative-AI art/audio** (jam DQ rule). Visuals
-come from a **UI component library (astryx)** + code-drawn canvas shapes; audio
-from free packs (credited). Using libraries is allowed; only AI-*generated*
-assets are banned — a component library is how we get a polished look without
-making/generating art.
+## Visual style — "micrographic"
+Generative technical-blueprint / risograph look (Kojima Micro-Graphic Generator).
+- Palette: bg `#0F0F0F`, ink `#ECE7DA`, accent `#E8541E`. Micrographic **everything**.
+- Registration crosses, 1px frames, dot-matrices, mono plate labels, tick scales.
+- **Subtle riso grain** overlay. Motion **snappy/instant**, except covered cells
+  **animate an ink/oil spread** as they fill.
 
-## Stack (built from scratch on top of libraries)
-- **Vite + React 19 + TypeScript**, **astryx** design system (`@astryxdesign/core`
-  + `@astryxdesign/theme-neutral`), MIT / `facebook/astryx`. vitest for tests,
-  localStorage for saves. HMR = the fast-feedback DX we wanted.
-- Game logic is framework-agnostic plain TS modules (state/config/economy/loop/
-  save/input/audio); React+astryx render the UI; a `<canvas>` renders the map.
-- astryx rules: components not `<div>`; tokens not hex/px; discover via
-  `npx @astryxdesign/cli` (see `.claude/CLAUDE.md`).
+## Core loop
+- The map is a grid; **one cell = a city block**. Most blocks are empty; a few are
+  **special delivery stops**.
+- Move (arrow keys). **Packages** sit on a few blocks; pick one up when there
+  (press **Space** early; auto once automated) → **+cash**, small pop.
+- **Route ends when packages remaining → 0** — collect every package: quiet tick,
+  **+route bonus cash**, new layout. No per-shift timer.
+- Covering the WHOLE map (every reachable block) is an **optional full-coverage
+  bonus** — extra cash for completionists, not required. Creates a choice: grab
+  packages fast and finish, or fully explore first for the bonus.
+- Moving onto a new block earns a little cash (movement income); revisiting =
+  pass through, no effect.
+- Primary on-screen number = **packages remaining** (counts down to 0). Cash goes
+  up; everything else counts down.
 
-## The countdown (theme = "everything counts down")
-- **Quota → 0**: packages left this shift; clearing it banks cash + next shift.
-- **Days until the Last Mile → 0**: meta clock; each prestige ("a day") automates
-  more of the world. At 0 → ending.
-- **Humans remaining → 0** + planet coverage → 100%: automate everything, remove
-  humans, take over the planet (Amazon's logical endgame). Quota, days, humans —
-  all tick toward zero.
+## Movement & automation ladder (manual → hands-off)
+1. **Snake** (first upgrade, ~1 min in): van keeps rolling in the last direction
+   until a wall; you only steer. "Press less."
+2. **Auto-turn at walls.**
+3. … → **Full self-driving** (mid-game): zero input.
+4. **Fully idle** late game — automation even handles special stops.
+Driving skill doesn't gate progress (it's flavor). Main decision = **upgrade order**.
 
-## Core loop & progression
-1. Manual: drive a van (arrows), SPACE to deliver → quota drops, cash in.
-2. Self-driving → auto-dispatch → hire drivers (slower auto-vans) → new routes.
-3. Economy: cash (in-run) + prestige tokens (permanent multipliers).
+## Fleet
+- As the grid grows, **hire human drivers**; they autonomously aim for open stops.
+- Shown as **more vans on the grid** (all drawn), **individually upgradeable**,
+  **fully automatic** (no manual assignment).
+- **Human drivers on payroll count DOWN** as automation replaces them → 0. (This
+  is the "no humans" theme — the workforce, NOT world population.)
 
-## UI: the "operational control center" (dispatch board)
-Modeled on real dispatch software (Onfleet/Samsara look), built with astryx:
-- **Top alert bar**: the countdowns (packages left, days left, humans left) +
-  active routes + alerts.
-- **Sidebar**: driver roster + unassigned orders (lists/rows, StatusDot for
-  state: gray unassigned / blue assigned / green done / red delayed).
-- **Main canvas**: the map with van icons + delivery pins + route polylines.
-- **Detail modals**: click a driver/pin for granular info (proof-of-delivery,
-  ETA), upgrades.
+## Economy
+- Currency: **Cash ($)**. Earn per stop + a **route-clear bonus**.
+- **Order Volume** upgrade: more orders → more stops per route → more money.
+- Upgrades: 3 buckets (Movement, Automation, Economy), escalating cost, capped
+  per tier. Names are **dry corporate** ("Route Optimization Suite", etc.).
+- No third resource (lean).
 
-## Map — OPEN DECISION (Phase 1)
-Real map data is too heavy to bundle (OSM = GB) — user's size worry is valid.
-Leaning **procedural / WFC fake city** (zero data, no network, no permissions,
-full stylistic control, matches no-AI-art, scales with prestige = "take over the
-planet"). Optional cheap flavor: let the player name/"detect" their city as a
-text label only (no real map tiles). Decision pending.
+## Market takeover (the goal)
+- The market is held by **many small named rivals** (generic corporate names).
+- Headline meter per scope = **UNOWNED share % → 0** (counts down).
+- Capture share by **covering routes** AND **buying out rivals** (rival panel with
+  buyout buttons, costs cash). Rivals **slowly grow** their share (gentle race, no
+  real loss / no fail).
+- **Win = unowned share → 0 = total monopoly.**
 
-## Phases
-- **P0 Setup** ✅ — Vite+React+astryx building; logic-module stubs; vitest green;
-  repo pushed (`github.com/gabeochoa/the_last_mile`).
-- **P1 Core loop** — dispatch board UI + drive/deliver + quota→0 + shift banking.
-- **P2 Incremental** — upgrades + auto-delivery + save/offline.
-- **P3 Meta/theme/ending** — days→0, prestige, humans/planet counters, ending, juice.
-- **P4 Ship** — `vite build`, zip `dist/` → itch, credits, playtest.
+## Expansion scale (nested countdowns)
+Scope tiers: **City → Country → Continent → Earth**. Each tier's unowned% must
+drain to 0 before the next unlocks (**sequential**). Tier jump = **zoom out to a
+bigger grid** (quick zoom animation). Grid also **grows within a tier**.
 
-## Reference (do not copy code)
-`~/p/scrubdaddy` (user's own incremental game), `~/p/mine` (p5 ECS) — patterns only.
+## Prestige
+- Tokens = **"Market Share"**; spend in a meta shop for **permanent upgrades**.
+- Trigger: **at tier jumps + voluntary**. Persists: tokens + meta unlocks
+  (run upgrades reset).
+
+## Pacing
+- **10–20 min** to the ending. First automation affordable **~1 min** in.
+- **Session-only** (no offline earnings) but **autosave + resume** across reloads.
+- **Guaranteed ending, no fail state** — gentle/zen.
+
+## Ending
+- Triggers at **100% of Earth's market owned** (unowned → 0).
+- Tone: **ominous / satirical**. Final beat: **everything fades to numbers/zero,
+  UI goes quiet.** Then a **stats + credits card**.
+
+## Narrative
+- Delivery method **deferred**. POV = **a single driver** (who automates their own
+  job away). Tone = **deadpan corporate satire**.
+
+## UI (dispatch control-center)
+- **Split-screen**: top **alert bar** (the countdowns) + **left sidebar** (upgrade
+  shop, dense rows) + **main map** (always visible).
+- Upgrade **tooltips** via astryx Tooltip. No idle nudges. **No tutorial**
+  (discoverable); starts **straight into gameplay** (no title gate).
+- Numbers: **K/M/B/T**, modest scale (≤ billions); show **$/s and stops/s** rates.
+
+## Map
+- **WFC procedural** city generation (stretch goal; **random reachable layouts**
+  for now — implemented). Keep features simple (roads + building walls + a few
+  scattered special stops). Grid grows within a tier.
+
+## Systems / options
+- **Autosave** on an interval; **hard reset** in settings; **`?dev` mode** (fast
+  time, free cash, skip tiers) for testing/balancing.
+- Input: **arrows only**. Colorblind-safe (shape+label, not color-only). Settings:
+  sound, grain, reset. **Respect OS reduced-motion.**
+- Audio **deferred** (soft clicks preferred; source free/self-made later).
+- Events: **none for now** (positive-only surges later if time; no weather; no
+  negative events).
+
+## Brand
+- Company: **ZoomZoom / Hustle** (gig-startup satire). Title: **Last Mile**.
+- Vehicle: **van → drone** as automation rises.
+
+## Assets (all CC0 — Kenney, credited in-game)
+Public-domain, jam-legal (no AI). Tint/recolor to the ink/orange micrographic
+palette for cohesion where needed.
+- **Board Game Icons** (kenney.nl/assets/board-game-icons) — line icons for UI,
+  upgrades, dispatch readouts. Best micrographic fit.
+- **Racing Pack** (kenney.nl/assets/racing-pack) — top-down cars for vans/drivers
+  on the grid (recolor to accent/ink); van → drone progression.
+- **Emotes Pack** (kenney.nl/assets/emotes-pack) — driver reactions / feedback bits.
+
+## Submission
+- Pitch: "A minimalist incremental game about automating a delivery empire."
+- Priority category: **Creativity**. Build: `vite build` → zip `dist/` (index.html
+  at root) → itch. Credits page. No generative AI.
+- **First cut if short on time**: rivals/buyouts (keep unowned% draining via
+  coverage alone). **Top stretch if ahead**: WFC city generation.
+
+## Prototype status (live at localhost:5173)
+`src/Grid.tsx`: 6x6 grid, arrow movement, blocked buildings (random, reachable),
+covered-cell fill + countdown (`REMAINING → 0`), route counter, cash (per stop +
+route bonus), special stops (Space to collect), Reset. Cash/state local to Grid
+(not yet wired to `state.ts`/`economy.ts`). Micrographic style.
