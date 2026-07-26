@@ -203,7 +203,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.09, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
       { id: "poach", name: "Poach Rivals", effect: "your vans can deliver to rival stops — each one pays you AND makes buying that rival out cheaper", baseCost: 1200, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
-      { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
+      { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.45, maxLevel: 6, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
       { id: "lockers", name: "Rainforest Lockers", effect: "+1 delivery locker per row each level — buildings become stops", baseCost: 5_000_000_000_000, costMult: 1.25, maxLevel: 300, requiresCash: 10_000_000_000_000 },
     ],
   },
@@ -246,13 +246,16 @@ export function dayBonusReward(level: number) {
   return level <= 0 ? 0 : Math.round(ROUTE_BONUS * 1.23 ** (level - 1));
 }
 export function routeBonus(u: Record<string, number>) {
-  return dayBonusReward(u.dayBonus ?? 0);
+  // the business multipliers apply to the completion bonus too, so Post Office/Internet
+  // multiply "everything" as advertised (not just per-delivery pay).
+  return dayBonusReward(u.dayBonus ?? 0) * deliveryMult(u);
 }
-// Contracts -> total passive cash per second (per-driver rate × number of contracts),
-// capped at $100M/s so it can't balloon past everything else late-game.
+// Contracts -> total passive cash per second (per-driver rate × number of contracts). The
+// cap scales with the business multipliers so it keeps up with the late game instead of
+// pinning total income (the old flat $100M/s cap stalled progression in the billions).
 export const CONTRACT_INCOME_CAP = 100_000_000;
 export function contractIncome(u: Record<string, number>) {
-  return Math.min(CONTRACT_INCOME_CAP, (u.contracts ?? 0) * contractPerDriver(u));
+  return Math.min(CONTRACT_INCOME_CAP * deliveryMult(u), (u.contracts ?? 0) * contractPerDriver(u));
 }
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {
