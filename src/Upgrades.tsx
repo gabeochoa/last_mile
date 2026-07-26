@@ -47,6 +47,10 @@ type UpgradesProps = {
   perSec?: number; // income/sec, for the "…until affordable" tooltip
   takeover?: number; // lifetime poached-stop count, discounts the Buy Out Rivals price
   buyoutColor?: string; // next rival company's color, tints the Buy Out Rivals button
+  // Ops Manager owned: show a per-upgrade auto-buy checkbox and report toggles up
+  autoBuyOwned?: boolean;
+  isAutoBuyOn?: (id: string) => boolean;
+  onToggleAutoBuy?: (id: string) => void;
   hideCompleted: boolean;
   onHideCompleted: (v: boolean) => void;
   footer?: ReactNode;
@@ -121,7 +125,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeover = 0, buyoutColor, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeover = 0, buyoutColor, autoBuyOwned = false, isAutoBuyOn, onToggleAutoBuy, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
   // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
   // the tooltip stuck. Clear it whenever the upgrade set changes.
@@ -216,6 +220,8 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                   ? `×${fmtNum(1.5 ** level)} → ×${fmtNum(1.5 ** (level + 1))} contract pay`
                   : item.id === "contracts"
                   ? `a driver switches to Uber · +$${fmtNum(Math.round(contractPerDriver(upgrades)))}/second`
+                  : item.id === "contractBoost"
+                  ? `$${fmtNum(Math.round(contractPerDriver(upgrades)))}/contract → $${fmtNum(Math.round(contractPerDriver({ ...upgrades, contractBoost: level + 1 })))}`
                   : item.id === "buyout" && takeover > 0
                   ? `${Math.round(buyoutDiscount(takeover) * 100)}% off — you've poached ${takeover} rival ${takeover === 1 ? "stop" : "stops"}`
                   : item.effect;
@@ -245,7 +251,30 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                       </HStack>
                       <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} />
                     </HStack>
-                    <Text type="supporting">{description}</Text>
+                    {/* Second row: description on the left, a tiny auto-buy checkbox under
+                        the price button on the right (only once Ops Manager is owned). */}
+                    <HStack justify="between" vAlign="center" gap={2}>
+                      <Text type="supporting">{description}</Text>
+                      {autoBuyOwned && item.id != null && item.id !== "autobuy" && !item.locked && !isDone(item) && (
+                        <button
+                          onClick={() => onToggleAutoBuy?.(item.id!)}
+                          title="Auto-buy this with Ops Manager"
+                          style={{
+                            flexShrink: 0,
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: 0,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                            fontFamily: "inherit",
+                            color: isAutoBuyOn?.(item.id) ? "var(--color-text-accent)" : "var(--color-text-secondary)",
+                          }}
+                        >
+                          {isAutoBuyOn?.(item.id) ? "☑" : "☐"} auto
+                        </button>
+                      )}
+                    </HStack>
                   </VStack>
                 </div>
               );

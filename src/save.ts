@@ -18,6 +18,8 @@ export type SaveData = {
   autoBuyOn?: boolean;
   // lifetime count of rival stops you've poached — permanently discounts buyouts.
   takeover?: number;
+  // per-upgrade Ops Manager auto-buy opt-in (id -> on). Unset = bucket default.
+  autoBuySel?: Record<string, boolean>;
 };
 
 // Pure validator (testable in node): rejects junk, wrong shape, or old versions.
@@ -47,6 +49,10 @@ export function parseSave(json: string): SaveData | null {
     autoStartOn: bool(o.autoStartOn),
     autoBuyOn: bool(o.autoBuyOn),
     takeover: typeof o.takeover === "number" ? o.takeover : undefined,
+    autoBuySel:
+      typeof o.autoBuySel === "object" && o.autoBuySel !== null
+        ? (o.autoBuySel as Record<string, boolean>)
+        : undefined,
   };
 }
 

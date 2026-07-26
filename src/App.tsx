@@ -10,6 +10,14 @@ import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, getVolume, playSfx, setVolume } from "./audio";
 
+// Territory upgrades default to auto-buy OFF (they're deliberate market plays) — every
+// other upgrade defaults ON. The player can override any of these per-upgrade.
+const TERRITORY_IDS = new Set(
+  (BUCKETS.find((b) => b.name === "TERRITORY")?.items ?? [])
+    .map((i) => i.id)
+    .filter((x): x is string => !!x),
+);
+
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
 // ?end forces the ending overlay so it can be screenshotted/tested without grinding.
@@ -81,6 +89,11 @@ export function App() {
   const [autopilotEnabled, setAutopilotEnabled] = useState(loaded?.autopilotOn ?? true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(loaded?.autoStartOn ?? true);
   const [autoBuyEnabled, setAutoBuyEnabled] = useState(loaded?.autoBuyOn ?? true);
+  // per-upgrade Ops Manager opt-in (id -> on); unset falls back to the bucket default.
+  const [autoBuySel, setAutoBuySel] = useState<Record<string, boolean>>(loaded?.autoBuySel ?? {});
+  const isAutoBuyOn = (id: string) => autoBuySel[id] ?? !TERRITORY_IDS.has(id);
+  const toggleAutoBuy = (id: string) =>
+    setAutoBuySel((prev) => ({ ...prev, [id]: !(prev[id] ?? !TERRITORY_IDS.has(id)) }));
   const [hideCompleted, setHideCompleted] = useState(loaded?.hideComplete ?? false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // bumped by the Settings "force end day" button; Grid ends the current day (no bonus) on change.
@@ -150,8 +163,9 @@ export function App() {
       autoStartOn: autoStartEnabled,
       autoBuyOn: autoBuyEnabled,
       takeover,
+      autoBuySel,
     });
-  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, autoBuyEnabled, takeover]);
+  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, autoBuyEnabled, takeover, autoBuySel]);
 
   const onBuy = (id: string) => {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
@@ -196,10 +210,11 @@ export function App() {
   autoBuyStepRef.current = () => {
     let best: string | null = null;
     let bestCost = Infinity;
-    // Ops Manager never touches TERRITORY (expansion / buyout / depots) — those are
-    // deliberate player choices, not something to spend your cash on automatically.
-    for (const it of BUCKETS.filter((b) => b.name !== "TERRITORY").flatMap((b) => b.items)) {
+    // Ops Manager buys only upgrades whose per-upgrade auto-buy checkbox is on (territory
+    // defaults off, everything else on — all overridable by the player).
+    for (const it of BUCKETS.flatMap((b) => b.items)) {
       if (!it.id || it.id === "autobuy") continue;
+      if (!isAutoBuyOn(it.id)) continue;
       if (it.requires && (upgrades[it.requires] ?? 0) < (it.requiresLevel ?? 1)) continue;
       if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
       const lvl = upgrades[it.id] ?? 0;
@@ -371,6 +386,9 @@ export function App() {
           perSec={perSec}
           takeover={takeover}
           buyoutColor={companyColors[boughtCount]}
+          autoBuyOwned={(upgrades.autobuy ?? 0) > 0}
+          isAutoBuyOn={isAutoBuyOn}
+          onToggleAutoBuy={toggleAutoBuy}
           hideCompleted={hideCompleted}
           onHideCompleted={setHideCompleted}
           footer={

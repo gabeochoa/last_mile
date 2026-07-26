@@ -134,6 +134,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 1000000, costMult: 1, maxLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 60, requiresAny: ["autopilot", "fleet"] },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
+      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
     ],
   },
   {
@@ -142,7 +143,11 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "demand", name: "Spread Flyers", effect: "more deliveries per day", baseCost: 5, costMult: 1.1, softCap: true },
       { id: "routeOpt", name: "Better Rates", effect: "+$2 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
-      { id: "surge", name: "Tips", effect: "customers tip your contract drivers", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
+      // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
+      // raises the flat per-contract amount; Tips multiplies the whole thing.
+      { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
+      { id: "contractBoost", name: "Corporate Accounts", effect: "+10% contract pay per level", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
+      { id: "surge", name: "Tips", effect: "×1.5 contract pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
     ],
   },
   {
@@ -151,11 +156,6 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.12, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
       { id: "poach", name: "Poach Rivals", effect: "your vans can deliver to rival stops — each one pays you AND makes buying that rival out cheaper", baseCost: 1200, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5 },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
-      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
-      // Contracts live in TERRITORY so Ops Manager (auto-buy skips TERRITORY) never
-      // reassigns your drivers to contracts behind your back.
-      { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
-      { id: "contractBoost", name: "Corporate Accounts", effect: "each contract pays more", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
     ],
   },
 ];
@@ -166,6 +166,10 @@ export function extraPackages(u: Record<string, number>) {
   return u.demand ?? 0;
 }
 export const SURGE_MULT = 1.5;
+// Contracts pay a base per second; Corporate Accounts raises the amount by +10%/level,
+// and Tips MULTIPLIES the total (×SURGE_MULT per level).
+export const CONTRACT_BASE = 25;
+export const CONTRACT_BOOST_PCT = 0.1; // +10% per Corporate Accounts level
 // Better Rates adds this much per level to each delivery's payout.
 export const ROUTE_RATE = 2;
 export function perDeliveryAt(routeOptLevel: number) {
@@ -174,13 +178,14 @@ export function perDeliveryAt(routeOptLevel: number) {
 export function perDelivery(u: Record<string, number>) {
   return perDeliveryAt(u.routeOpt ?? 0);
 }
-// Per-contract cash/sec: $25 base, +50%/Corporate Accounts level, ×1.5/Tips level.
+// Per-contract cash/sec: $25 base, +10%/Corporate Accounts level, then ×1.5/Tips level.
+// Corporate Accounts grows the amount (a percentage boost); Tips scales the whole thing.
 export function contractPerDriver(u: Record<string, number>) {
-  return 25 * (1 + (u.contractBoost ?? 0) * 0.5) * SURGE_MULT ** (u.surge ?? 0);
+  return CONTRACT_BASE * (1 + (u.contractBoost ?? 0) * CONTRACT_BOOST_PCT) * SURGE_MULT ** (u.surge ?? 0);
 }
 // Completion Bonus -> cash for finishing a day, scaling FASTER than linear per level.
 export function dayBonusReward(level: number) {
-  return Math.round(ROUTE_BONUS * level ** 1.6);
+  return Math.round(ROUTE_BONUS * level ** 2);
 }
 export function routeBonus(u: Record<string, number>) {
   return dayBonusReward(u.dayBonus ?? 0);
