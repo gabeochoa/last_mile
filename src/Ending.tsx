@@ -71,12 +71,6 @@ export function Ending({
         <div style={{ color: accent }}>MARKET SHARE 100%</div>
       </div>
 
-      {/* TODO(credits): fill in font + SFX credits when finalized. */}
-      <div style={{ fontSize: 11, letterSpacing: 1, opacity: 0.45, maxWidth: 560, lineHeight: 1.7 }}>
-        LAST MILE — GMTK Game Jam 2026 · built with code-drawn micrographics (no generative AI) · UI by
-        astryx (MIT)
-      </div>
-
       <div style={{ display: "flex", gap: 14, marginBlockStart: 8 }}>
         <button
           onClick={onContinue}
