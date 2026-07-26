@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { defineTheme } from "@astryxdesign/core";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Heading, Text } from "@astryxdesign/core/Text";
@@ -123,6 +123,19 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutC
   // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
   // the tooltip stuck. Clear it whenever the upgrade set changes.
   useEffect(() => setTip(null), [upgrades]);
+
+  // Newly-unlocked rows animate IN (start collapsed, then expand) instead of popping.
+  const isVisible = (i: Upgrade) =>
+    (!i.requires || (upgrades[i.requires] ?? 0) >= (i.requiresLevel ?? 1)) &&
+    (!i.requiresAny || i.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1));
+  const seenRef = useRef<Set<string>>(new Set());
+  const [, forceSeen] = useState(0);
+  const visibleNames = BUCKETS.flatMap((b) => b.items).filter(isVisible).map((i) => i.name);
+  useEffect(() => {
+    let added = false;
+    for (const n of visibleNames) if (!seenRef.current.has(n)) { seenRef.current.add(n); added = true; }
+    if (added) forceSeen((x) => x + 1); // re-render so first-seen rows transition open
+  });
   // live tooltip body: static text, or a "$X more (M:SS until)" that updates as cash rises
   const tipBody = (): string => {
     if (!tip) return "";
@@ -173,11 +186,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutC
       <VStack isScrollable style={{ flex: 1, minHeight: 0 }}>
         {BUCKETS.map((bucket) => {
           // hide upgrades whose prerequisite isn't owned yet, then optionally completed ones
-          const visible = bucket.items.filter((i) => {
-            if (i.requires && (upgrades[i.requires] ?? 0) < (i.requiresLevel ?? 1)) return false;
-            if (i.requiresAny && !i.requiresAny.some((id) => (upgrades[id] ?? 0) >= 1)) return false;
-            return true;
-          });
+          const visible = bucket.items.filter(isVisible);
           const items = visible;
           // whole bucket gone once every visible item is complete + hide is on
           if (hideCompleted && items.every((i) => isDone(i))) return null;
@@ -204,15 +213,17 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutC
                   : item.id === "contracts"
                   ? `a driver switches to Uber · +$${fmtNum(Math.round(contractPerDriver(upgrades)))}/second`
                   : item.effect;
-              // Hidden (done + hide-complete) rows collapse + fade out instead of popping.
+              // Done+hide-complete rows collapse OUT; brand-new rows start collapsed and
+              // animate IN — both via the same max-height/opacity transition (no popping).
               const hidden = hideCompleted && isDone(item);
+              const collapsed = hidden || !seenRef.current.has(item.name);
               return (
                 <div
                   key={item.name}
                   style={{
                     overflow: "hidden",
-                    maxHeight: hidden ? 0 : 120,
-                    opacity: hidden ? 0 : 1,
+                    maxHeight: collapsed ? 0 : 120,
+                    opacity: collapsed ? 0 : 1,
                     pointerEvents: hidden ? "none" : undefined,
                     borderBlockEnd: "1px solid var(--color-border)",
                     transition: "max-height 320ms ease, opacity 320ms ease",
