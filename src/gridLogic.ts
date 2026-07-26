@@ -431,6 +431,7 @@ export function genLayout(
   rng: () => number = Math.random,
   companyCount = 0,
   boughtCount = 0,
+  lockerFrac = 0,
 ): Layout {
   // depots first; then rival companies claim expansion neighborhoods (bought ones come
   // back as YOUR deliveries); then your normal deliveries fill what's left of the map.
@@ -445,5 +446,24 @@ export function genLayout(
   // organic city, then carve streets so every open cell is reachable from START
   const blocked = cityBlocked(cols, rows, rng);
   ensureReachable(blocked, cols, rows);
-  return build(blocked);
+  const layout = build(blocked);
+  if (lockerFrac <= 0 || blocked.size === 0) return layout;
+  // Rainforest Lockers: convert a fraction of the buildings into delivery lockers — walls
+  // become open delivery stops. Deterministic pick, then re-ensure reachability so no
+  // former-wall locker ends up walled off (removing walls only ever helps connectivity).
+  const n = Math.floor(blocked.size * Math.min(1, lockerFrac));
+  if (n <= 0) return layout;
+  const arr = [...blocked];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  const newBlocked = new Set(blocked);
+  const specials = new Set(layout.specials);
+  for (let i = 0; i < n; i++) {
+    newBlocked.delete(arr[i]);
+    specials.add(arr[i]);
+  }
+  ensureReachable(newBlocked, cols, rows);
+  return { ...layout, blocked: newBlocked, specials };
 }

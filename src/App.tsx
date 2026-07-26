@@ -5,18 +5,11 @@ import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Settings } from "./Settings";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, nextCost, poachActive, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, droneCount, policeFine, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
+import { BUCKETS, nextCost, poachActive, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, droneCount, policeFine, lockerFraction, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, getVolume, playSfx, setVolume } from "./audio";
 
-// Territory upgrades default to auto-buy OFF (they're deliberate market plays) — every
-// other upgrade defaults ON. The player can override any of these per-upgrade.
-const TERRITORY_IDS = new Set(
-  (BUCKETS.find((b) => b.name === "TERRITORY")?.items ?? [])
-    .map((i) => i.id)
-    .filter((x): x is string => !!x),
-);
 // every purchasable upgrade id (Ops Manager itself excluded) — the banner toggle flips
 // the auto-buy checkbox on all of these at once.
 const ALL_BUYABLE_IDS = BUCKETS.flatMap((b) => b.items)
@@ -93,12 +86,12 @@ export function App() {
   const [volume, setVolumeState] = useState(getVolume);
   const [autopilotEnabled, setAutopilotEnabled] = useState(loaded?.autopilotOn ?? true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(loaded?.autoStartOn ?? true);
-  // per-upgrade Ops Manager opt-in (id -> on); unset falls back to the bucket default
-  // (territory off, everything else on).
+  // per-upgrade Ops Manager opt-in (id -> on). Default OFF: a newly-unlocked upgrade is
+  // never auto-bought until you explicitly tick it (or hit the banner "turn all on").
   const [autoBuySel, setAutoBuySel] = useState<Record<string, boolean>>(loaded?.autoBuySel ?? {});
-  const isAutoBuyOn = (id: string) => autoBuySel[id] ?? !TERRITORY_IDS.has(id);
+  const isAutoBuyOn = (id: string) => autoBuySel[id] ?? false;
   const toggleAutoBuy = (id: string) =>
-    setAutoBuySel((prev) => ({ ...prev, [id]: !(prev[id] ?? !TERRITORY_IDS.has(id)) }));
+    setAutoBuySel((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
   // banner button state/behavior: "on" if ANY upgrade auto-buys; clicking flips them all.
   const anyAutoBuyOn = ALL_BUYABLE_IDS.some((id) => isAutoBuyOn(id));
   const setAllAutoBuy = (on: boolean) =>
@@ -413,6 +406,7 @@ export function App() {
           perSec={perSec}
           takeover={takeover}
           buyoutColor={companyColors[boughtCount]}
+          lastRival={rivalsRemaining === 1}
           autoBuyOwned={(upgrades.autobuy ?? 0) > 0}
           isAutoBuyOn={isAutoBuyOn}
           onToggleAutoBuy={toggleAutoBuy}
@@ -485,6 +479,7 @@ export function App() {
           quietSfx={cash >= 100_000_000_000}
           droneCount={droneCount(upgrades)}
           policeFine={policeFine(upgrades)}
+          lockerFrac={lockerFraction(upgrades)}
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}

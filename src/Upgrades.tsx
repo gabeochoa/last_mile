@@ -47,6 +47,7 @@ type UpgradesProps = {
   perSec?: number; // income/sec, for the "…until affordable" tooltip
   takeover?: number; // lifetime poached-stop count, discounts the Buy Out Rivals price
   buyoutColor?: string; // next rival company's color, tints the Buy Out Rivals button
+  lastRival?: boolean; // final rival left to buy out — makes the Buy Out Rivals button rainbow + jiggle
   // Ops Manager owned: show a per-upgrade auto-buy checkbox and report toggles up
   autoBuyOwned?: boolean;
   isAutoBuyOn?: (id: string) => boolean;
@@ -76,6 +77,7 @@ function UpgradeEnd({
   accentOverride,
   locked,
   lockedHint,
+  lastRival,
 }: {
   item: Upgrade;
   level: number;
@@ -87,6 +89,7 @@ function UpgradeEnd({
   accentOverride?: string;
   locked?: boolean;
   lockedHint?: string;
+  lastRival?: boolean;
 }) {
   if (item.locked || locked) {
     const badge = <Badge label="LOCKED" variant="neutral" />;
@@ -125,6 +128,36 @@ function UpgradeEnd({
       />
     </span>
   );
+  // Final rival: the button SCREAMS — animated rainbow gradient + gentle jiggle.
+  if (canBuy && lastRival && item.id != null) {
+    return (
+      <>
+        <style>{`
+@keyframes lm-rainbow { 0% { background-position: 0% 50%; } 100% { background-position: 600% 50%; } }
+@keyframes lm-jiggle { 0%,100% { transform: rotate(-1.5deg) translate(0,0); } 25% { transform: rotate(1.5deg) translate(1px,-1px); } 50% { transform: rotate(-1deg) translate(-1px,1px); } 75% { transform: rotate(1deg) translate(1px,1px); } }
+`}</style>
+        <button
+          type="button"
+          onClick={() => onBuy(item.id!)}
+          style={{
+            border: "none",
+            borderRadius: 0,
+            padding: "var(--spacing-2) var(--spacing-3)",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#0F0F0F",
+            cursor: "pointer",
+            backgroundImage: "linear-gradient(90deg, #ff0000, #ff8a00, #ffee00, #00e000, #00c8ff, #7a5cff, #ff00d4, #ff0000)",
+            backgroundSize: "600% 100%",
+            animation: "lm-rainbow 3s linear infinite, lm-jiggle 0.4s ease-in-out infinite",
+          }}
+        >
+          {label}
+        </button>
+      </>
+    );
+  }
   if (canBuy) return btn;
   // disabled → custom tooltip: soft-cap = static text; can't-afford = live cost (the
   // parent renders "$X more (M:SS until)" from current cash + income).
@@ -142,7 +175,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeover = 0, buyoutColor, autoBuyOwned = false, isAutoBuyOn, onToggleAutoBuy, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeover = 0, buyoutColor, lastRival = false, autoBuyOwned = false, isAutoBuyOn, onToggleAutoBuy, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
   // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
   // the tooltip stuck. Clear it whenever the upgrade set changes.
@@ -176,7 +209,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
-    if (item.locked || item.softCap) return false; // soft-capped rows never count as complete
+    if (item.locked || item.softCap || item.id === "uncontract") return false; // actions/soft-caps never "complete"
     const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
     return level >= maxLevelFor(item);
   };
@@ -274,7 +307,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                         <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
                         {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
                       </HStack>
-                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} lastRival={item.id === "buyout" && lastRival} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
                     </HStack>
                     {/* Second row: description on the left, a tiny auto-buy checkbox under
                         the price button on the right (only once Ops Manager is owned). */}

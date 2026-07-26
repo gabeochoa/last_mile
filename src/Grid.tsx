@@ -182,6 +182,7 @@ export function Grid({
   quietSfx = false,
   droneCount = 0,
   policeFine = 0,
+  lockerFrac = 0,
   vanSpeed,
   daySpeed,
   perDelivery,
@@ -213,6 +214,8 @@ export function Grid({
   droneCount?: number;
   // Police Contract: cash paid to you each time a rival makes a delivery (0 = not owned)
   policeFine?: number;
+  // Rainforest Lockers: fraction of buildings converted to delivery stops in new routes
+  lockerFrac?: number;
   vanSpeed: number;
   daySpeed: number;
   perDelivery: number;
@@ -251,7 +254,7 @@ export function Grid({
   // single source of truth for the route; pure applyMove/collectHere produce the next one.
   // The route layout starts fresh on load; only the resumed `routes` count carries over.
   const [gs, setGs] = useState<GridState>(() =>
-    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, companyCount, boughtCount),
+    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, companyCount, boughtCount, lockerFrac),
   );
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
@@ -323,6 +326,8 @@ export function Grid({
   poachRef.current = poach;
   const policeFineRef = useRef(policeFine);
   policeFineRef.current = policeFine;
+  const lockerFracRef = useRef(lockerFrac);
+  lockerFracRef.current = lockerFrac;
   const onStatsRef = useRef(onStats);
   onStatsRef.current = onStats;
   const autoDeliverRef = useRef(autoDeliver);
@@ -489,7 +494,12 @@ export function Grid({
     if (fleet <= 0) return;
     // match the autopilot's cell-crossing time (same 340/vanSpeed cadence, 45ms floor),
     // capped below 1 so a van always visibly slides rather than teleporting.
-    const speed = Math.min(0.95, 45 / Math.max(22, Math.round(300 / vanSpeed)));
+    // Fleet crosses a cell in ~2 slide-ticks, so its tick interval is HALF the player's
+    // per-cell time — that way Faster Vans keeps speeding the fleet up to match the player.
+    // (A fixed 45ms tick + sub-cell cap pinned fleet speed once vanSpeed passed ~level 11.)
+    const cellMs = Math.max(22, Math.round(300 / vanSpeed));
+    const fleetInterval = Math.max(12, Math.round(cellMs / 2));
+    const speed = 0.95;
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
@@ -558,7 +568,7 @@ export function Grid({
         setGs(done.state);
         if (done.earned) onEarnRef.current(done.earned);
       }
-    }, 45);
+    }, fleetInterval);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
@@ -779,6 +789,7 @@ export function Grid({
           depotCount: depotCountRef.current,
           companyCount: companyCountRef.current,
           boughtCount: boughtCountRef.current,
+          lockerFrac: lockerFracRef.current,
         }),
         earned: 0,
       });
@@ -1179,6 +1190,7 @@ export function Grid({
         depotCount: depotCountRef.current,
         companyCount: companyCountRef.current,
         boughtCount: boughtCountRef.current,
+        lockerFrac: lockerFracRef.current,
       }),
       earned: 0,
     });
