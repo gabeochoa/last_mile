@@ -119,10 +119,28 @@ export function upgradeCost(u: Upgrade, level: number): number {
 export function buyoutDiscount(takeover: number): number {
   return Math.min(0.9, Math.max(0, takeover) * 0.03);
 }
+// Spread Flyers get a gentler growth curve the deeper you go: every 500 levels the
+// per-level multiplier's growth shrinks 40%, so late flyers don't explode into $-quintillions.
+// Closed-ish form: multiply tier by tier (each ≤500 levels) — only a few iterations.
+export function demandCost(level: number): number {
+  const base = 5;
+  let cost = base;
+  let mult = 1.05;
+  let remaining = level;
+  while (remaining > 0) {
+    const step = Math.min(remaining, 500);
+    cost *= mult ** step;
+    remaining -= step;
+    mult = 1 + (mult - 1) * 0.6; // each 500-level tier: 40% less growth per level
+  }
+  return Math.round(cost);
+}
+
 // Next-level cost with contextual discounts applied: the poach discount on Buy Out Rivals,
 // and a 50% break on Map Expansion once you're a $100B operation (economies of scale).
 // Everything else is unchanged. All cost display + charging routes through this.
 export function nextCost(u: Upgrade, level: number, ctx: { takeover?: number; cash?: number } = {}): number {
+  if (u.id === "demand") return demandCost(level); // tiered curve, not the flat costMult
   const base = upgradeCost(u, level);
   if (u.id === "buyout") return Math.round(base * (1 - buyoutDiscount(ctx.takeover ?? 0)));
   if (u.id === "expand" && (ctx.cash ?? 0) >= 100_000_000_000) return Math.round(base * 0.5);
@@ -201,10 +219,11 @@ export function deliveryMult(u: Record<string, number>) {
 export function perDelivery(u: Record<string, number>) {
   return perDeliveryAt(u.routeOpt ?? 0) * deliveryMult(u);
 }
-// Per-contract cash/sec: $25 base, +10%/Corporate Accounts level, then ×1.5/Tips level.
-// Corporate Accounts grows the amount (a percentage boost); Tips scales the whole thing.
+// Per-contract cash/sec: $25 base, +10%/Corporate Accounts level, ×1.5/Tips level, and —
+// like deliveries — multiplied by the late-game businesses (Bookstore ×5 at $10B, Post
+// Office ×10, Internet ×100) so contract income keeps scaling with your empire, not stalls.
 export function contractPerDriver(u: Record<string, number>) {
-  return CONTRACT_BASE * (1 + (u.contractBoost ?? 0) * CONTRACT_BOOST_PCT) * SURGE_MULT ** (u.surge ?? 0);
+  return CONTRACT_BASE * (1 + (u.contractBoost ?? 0) * CONTRACT_BOOST_PCT) * SURGE_MULT ** (u.surge ?? 0) * deliveryMult(u);
 }
 // Completion Bonus -> cash for finishing a day, scaling steeply (level^4) so late levels
 // pay real late-game money (~1B around level 86, up from ~190k at level^2).
