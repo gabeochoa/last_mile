@@ -17,6 +17,11 @@ const TERRITORY_IDS = new Set(
     .map((i) => i.id)
     .filter((x): x is string => !!x),
 );
+// every purchasable upgrade id (Ops Manager itself excluded) — the banner toggle flips
+// the auto-buy checkbox on all of these at once.
+const ALL_BUYABLE_IDS = BUCKETS.flatMap((b) => b.items)
+  .map((i) => i.id)
+  .filter((x): x is string => !!x && x !== "autobuy");
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -88,12 +93,16 @@ export function App() {
   const [volume, setVolumeState] = useState(getVolume);
   const [autopilotEnabled, setAutopilotEnabled] = useState(loaded?.autopilotOn ?? true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(loaded?.autoStartOn ?? true);
-  const [autoBuyEnabled, setAutoBuyEnabled] = useState(loaded?.autoBuyOn ?? true);
-  // per-upgrade Ops Manager opt-in (id -> on); unset falls back to the bucket default.
+  // per-upgrade Ops Manager opt-in (id -> on); unset falls back to the bucket default
+  // (territory off, everything else on).
   const [autoBuySel, setAutoBuySel] = useState<Record<string, boolean>>(loaded?.autoBuySel ?? {});
   const isAutoBuyOn = (id: string) => autoBuySel[id] ?? !TERRITORY_IDS.has(id);
   const toggleAutoBuy = (id: string) =>
     setAutoBuySel((prev) => ({ ...prev, [id]: !(prev[id] ?? !TERRITORY_IDS.has(id)) }));
+  // banner button state/behavior: "on" if ANY upgrade auto-buys; clicking flips them all.
+  const anyAutoBuyOn = ALL_BUYABLE_IDS.some((id) => isAutoBuyOn(id));
+  const setAllAutoBuy = (on: boolean) =>
+    setAutoBuySel(Object.fromEntries(ALL_BUYABLE_IDS.map((id) => [id, on])));
   const [hideCompleted, setHideCompleted] = useState(loaded?.hideComplete ?? false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // bumped by the Settings "force end day" button; Grid ends the current day (no bonus) on change.
@@ -161,11 +170,10 @@ export function App() {
       hideComplete: hideCompleted,
       autopilotOn: autopilotEnabled,
       autoStartOn: autoStartEnabled,
-      autoBuyOn: autoBuyEnabled,
       takeover,
       autoBuySel,
     });
-  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, autoBuyEnabled, takeover, autoBuySel]);
+  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, takeover, autoBuySel]);
 
   const onBuy = (id: string) => {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
@@ -228,10 +236,10 @@ export function App() {
     if (best) onBuy(best);
   };
   useEffect(() => {
-    if (!(upgrades.autobuy ?? 0) || !autoBuyEnabled) return;
+    if (!(upgrades.autobuy ?? 0) || !anyAutoBuyOn) return;
     const id = window.setInterval(() => autoBuyStepRef.current(), 500);
     return () => window.clearInterval(id);
-  }, [upgrades.autobuy, autoBuyEnabled]);
+  }, [upgrades.autobuy, anyAutoBuyOn]);
 
   // $/day is a PREDICTION of a day's income — your deliveries × per-delivery pay plus the
   // completion bonus — NOT a measured tally. Spending on upgrades (or a slow/fast day) no
@@ -348,9 +356,9 @@ export function App() {
           {(upgrades.autobuy ?? 0) > 0 && (
             <BannerBtn
               icon="🛒"
-              label={autoBuyEnabled ? "Ops Manager (auto-buy): on" : "Ops Manager (auto-buy): off"}
-              active={autoBuyEnabled}
-              onClick={() => setAutoBuyEnabled((v) => !v)}
+              label={anyAutoBuyOn ? "Ops Manager: on — click to turn ALL auto-buys off" : "Ops Manager: off — click to turn ALL auto-buys on"}
+              active={anyAutoBuyOn}
+              onClick={() => setAllAutoBuy(!anyAutoBuyOn)}
             />
           )}
           <BannerBtn icon="⚙" label="Settings & about" onClick={() => setSettingsOpen(true)} />
