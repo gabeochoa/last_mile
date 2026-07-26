@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "package": "npm run build && cd dist && zip -r -X ../the_last_mile_web.zip . && cd ..",
+    "upload": "npm run package && butler push the_last_mile_web.zip choicehoney/last-mile-gmtk-2026:html",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

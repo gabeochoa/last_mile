@@ -444,15 +444,22 @@ export function Grid({
   useEffect(() => {
     if (fleet <= 0) return;
     const id = window.setInterval(() => {
+      const S = 0.25; // linear speed keeps display within ~1 cell of the logical step
       setVans((vs) => {
         let moved = false;
         const next = vs.map((v) => {
           if (v.dx === v.x && v.dy === v.y) return v;
-          const ndx = v.dx + (v.x - v.dx) * 0.35;
-          const ndy = v.dy + (v.y - v.dy) * 0.35;
           moved = true;
-          const settled = Math.abs(ndx - v.x) < 0.02 && Math.abs(ndy - v.y) < 0.02;
-          return { ...v, dx: settled ? v.x : ndx, dy: settled ? v.y : ndy };
+          // move ONE axis at a time so the van follows the streets (never cuts a corner
+          // diagonally); align x first, then y.
+          if (v.dx !== v.x) {
+            const step = Math.sign(v.x - v.dx) * Math.min(Math.abs(v.x - v.dx), S);
+            const ndx = v.dx + step;
+            return { ...v, dx: Math.abs(ndx - v.x) < 0.02 ? v.x : ndx };
+          }
+          const step = Math.sign(v.y - v.dy) * Math.min(Math.abs(v.y - v.dy), S);
+          const ndy = v.dy + step;
+          return { ...v, dy: Math.abs(ndy - v.y) < 0.02 ? v.y : ndy };
         });
         return moved ? next : vs;
       });
