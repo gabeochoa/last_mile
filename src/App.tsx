@@ -68,6 +68,8 @@ export function App() {
     demand: Math.max(0, stats.capacity - BASE_PACKAGES),
     // you can run at most 10 drivers plus one per warehouse you operate
     fleet: 10 + depotCount(upgrades),
+    // each Contract reassigns a driver, so you can have at most as many as your fleet
+    contracts: upgrades.fleet ?? 0,
   };
   // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
   const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
