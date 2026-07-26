@@ -190,7 +190,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, footer 
                   : item.id === "surge"
                   ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} pay`
                   : item.id === "contracts"
-                  ? `$${level * 25}/s → $${(level + 1) * 25}/s · −1 driver`
+                  ? "a driver switches to Uber · +$25/second"
                   : item.effect;
               // Hidden (done + hide-complete) rows collapse + fade out instead of popping.
               const hidden = hideCompleted && isDone(item);

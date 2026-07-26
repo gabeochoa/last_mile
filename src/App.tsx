@@ -37,6 +37,28 @@ function useAnimatedNumber(target: number, ms = 500, decimals = 0): number {
   return Math.round(value * f) / f;
 }
 
+// Icon toggle for the top banner; the full name lives in the (title) tooltip.
+function BannerBtn({ icon, label, active = true, color, onClick }: { icon: string; label: string; active?: boolean; color?: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      style={{
+        background: "transparent",
+        border: `1px solid ${color ?? "rgba(236,231,218,0.25)"}`,
+        color: active ? color ?? "#ECE7DA" : "rgba(236,231,218,0.4)",
+        fontFamily: "inherit",
+        fontSize: 14,
+        lineHeight: 1,
+        padding: "3px 7px",
+        cursor: "pointer",
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
 export function App() {
   // Resume meta from the last session (skipped in ?dev, which starts flush).
   const [loaded] = useState(() => (DEV ? null : load()));
@@ -273,96 +295,41 @@ export function App() {
             <span style={{ fontSize: 12, letterSpacing: 1 }}>CONTRACTS {upgrades.contracts}</span>
           )}
           {(upgrades.autopilot ?? 0) > 0 && (
-            <button
+            <BannerBtn
+              icon="🚗"
+              label={autopilotEnabled ? "Autopilot: on (click for manual)" : "Autopilot: off (click to resume)"}
+              active={autopilotEnabled}
               onClick={() => setAutopilotEnabled((v) => !v)}
-              title={autopilotEnabled ? "Autopilot on — click for manual" : "Autopilot off — click to resume"}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(236,231,218,0.25)",
-                color: autopilotEnabled ? "#ECE7DA" : "rgba(236,231,218,0.4)",
-                fontFamily: "inherit",
-                fontSize: 12,
-                letterSpacing: 1,
-                padding: "2px 8px",
-                cursor: "pointer",
-              }}
-            >
-              {autopilotEnabled ? "AUTOPILOT ON" : "AUTOPILOT OFF"}
-            </button>
+            />
           )}
           {(upgrades.autoStart ?? 0) > 0 && (
-            <button
+            <BannerBtn
+              icon="🔁"
+              label={autoStartEnabled ? "Auto-Start Day: on" : "Auto-Start Day: off"}
+              active={autoStartEnabled}
               onClick={() => setAutoStartEnabled((v) => !v)}
-              title={autoStartEnabled ? "Days start on their own — click for manual Start Day" : "Manual Start Day — click to auto-start"}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(236,231,218,0.25)",
-                color: autoStartEnabled ? "#ECE7DA" : "rgba(236,231,218,0.4)",
-                fontFamily: "inherit",
-                fontSize: 12,
-                letterSpacing: 1,
-                padding: "2px 8px",
-                cursor: "pointer",
-              }}
-            >
-              {autoStartEnabled ? "AUTO-START ON" : "AUTO-START OFF"}
-            </button>
+            />
           )}
           {(upgrades.autobuy ?? 0) > 0 && (
-            <button
+            <BannerBtn
+              icon="🛒"
+              label={autoBuyEnabled ? "Ops Manager (auto-buy): on" : "Ops Manager (auto-buy): off"}
+              active={autoBuyEnabled}
               onClick={() => setAutoBuyEnabled((v) => !v)}
-              title={autoBuyEnabled ? "Ops Manager buying your cheapest upgrade — click to pause" : "Ops Manager paused — click to resume"}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(236,231,218,0.25)",
-                color: autoBuyEnabled ? "#ECE7DA" : "rgba(236,231,218,0.4)",
-                fontFamily: "inherit",
-                fontSize: 12,
-                letterSpacing: 1,
-                padding: "2px 8px",
-                cursor: "pointer",
-              }}
-            >
-              {autoBuyEnabled ? "AUTO-BUY ON" : "AUTO-BUY OFF"}
-            </button>
+            />
           )}
-          <button
+          <BannerBtn
+            icon={muted ? "🔇" : "🔊"}
+            label={muted ? "Sound: off" : "Sound: on"}
+            active={!muted}
             onClick={() => {
               const next = !muted;
               setMuted(next);
               setMutedState(next);
             }}
-            title={muted ? "Sound off" : "Sound on"}
-            style={{
-              background: "transparent",
-              border: "1px solid rgba(236,231,218,0.25)",
-              color: muted ? "rgba(236,231,218,0.4)" : "#ECE7DA",
-              fontFamily: "inherit",
-              fontSize: 12,
-              letterSpacing: 1,
-              padding: "2px 8px",
-              cursor: "pointer",
-            }}
-          >
-            {muted ? "SFX OFF" : "SFX ON"}
-          </button>
+          />
           {/* temporary: full reset (wipe save + reload) for testing */}
-          <button
-            onClick={onRestart}
-            title="Full reset — wipe save and start from the beginning"
-            style={{
-              background: "transparent",
-              border: `1px solid ${accent}`,
-              color: accent,
-              fontFamily: "inherit",
-              fontSize: 12,
-              letterSpacing: 1,
-              padding: "2px 8px",
-              cursor: "pointer",
-            }}
-          >
-            RESET
-          </button>
+          <BannerBtn icon="↺" label="Reset — wipe save, start with $50k" color={accent} onClick={onRestart} />
         </div>
       </div>
 
