@@ -141,7 +141,9 @@ export function App() {
   }, [allMaxed, keepPlaying]);
 
   const onRestart = () => {
+    // testing convenience: wipe progress but start flush with $50k (keeps your color)
     clearSave();
+    save({ version: 1, cash: 50000, upgrades: {}, routes: 0, accent });
     window.location.reload();
   };
   const displayShare = useAnimatedNumber(theirShare, 500, 2);
