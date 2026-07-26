@@ -105,7 +105,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
-      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 30, requires: "autoDeliver", requiresLevel: 1 },
+      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 300, requires: "autoDeliver", requiresLevel: 1, softCap: true, capHint: "One van per column — expand your map for more." },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
       { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 5000, costMult: 1, maxLevel: 1, requires: "buyout", requiresLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 30, requiresAny: ["autopilot", "fleet"] },
@@ -118,7 +118,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "demand", name: "Spread Flyers", effect: "more deliveries per day", baseCost: 5, costMult: 1.1, softCap: true },
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
-      { id: "surge", name: "Tips", effect: "customers tip — more per delivery", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "fleet", requiresLevel: 2 },
+      { id: "surge", name: "Tips", effect: "customers tip your contract drivers", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
       { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
       { id: "contractBoost", name: "Corporate Accounts", effect: "each contract pays more", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
     ],
@@ -138,19 +138,21 @@ export const BASE_PACKAGES = 4;
 export function extraPackages(u: Record<string, number>) {
   return u.demand ?? 0;
 }
-// Surge Pricing multiplies the per-delivery payout ×1.5 per level (late-game sink).
 export const SURGE_MULT = 1.5;
 export function perDelivery(u: Record<string, number>) {
-  return Math.round((SPECIAL_BONUS + (u.routeOpt ?? 0)) * SURGE_MULT ** (u.surge ?? 0));
+  return SPECIAL_BONUS + (u.routeOpt ?? 0);
+}
+// Per-contract cash/sec: $25 base, +50%/Corporate Accounts level, ×1.5/Tips level.
+export function contractPerDriver(u: Record<string, number>) {
+  return 25 * (1 + (u.contractBoost ?? 0) * 0.5) * SURGE_MULT ** (u.surge ?? 0);
 }
 // Bulk Contracts -> cash bonus for finishing a day (0 until owned, +ROUTE_BONUS/level).
 export function routeBonus(u: Record<string, number>) {
   return (u.dayBonus ?? 0) * ROUTE_BONUS;
 }
-// Contracts -> passive cash per second: $25 per contract, boosted +50%/level by
-// Corporate Accounts.
+// Contracts -> total passive cash per second (per-driver rate × number of contracts).
 export function contractIncome(u: Record<string, number>) {
-  return (u.contracts ?? 0) * 25 * (1 + (u.contractBoost ?? 0) * 0.5);
+  return (u.contracts ?? 0) * contractPerDriver(u);
 }
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {
@@ -179,6 +181,9 @@ export const BUYOUT_MAX =
 export function unownedShare(u: Record<string, number>): number {
   const reached = expandLevel(u) / EXPAND_MAX; // how much of the planet you've expanded into
   const claimed = (u.buyout ?? 0) / BUYOUT_MAX; // how much of it you've taken from rivals
-  const owned = 0.01 + 0.01 * (u.demand ?? 0) + 100 * reached * claimed;
+  // flyers are only an early trickle — capped at ~1% so they can never reach 0% on their
+  // own; the real countdown to 0 comes from expanding AND buying out (reached*claimed).
+  const flyers = Math.min(1, 0.01 * (u.demand ?? 0));
+  const owned = 0.01 + flyers + 100 * reached * claimed;
   return Math.max(0, 100 - owned);
 }

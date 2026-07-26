@@ -88,8 +88,8 @@ export function App() {
   const dims = sizeForExpansion(expandLevel(upgrades));
   const maxLevels: Record<string, number> = {
     demand: Math.max(0, stats.capacity - BASE_PACKAGES),
-    // you can run at most 10 drivers plus one per warehouse you operate
-    fleet: 10 + depotCount(upgrades),
+    // one van per column of the map — expand to field more drivers
+    fleet: dims.cols,
     // each Contract reassigns a driver, so you can have at most as many as your fleet
     contracts: upgrades.fleet ?? 0,
   };
@@ -208,7 +208,7 @@ export function App() {
 
   // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
   const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
-  // A new rival company (distinct color, never yours) appears every 10 expansions.
+  // A new rival company (distinct color, never yours) appears every 5 expansions.
   const companyColors = rivalColors(accent, rivalCompanyCount(expandLevel(upgrades)));
   // Each Contracts level reassigns one driver off the grid to contract work.
   const driversOnGrid = Math.max(0, (upgrades.fleet ?? 0) - (upgrades.contracts ?? 0));

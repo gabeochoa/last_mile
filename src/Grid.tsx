@@ -182,7 +182,7 @@ export function Grid({
   autoStartDay: boolean;
   // fraction (0..1) of the expansion frontier held by rivals; buying them out lowers it
   rivalFraction: number;
-  // one color per rival company (a new company every 10 expansions); cells/vans colored by company
+  // one color per rival company (a new company every 5 expansions); cells/vans colored by company
   rivalColors: string[];
   // player's brand color; drives the player, fleet, packages and armed-depot glyphs
   accent: string;
@@ -379,52 +379,57 @@ export function Grid({
     });
   }, [fleet, gs.layout]);
 
-  // Fleet tick: slower than autopilot. Vans fan out — each claims its nearest
-  // still-unclaimed uncollected package (claimed per tick so no two share a
-  // target); surplus vans (more vans than packages) head home to the depot.
-  // Each steps one cell and collects on arrival via collectAt — updating the
-  // shared route so completion arms + cash is paid. Vans never complete routes;
-  // only the main van reaching the depot does.
+  // Fleet tick (single loop, fixed 45ms): each van SLIDES its on-screen position
+  // (dx,dy) toward its current logical cell (x,y) one axis at a time — so it follows
+  // the streets and never cuts corners. Only ON ARRIVAL does it take the next logical
+  // step (collect here, then bfs one cell toward its target/home). Faster Vans raises
+  // the slide speed but it's capped below 1 cell/tick, so vans never teleport.
   useEffect(() => {
     if (fleet <= 0) return;
+    const speed = Math.min(0.5, 0.12 * vanSpeed); // capped so it always visibly slides
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
       const { cols: gcols, rows: grows } = layout;
       const claimed = new Set<number>();
-      const collected = gsRef.current.collected;
       const next = vansRef.current.map((van) => {
-        const from = idx(van.x, van.y, gcols);
+        // 1) still sliding to the current cell? step one axis toward it (x then y).
+        if (van.dx !== van.x) {
+          const s = Math.sign(van.x - van.dx) * Math.min(Math.abs(van.x - van.dx), speed);
+          const ndx = van.dx + s;
+          return { ...van, dx: Math.abs(ndx - van.x) < 0.02 ? van.x : ndx };
+        }
+        if (van.dy !== van.y) {
+          const s = Math.sign(van.y - van.dy) * Math.min(Math.abs(van.y - van.dy), speed);
+          const ndy = van.dy + s;
+          return { ...van, dy: Math.abs(ndy - van.y) < 0.02 ? van.y : ndy };
+        }
+        // 2) arrived — collect here if it's a package, then choose the next cell.
+        const cell = idx(van.x, van.y, gcols);
+        let target = van.target;
+        const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current });
+        if (hit.earned) {
+          gsRef.current = hit.state;
+          setGs(hit.state);
+          onEarnRef.current(hit.earned);
+          target = null;
+        }
+        const collected = gsRef.current.collected;
         const dist = (c: number) =>
           Math.abs((c % gcols) - van.x) + Math.abs(Math.floor(c / gcols) - van.y);
-        // keep the committed target if it's still an uncollected, unclaimed package;
-        // otherwise claim the nearest free one (null => nothing left, head home)
-        let target = van.target;
         const keep = target != null && layout.specials.has(target) && !collected.has(target) && !claimed.has(target);
         if (!keep) {
           const avail = [...layout.specials].filter((c) => !collected.has(c) && !claimed.has(c));
           target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
         }
         if (target != null) claimed.add(target);
-        const goal = target ?? van.home;
-        const dir = bfsNextStep(layout.blocked, from, goal, gcols, grows);
+        const dir = bfsNextStep(layout.blocked, cell, target ?? van.home, gcols, grows);
         if (!dir) return { ...van, target };
-        const nv = { x: van.x + dir[0], y: van.y + dir[1], dx: van.dx, dy: van.dy, home: van.home, target };
-        const { state, earned } = collectAt(gsRef.current, idx(nv.x, nv.y, gcols), {
-          perDelivery: perDeliveryRef.current,
-        });
-        if (earned) {
-          gsRef.current = state;
-          setGs(state);
-          onEarnRef.current(earned);
-          nv.target = null; // delivered — pick a fresh target next tick
-        }
-        return nv;
+        return { ...van, x: van.x + dir[0], y: van.y + dir[1], target };
       });
       vansRef.current = next;
       setVans(next);
-      // fleet may have just delivered the last package and/or driven the last van home
-      // while the player idles on a depot; end the day once everyone's back.
+      // once everyone (incl. the player) is home + all deliveries done, end the day
       const done = finishIfDone(gsRef.current, {
         routeBonus: routeBonusRef.current,
         driversHome: allDriversHome(gsRef.current.layout, next),
@@ -434,38 +439,10 @@ export function Grid({
         setGs(done.state);
         if (done.earned) onEarnRef.current(done.earned);
       }
-    }, Math.max(60, Math.round(340 / vanSpeed)));
+    }, 45);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
-
-  // Smoothly ease each fleet van's on-screen position (dx,dy) toward its logical cell
-  // (x,y) so it slides between cells. Skips re-render once every van has settled.
-  useEffect(() => {
-    if (fleet <= 0) return;
-    const id = window.setInterval(() => {
-      const S = 0.25; // linear speed keeps display within ~1 cell of the logical step
-      setVans((vs) => {
-        let moved = false;
-        const next = vs.map((v) => {
-          if (v.dx === v.x && v.dy === v.y) return v;
-          moved = true;
-          // move ONE axis at a time so the van follows the streets (never cuts a corner
-          // diagonally); align x first, then y.
-          if (v.dx !== v.x) {
-            const step = Math.sign(v.x - v.dx) * Math.min(Math.abs(v.x - v.dx), S);
-            const ndx = v.dx + step;
-            return { ...v, dx: Math.abs(ndx - v.x) < 0.02 ? v.x : ndx };
-          }
-          const step = Math.sign(v.y - v.dy) * Math.min(Math.abs(v.y - v.dy), S);
-          const ndy = v.dy + step;
-          return { ...v, dy: Math.abs(ndy - v.y) < 0.02 ? v.y : ndy };
-        });
-        return moved ? next : vs;
-      });
-    }, 55);
-    return () => window.clearInterval(id);
-  }, [fleet]);
 
   // Keep a few rival delivery vans alive whenever rival points exist; re-seed on a
   // new layout. They drive in from offscreen, service a point, and drive back out.

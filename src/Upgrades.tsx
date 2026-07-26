@@ -6,7 +6,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { List } from "@astryxdesign/core/List";
-import { BUCKETS, upgradeCost, fmtNum, type Upgrade } from "./config";
+import { BUCKETS, upgradeCost, fmtNum, contractPerDriver, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme). Built from the player's chosen
@@ -188,9 +188,9 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, footer 
                   : item.id === "dayBonus"
                   ? `$${level * 25}/day → $${(level + 1) * 25}`
                   : item.id === "surge"
-                  ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} pay`
+                  ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} contract pay`
                   : item.id === "contracts"
-                  ? "a driver switches to Uber · +$25/second"
+                  ? `a driver switches to Uber · +$${fmtNum(Math.round(contractPerDriver(upgrades)))}/second`
                   : item.effect;
               // Hidden (done + hide-complete) rows collapse + fade out instead of popping.
               const hidden = hideCompleted && isDone(item);
