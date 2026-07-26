@@ -167,9 +167,11 @@ function drawRegistration(
 export function Grid({
   onEarn,
   onStats,
+  onPoach,
   autoDeliver,
   autopilot,
   fleet,
+  poach = false,
   vanSpeed,
   daySpeed,
   perDelivery,
@@ -187,9 +189,13 @@ export function Grid({
 }: {
   onEarn: (delta: number) => void;
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean }) => void;
+  // called with how many rival stops you just poached (for the lifetime takeover count)
+  onPoach?: (n: number) => void;
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
+  // Poach Rivals owned: your vans may deliver to (steal) rival stops
+  poach?: boolean;
   vanSpeed: number;
   daySpeed: number;
   perDelivery: number;
@@ -256,7 +262,12 @@ export function Grid({
   const rivalsAllDone = () => {
     const res = gsRef.current.layout.reserved;
     if (!res || res.size === 0) return true;
-    return rivalDoneRef.current.size >= res.size && rivalVansRef.current.length === 0;
+    if (rivalVansRef.current.length > 0) return false;
+    // a reserved stop is resolved once a rival serviced it OR you poached it. rivalDone
+    // and converted are kept disjoint (targeting excludes the other), so summing is safe.
+    let poached = 0;
+    for (const c of gsRef.current.converted) if (res.has(c)) poached++;
+    return rivalDoneRef.current.size + poached >= res.size;
   };
 
   // refs so the once-bound keydown handler always sees latest state/props without
@@ -285,6 +296,10 @@ export function Grid({
   };
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;
+  const onPoachRef = useRef(onPoach);
+  onPoachRef.current = onPoach;
+  const poachRef = useRef(poach);
+  poachRef.current = poach;
   const onStatsRef = useRef(onStats);
   onStatsRef.current = onStats;
   const autoDeliverRef = useRef(autoDeliver);
@@ -331,6 +346,7 @@ export function Grid({
     routeBonus: routeBonusRef.current,
     driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
     rivalsDone: rivalsAllDone(),
+    canPoach: poachRef.current,
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
     rows: rowsRef.current,
@@ -354,7 +370,7 @@ export function Grid({
       }
       if (e.key === " ") {
         e.preventDefault();
-        commit(collectHere(gsRef.current, { perDelivery: perDeliveryRef.current }));
+        commit(collectHere(gsRef.current, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current }));
         return;
       }
       const d = deltas[e.key];
@@ -386,14 +402,21 @@ export function Grid({
       }
       const { cols: gcols } = s.layout;
       const here = idx(s.player.x, s.player.y, gcols);
-      const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
       const dist = (c: number) =>
         Math.abs((c % gcols) - s.player.x) + Math.abs(Math.floor(c / gcols) - s.player.y);
-      // commit to a package until it's collected (no dithering between equidistant ones);
+      // a valid target: your uncollected package, or (Poach owned) an un-serviced rival stop
+      const canGrab = (c: number) =>
+        (s.layout.specials.has(c) && !s.collected.has(c)) ||
+        (poachRef.current && !!s.layout.reserved?.has(c) && !s.converted.has(c) && !rivalDoneRef.current.has(c));
+      // commit to a target until it's grabbed (no dithering between equidistant ones);
       // once none remain, finish at the nearest depot.
       let t = autopilotTargetRef.current;
-      if (!(t != null && s.layout.specials.has(t) && !s.collected.has(t))) {
-        t = left.length ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
+      if (!(t != null && canGrab(t))) {
+        const targets = [...s.layout.specials].filter((c) => !s.collected.has(c));
+        if (poachRef.current && s.layout.reserved) {
+          for (const c of s.layout.reserved) if (!s.converted.has(c) && !rivalDoneRef.current.has(c)) targets.push(c);
+        }
+        t = targets.length ? targets.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
         autopilotTargetRef.current = t;
       }
       const target = t ?? [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
@@ -462,7 +485,7 @@ export function Grid({
         // 2) arrived — collect here if it's a package, then choose the next cell.
         const cell = idx(van.x, van.y, gcols);
         let target = van.target;
-        const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current });
+        const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current });
         if (hit.earned) {
           gsRef.current = hit.state;
           setGs(hit.state);
@@ -470,11 +493,19 @@ export function Grid({
           target = null;
         }
         const collected = gsRef.current.collected;
+        const converted = gsRef.current.converted;
         const dist = (c: number) =>
           Math.abs((c % gcols) - van.x) + Math.abs(Math.floor(c / gcols) - van.y);
-        const keep = target != null && layout.specials.has(target) && !collected.has(target) && !claimed.has(target);
+        // a van may target your uncollected packages and, if poaching, un-serviced rival stops
+        const canGrab = (c: number) =>
+          (layout.specials.has(c) && !collected.has(c)) ||
+          (poachRef.current && !!layout.reserved?.has(c) && !converted.has(c) && !rivalDoneRef.current.has(c));
+        const keep = target != null && canGrab(target) && !claimed.has(target);
         if (!keep) {
           const avail = [...layout.specials].filter((c) => !collected.has(c) && !claimed.has(c));
+          if (poachRef.current && layout.reserved) {
+            for (const c of layout.reserved) if (!converted.has(c) && !rivalDoneRef.current.has(c) && !claimed.has(c)) avail.push(c);
+          }
           target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
         }
         if (target != null) claimed.add(target);
@@ -526,6 +557,11 @@ export function Grid({
       const layout = gsRef.current.layout;
       const reserved = layout.reserved ?? EMPTY_SET;
       const done = rivalDoneRef.current;
+      // A stop is "resolved" if a rival already serviced it OR you poached it — rivals must
+      // ignore poached stops (don't drive to them, don't re-service them).
+      const conv = gsRef.current.converted;
+      const resolved = conv.size ? new Set<number>(done) : done;
+      if (conv.size) for (const c of conv) resolved.add(c);
       // Rivals always drive one Faster-Vans level ahead of you (+0.5 to the speed factor),
       // so they usually finish their deliveries before you do and you rarely wait on them.
       // Converted to a slide distance for the 55ms rival tick, capped below 1 (no teleport).
@@ -539,9 +575,9 @@ export function Grid({
           // rivals have auto-deliver: sitting on ANY un-serviced rival point fills it in
           if (Number.isInteger(v.x) && Number.isInteger(v.y)) {
             const at = idx(v.x, v.y, layout.cols);
-            if (reserved.has(at) && !done.has(at)) delivered.push(at);
+            if (reserved.has(at) && !resolved.has(at)) delivered.push(at);
           }
-          return stepRivalVan(v, layout, rivalColorsRef.current, flowStep, done, speed);
+          return stepRivalVan(v, layout, rivalColorsRef.current, flowStep, resolved, speed);
         })
         .filter((v): v is RivalVan => v !== null);
       rivalVansRef.current = next;
@@ -567,6 +603,16 @@ export function Grid({
     }, 55);
     return () => window.clearInterval(id);
   }, [gs.layout.reserved]);
+
+  // A poach grows gs.converted; report the delta up so App can track the lifetime
+  // "takeover" count (which discounts buyouts). converted resets to empty each new day,
+  // so a shrink is ignored — only genuine poaches count toward the total.
+  const convertedSizeRef = useRef(gs.converted.size);
+  useEffect(() => {
+    const delta = gs.converted.size - convertedSizeRef.current;
+    convertedSizeRef.current = gs.converted.size;
+    if (delta > 0) onPoachRef.current?.(delta);
+  }, [gs.converted]);
 
   // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
   // right away so DELIVERIES LEFT updates instantly (next-route counts already fold
@@ -622,7 +668,7 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gs.dayEnded, autoStartDay, daySpeed]);
 
-  const { player, layout, visited, collected, routes, dayEnded } = gs;
+  const { player, layout, visited, collected, converted, routes, dayEnded } = gs;
   const { blocked, specials, depots, cols: gcols, rows: grows } = layout;
   const reserved = layout.reserved ?? EMPTY_SET;
   const TOTAL = gcols * grows - blocked.size;
@@ -853,6 +899,16 @@ export function Grid({
       ctx.globalAlpha = 1;
     }
 
+    // rival stops YOU poached: fill the ring solid in YOUR color — it's your delivery now
+    ctx.fillStyle = ACCENT;
+    for (const c of converted) {
+      const cx = offX + (c % gcols) * cell + cell / 2;
+      const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, dot, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // rival delivery vans: solid squares in their company color, driving in from offscreen.
     // Once they've delivered they head back offscreen (stage "out") → stamp the home icon.
     const rvi = Math.round(cell * 0.28);
@@ -930,7 +986,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, rivalVans, rivalDone, rivalColors, gcols, grows, cell, dayEnded, canvas, ACCENT]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, converted, flash, routes, TOTAL, vans, reserved, rivalVans, rivalDone, rivalColors, gcols, grows, cell, dayEnded, canvas, ACCENT]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
