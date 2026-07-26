@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { sfxEnabled, setSfxEnabled, type SfxName } from "./audio";
 
 const SFX_ROWS: { name: SfxName; label: string }[] = [
@@ -116,29 +117,15 @@ export function Settings({
               </div>
             </div>
             {/* Per-sound toggles so annoying chirps can be silenced individually. */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <span style={{ fontSize: 11, letterSpacing: 2, color: "#8C877B" }}>SOUNDS</span>
               {SFX_ROWS.map((row) => (
-                <button
+                <CheckboxInput
                   key={row.name}
-                  onClick={() => toggleSfx(row.name)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    fontFamily: "inherit",
-                    fontSize: 12,
-                    letterSpacing: 0.5,
-                    color: sfx[row.name] ? "#ECE7DA" : "#57534A",
-                  }}
-                >
-                  <span>{row.label}</span>
-                  <span>{sfx[row.name] ? "☑" : "☐"}</span>
-                </button>
+                  label={row.label}
+                  value={sfx[row.name]}
+                  onChange={() => toggleSfx(row.name)}
+                />
               ))}
             </div>
 

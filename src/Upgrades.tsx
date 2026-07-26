@@ -257,24 +257,15 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                         the price button on the right (only once Ops Manager is owned). */}
                     <HStack justify="between" vAlign="center" gap={2}>
                       <Text type="supporting">{description}</Text>
-                      {autoBuyOwned && item.id != null && item.id !== "autobuy" && !item.locked && !isDone(item) && (
-                        <button
-                          onClick={() => onToggleAutoBuy?.(item.id!)}
-                          title="Auto-buy this with Ops Manager"
-                          style={{
-                            flexShrink: 0,
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: 0,
-                            fontSize: 10,
-                            letterSpacing: 0.5,
-                            fontFamily: "inherit",
-                            color: isAutoBuyOn?.(item.id) ? "var(--color-text-accent)" : "var(--color-text-secondary)",
-                          }}
-                        >
-                          {isAutoBuyOn?.(item.id) ? "☑" : "☐"} auto
-                        </button>
+                      {autoBuyOwned && item.id != null && item.id !== "autobuy" && item.id !== "uncontract" && !item.locked && !isDone(item) && (
+                        <span style={{ flexShrink: 0 }} title="Auto-buy this with Ops Manager">
+                          <CheckboxInput
+                            size="sm"
+                            label="auto"
+                            value={isAutoBuyOn?.(item.id) ?? false}
+                            onChange={() => onToggleAutoBuy?.(item.id!)}
+                          />
+                        </span>
                       )}
                     </HStack>
                   </VStack>

@@ -178,6 +178,13 @@ export function App() {
   }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, takeover, autoBuySel]);
 
   const onBuy = (id: string) => {
+    // Cancel a Contract: a free, repeatable action (not a leveled upgrade) — drop one
+    // contract, which returns a driver to the grid AND reverts the next contract's price.
+    if (id === "uncontract") {
+      setUpgrades((prev) => (prev.contracts ? { ...prev, contracts: prev.contracts - 1 } : prev));
+      playSfx("purchase");
+      return;
+    }
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
     if (!u) return;
     const level = upgrades[id] ?? 0;
@@ -223,7 +230,7 @@ export function App() {
     // Ops Manager buys only upgrades whose per-upgrade auto-buy checkbox is on (territory
     // defaults off, everything else on — all overridable by the player).
     for (const it of BUCKETS.flatMap((b) => b.items)) {
-      if (!it.id || it.id === "autobuy") continue;
+      if (!it.id || it.id === "autobuy" || it.id === "uncontract") continue;
       if (!isAutoBuyOn(it.id)) continue;
       if (it.requires && (upgrades[it.requires] ?? 0) < (it.requiresLevel ?? 1)) continue;
       if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;

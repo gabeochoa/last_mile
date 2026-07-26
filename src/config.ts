@@ -134,7 +134,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
-      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 3000, requires: "autoDeliver", requiresLevel: 1, softCap: true, capHint: "Up to ten vans per column — expand your map for more." },
+      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.5, maxLevel: 3000, requires: "autoDeliver", requiresLevel: 1, softCap: true, capHint: "Up to ten vans per column — expand your map for more." },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
       { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 1000000, costMult: 1, maxLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 85, requiresAny: ["autopilot", "fleet"] },
@@ -153,6 +153,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
       // raises the flat per-contract amount; Tips multiplies the whole thing.
       { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
+      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "contracts", requiresLevel: 1 },
       { id: "contractBoost", name: "Corporate Accounts", effect: "+10% contract pay per level", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "×1.5 contract pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
     ],
