@@ -1,6 +1,6 @@
 # Last Mile — changelog
 
-## Post-jam fixes (v1.12.0, in progress)
+## Post-jam fixes (v1.12.0)
 Fixes from GMTK 2026 player feedback.
 
 - **$/day is now a real 3-day average** of measured earnings (it never actually averaged before).
