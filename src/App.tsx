@@ -577,6 +577,10 @@ export function App() {
             setSettingsOpen(false);
           }}
           onCheatRestart={() => onRestart(500_000_000_000_000)}
+          onShowEnding={() => {
+            setEnded(true);
+            setSettingsOpen(false);
+          }}
           onClose={() => setSettingsOpen(false)}
         />
       )}

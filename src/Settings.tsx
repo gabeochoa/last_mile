@@ -18,6 +18,7 @@ export function Settings({
   onReset,
   onForceEndDay,
   onCheatRestart,
+  onShowEnding,
   onClose,
 }: {
   accent: string;
@@ -26,6 +27,7 @@ export function Settings({
   onReset: () => void;
   onForceEndDay: () => void;
   onCheatRestart: () => void;
+  onShowEnding: () => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"settings" | "save" | "cheats" | "about">("settings");
@@ -203,6 +205,12 @@ export function Settings({
               <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $500T</span>
               <button style={btn("#ECE7DA")} onClick={onCheatRestart} title="Wipe progress and restart with $500 trillion (endgame testing)">
                 Restart
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>SHOW ENDING</span>
+              <button style={btn("#ECE7DA")} onClick={onShowEnding} title="Preview the ending / credits screen">
+                View
               </button>
             </div>
           </div>
