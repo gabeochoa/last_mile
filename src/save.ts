@@ -16,6 +16,8 @@ export type SaveData = {
   autopilotOn?: boolean;
   autoStartOn?: boolean;
   autoBuyOn?: boolean;
+  // lifetime count of rival stops you've poached — permanently discounts buyouts.
+  takeover?: number;
 };
 
 // Pure validator (testable in node): rejects junk, wrong shape, or old versions.
@@ -44,6 +46,7 @@ export function parseSave(json: string): SaveData | null {
     autopilotOn: bool(o.autopilotOn),
     autoStartOn: bool(o.autoStartOn),
     autoBuyOn: bool(o.autoBuyOn),
+    takeover: typeof o.takeover === "number" ? o.takeover : undefined,
   };
 }
 

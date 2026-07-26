@@ -6,7 +6,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { List } from "@astryxdesign/core/List";
-import { BUCKETS, upgradeCost, fmtNum, contractPerDriver, dayBonusReward, type Upgrade } from "./config";
+import { BUCKETS, nextCost, buyoutDiscount, fmtNum, contractPerDriver, dayBonusReward, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme). Built from the player's chosen
@@ -45,6 +45,7 @@ type UpgradesProps = {
   onBuy: (id: string) => void;
   maxLevels?: Record<string, number>;
   perSec?: number; // income/sec, for the "…until affordable" tooltip
+  takeover?: number; // lifetime poached-stop count, discounts the Buy Out Rivals price
   buyoutColor?: string; // next rival company's color, tints the Buy Out Rivals button
   hideCompleted: boolean;
   onHideCompleted: (v: boolean) => void;
@@ -65,6 +66,7 @@ function UpgradeEnd({
   level,
   maxLevel,
   cash,
+  takeover,
   onBuy,
   setTip,
   accentOverride,
@@ -73,6 +75,7 @@ function UpgradeEnd({
   level: number;
   maxLevel: number;
   cash: number;
+  takeover: number;
   onBuy: (id: string) => void;
   setTip: (t: { x: number; y: number; text?: string; cost?: number } | null) => void;
   accentOverride?: string;
@@ -80,7 +83,7 @@ function UpgradeEnd({
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
   }
-  const cost = upgradeCost(item, level);
+  const cost = nextCost(item, level, takeover);
   const full = level >= maxLevel;
   // permanent MAX/OWNED (not a soft cap) shows a badge, no button
   if (full && !item.softCap) {
@@ -118,7 +121,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutColor, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeover = 0, buyoutColor, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
   // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
   // the tooltip stuck. Clear it whenever the upgrade set changes.
@@ -212,6 +215,8 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutC
                   ? `×${fmtNum(1.5 ** level)} → ×${fmtNum(1.5 ** (level + 1))} contract pay`
                   : item.id === "contracts"
                   ? `a driver switches to Uber · +$${fmtNum(Math.round(contractPerDriver(upgrades)))}/second`
+                  : item.id === "buyout" && takeover > 0
+                  ? `${Math.round(buyoutDiscount(takeover) * 100)}% off — you've poached ${takeover} rival ${takeover === 1 ? "stop" : "stops"}`
                   : item.effect;
               // Done+hide-complete rows collapse OUT; brand-new rows start collapsed and
               // animate IN — both via the same max-height/opacity transition (no popping).
@@ -237,7 +242,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutC
                         <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
                         {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
                       </HStack>
-                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} />
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} />
                     </HStack>
                     <Text type="supporting">{description}</Text>
                   </VStack>

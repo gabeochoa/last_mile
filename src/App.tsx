@@ -5,7 +5,7 @@ import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Settings } from "./Settings";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
+import { BUCKETS, nextCost, poachActive, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -71,6 +71,8 @@ export function App() {
   const [intro, setIntro] = useState(() => INTRO_PREVIEW || (!DEV && !hasProgress));
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
+  // lifetime count of rival stops poached (see Poach Rivals) — permanently discounts buyouts.
+  const [takeover, setTakeover] = useState(loaded?.takeover ?? 0);
   const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false });
   // latch: the shop appears once you can afford two upgrades, then stays — and is
   // already shown when resuming a save with progress (so a refresh keeps the shop).
@@ -120,7 +122,7 @@ export function App() {
       if (!it.id) return Infinity;
       const lvl = upgrades[it.id] ?? 0;
       const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
-      return lvl >= max ? Infinity : upgradeCost(it, lvl);
+      return lvl >= max ? Infinity : nextCost(it, lvl, takeover);
     })
     .sort((a, b) => a - b);
   const canAffordTwo = cash >= (nextCosts[0] ?? Infinity) + (nextCosts[1] ?? Infinity);
@@ -145,15 +147,16 @@ export function App() {
       autopilotOn: autopilotEnabled,
       autoStartOn: autoStartEnabled,
       autoBuyOn: autoBuyEnabled,
+      takeover,
     });
-  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, autoBuyEnabled]);
+  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, autoBuyEnabled, takeover]);
 
   const onBuy = (id: string) => {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
     if (!u) return;
     const level = upgrades[id] ?? 0;
     if (level >= (maxLevels[id] ?? u.maxLevel ?? 1)) return;
-    const cost = upgradeCost(u, level);
+    const cost = nextCost(u, level, takeover);
     if (cash < cost) return;
     setCash((c) => c - cost);
     setUpgrades((prev) => ({ ...prev, [id]: level + 1 }));
@@ -199,7 +202,7 @@ export function App() {
       if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
       const lvl = upgrades[it.id] ?? 0;
       if (lvl >= (maxLevels[it.id] ?? it.maxLevel ?? 1)) continue;
-      const cost = upgradeCost(it, lvl);
+      const cost = nextCost(it, lvl, takeover);
       if (cost <= cash && cost < bestCost) {
         best = it.id;
         bestCost = cost;
@@ -363,6 +366,7 @@ export function App() {
           onBuy={onBuy}
           maxLevels={maxLevels}
           perSec={perSec}
+          takeover={takeover}
           buyoutColor={companyColors[boughtCount]}
           hideCompleted={hideCompleted}
           onHideCompleted={setHideCompleted}
@@ -425,9 +429,11 @@ export function App() {
             setCash((c) => c + delta);
           }}
           onStats={setStats}
+          onPoach={(n) => setTakeover((t) => t + n)}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={driversOnGrid}
+          poach={poachActive(upgrades)}
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
