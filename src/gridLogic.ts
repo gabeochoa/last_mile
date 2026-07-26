@@ -431,7 +431,7 @@ export function genLayout(
   rng: () => number = Math.random,
   companyCount = 0,
   boughtCount = 0,
-  lockerFrac = 0,
+  lockerPerRow = 0,
 ): Layout {
   // depots first; then rival companies claim expansion neighborhoods (bought ones come
   // back as YOUR deliveries); then your normal deliveries fill what's left of the map.
@@ -447,22 +447,28 @@ export function genLayout(
   const blocked = cityBlocked(cols, rows, rng);
   ensureReachable(blocked, cols, rows);
   const layout = build(blocked);
-  if (lockerFrac <= 0 || blocked.size === 0) return layout;
-  // Rainforest Lockers: convert a fraction of the buildings into delivery lockers — walls
-  // become open delivery stops. Deterministic pick, then re-ensure reachability so no
-  // former-wall locker ends up walled off (removing walls only ever helps connectivity).
-  const n = Math.floor(blocked.size * Math.min(1, lockerFrac));
-  if (n <= 0) return layout;
-  const arr = [...blocked];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
+  if (lockerPerRow <= 0 || blocked.size === 0) return layout;
+  // Rainforest Lockers: each level converts up to `lockerPerRow` buildings PER ROW into
+  // delivery lockers (walls → open delivery stops). Deterministic per-row pick, then
+  // re-ensure reachability (removing walls only ever helps connectivity, but a former-wall
+  // locker could otherwise be pocketed by remaining walls).
   const newBlocked = new Set(blocked);
   const specials = new Set(layout.specials);
-  for (let i = 0; i < n; i++) {
-    newBlocked.delete(arr[i]);
-    specials.add(arr[i]);
+  for (let y = 0; y < rows; y++) {
+    const rowBlocked: number[] = [];
+    for (let x = 0; x < cols; x++) {
+      const c = idx(x, y, cols);
+      if (newBlocked.has(c)) rowBlocked.push(c);
+    }
+    for (let i = rowBlocked.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [rowBlocked[i], rowBlocked[j]] = [rowBlocked[j], rowBlocked[i]];
+    }
+    const n = Math.min(lockerPerRow, rowBlocked.length);
+    for (let i = 0; i < n; i++) {
+      newBlocked.delete(rowBlocked[i]);
+      specials.add(rowBlocked[i]);
+    }
   }
   ensureReachable(newBlocked, cols, rows);
   return { ...layout, blocked: newBlocked, specials };

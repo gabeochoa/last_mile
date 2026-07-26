@@ -182,7 +182,7 @@ export function Grid({
   quietSfx = false,
   droneCount = 0,
   policeFine = 0,
-  lockerFrac = 0,
+  lockerPerRow = 0,
   vanSpeed,
   daySpeed,
   perDelivery,
@@ -215,7 +215,7 @@ export function Grid({
   // Police Contract: cash paid to you each time a rival makes a delivery (0 = not owned)
   policeFine?: number;
   // Rainforest Lockers: fraction of buildings converted to delivery stops in new routes
-  lockerFrac?: number;
+  lockerPerRow?: number;
   vanSpeed: number;
   daySpeed: number;
   perDelivery: number;
@@ -254,7 +254,7 @@ export function Grid({
   // single source of truth for the route; pure applyMove/collectHere produce the next one.
   // The route layout starts fresh on load; only the resumed `routes` count carries over.
   const [gs, setGs] = useState<GridState>(() =>
-    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, companyCount, boughtCount, lockerFrac),
+    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, companyCount, boughtCount, lockerPerRow),
   );
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
@@ -326,8 +326,8 @@ export function Grid({
   poachRef.current = poach;
   const policeFineRef = useRef(policeFine);
   policeFineRef.current = policeFine;
-  const lockerFracRef = useRef(lockerFrac);
-  lockerFracRef.current = lockerFrac;
+  const lockerPerRowRef = useRef(lockerPerRow);
+  lockerPerRowRef.current = lockerPerRow;
   const onStatsRef = useRef(onStats);
   onStatsRef.current = onStats;
   const autoDeliverRef = useRef(autoDeliver);
@@ -690,33 +690,30 @@ export function Grid({
     setGs(next);
   };
 
-  // Failsafe: once YOUR deliveries are all done (armed) we're only waiting on rivals. If
-  // nothing progresses — no rival delivery, no poach, no van coming/going — for STUCK_MS,
-  // force the day to end (no bonus) so a stuck rival can never soft-lock you.
-  const STUCK_MS = 15000;
-  const stuckSinceRef = useRef<number | null>(null);
-  const stuckSigRef = useRef("");
+  // 30s cap: once YOUR side is fully done — every delivery collected (armed), the player
+  // parked on a depot, and the whole fleet home — the day should finish within 30 seconds
+  // even if the rivals are still dawdling. You did your part, so it completes WITH the
+  // bonus (a hard cap on waiting for rivals, not a bail-out).
+  const HOME_CAP_MS = 30000;
+  const homeSinceRef = useRef<number | null>(null);
   useEffect(() => {
     const id = window.setInterval(() => {
       const s = gsRef.current;
-      if (s.dayEnded) { stuckSinceRef.current = null; return; }
+      if (s.dayEnded) { homeSinceRef.current = null; return; }
       const armed = s.layout.specials.size > 0 && s.collected.size === s.layout.specials.size;
-      // only relevant once your deliveries are done and rivals still haven't finished
-      if (!armed || rivalsAllDone()) {
-        stuckSinceRef.current = null;
-        return;
-      }
-      // reset the clock on any rival progress (a delivery, a poach, or a van appearing/leaving)
-      const sig = `${rivalDoneRef.current.size}:${s.converted.size}:${rivalVansRef.current.length}`;
-      if (sig !== stuckSigRef.current) {
-        stuckSigRef.current = sig;
-        stuckSinceRef.current = performance.now();
-        return;
-      }
-      if (stuckSinceRef.current == null) { stuckSinceRef.current = performance.now(); return; }
-      if (performance.now() - stuckSinceRef.current >= STUCK_MS) {
-        forceEndDay();
-        stuckSinceRef.current = null;
+      const onDepot = s.layout.depots.has(idx(s.player.x, s.player.y, s.layout.cols));
+      const home = armed && onDepot && allDriversHome(s.layout, vansRef.current);
+      // if the day can already finish normally (rivals done) leave it to the other ticks
+      if (!home || rivalsAllDone()) { homeSinceRef.current = null; return; }
+      if (homeSinceRef.current == null) { homeSinceRef.current = performance.now(); return; }
+      if (performance.now() - homeSinceRef.current >= HOME_CAP_MS) {
+        const done = finishIfDone(s, { routeBonus: routeBonusRef.current, driversHome: true, rivalsDone: true });
+        if (done.state !== s) {
+          gsRef.current = done.state;
+          setGs(done.state);
+          if (done.earned) onEarnRef.current(done.earned);
+        }
+        homeSinceRef.current = null;
       }
     }, 1000);
     return () => window.clearInterval(id);
@@ -789,7 +786,7 @@ export function Grid({
           depotCount: depotCountRef.current,
           companyCount: companyCountRef.current,
           boughtCount: boughtCountRef.current,
-          lockerFrac: lockerFracRef.current,
+          lockerPerRow: lockerPerRowRef.current,
         }),
         earned: 0,
       });
@@ -1190,7 +1187,7 @@ export function Grid({
         depotCount: depotCountRef.current,
         companyCount: companyCountRef.current,
         boughtCount: boughtCountRef.current,
-        lockerFrac: lockerFracRef.current,
+        lockerPerRow: lockerPerRowRef.current,
       }),
       earned: 0,
     });

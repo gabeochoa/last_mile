@@ -172,7 +172,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.09, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
       { id: "poach", name: "Poach Rivals", effect: "your vans can deliver to rival stops — each one pays you AND makes buying that rival out cheaper", baseCost: 1200, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
-      { id: "lockers", name: "Rainforest Lockers", effect: "each level converts more buildings into delivery lockers — the whole map becomes stops", baseCost: 50_000_000_000_000, costMult: 1.6, maxLevel: 50, requiresCash: 50_000_000_000_000 },
+      { id: "lockers", name: "Rainforest Lockers", effect: "+1 delivery locker per row each level — buildings become stops", baseCost: 5_000_000_000_000, costMult: 1.25, maxLevel: 300, requiresCash: 10_000_000_000_000 },
     ],
   },
 ];
@@ -234,10 +234,10 @@ export function depotCount(u: Record<string, number>) {
 export function droneCount(u: Record<string, number>) {
   return u.drones ?? 0;
 }
-// Rainforest Lockers -> fraction of buildings converted into delivery stops (1 = all walls).
-export const LOCKER_MAX = 50;
-export function lockerFraction(u: Record<string, number>) {
-  return Math.min(1, (u.lockers ?? 0) / LOCKER_MAX);
+// Rainforest Lockers -> buildings converted into delivery stops PER ROW (one per row per
+// level), so buying levels steadily fills the map with deliveries.
+export function lockerPerRow(u: Record<string, number>) {
+  return u.lockers ?? 0;
 }
 // Police Contract -> cash earned each time a rival makes a delivery (per level, scaled to
 // your current per-delivery pay so it stays relevant as the economy grows).
