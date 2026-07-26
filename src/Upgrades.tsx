@@ -98,6 +98,7 @@ function UpgradeEnd({
     return (
       <span
         style={{ display: "inline-flex" }}
+        onMouseEnter={(e) => setTip({ text: lockedHint, x: e.clientX, y: e.clientY })}
         onMouseMove={(e) => setTip({ text: lockedHint, x: e.clientX, y: e.clientY })}
         onMouseLeave={() => setTip(null)}
       >
@@ -167,6 +168,7 @@ function UpgradeEnd({
   return (
     <span
       style={{ display: "inline-flex" }}
+      onMouseEnter={(e) => setTip({ ...tipData, x: e.clientX, y: e.clientY })}
       onMouseMove={(e) => setTip({ ...tipData, x: e.clientX, y: e.clientY })}
       onMouseLeave={() => setTip(null)}
     >

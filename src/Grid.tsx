@@ -835,6 +835,18 @@ export function Grid({
   const pixelCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pixelImgRef = useRef<ImageData | null>(null); // reused each frame (fill(0), no realloc)
   const drawRef = useRef<(c: number) => void>(() => {});
+  // Coalesce redraws to one per animation frame: state updates fire far faster than 60fps
+  // (fleet/rival/drone ticks, per-van collects), and repainting on every one was wasteful.
+  // scheduleDraw batches them so the canvas repaints at most once per frame.
+  const drawScheduledRef = useRef(false);
+  const scheduleDraw = () => {
+    if (drawScheduledRef.current) return;
+    drawScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      drawScheduledRef.current = false;
+      drawRef.current(animCellRef.current);
+    });
+  };
   const animRafRef = useRef(0);
   const prevCellRef = useRef(cell);   // last real cell — a drop means the grid grew
   const cellTargetRef = useRef(cell); // latest real cell = animation target
@@ -1182,12 +1194,11 @@ export function Grid({
         animRafRef.current = requestAnimationFrame(tick);
       }
     } else if (animRafRef.current) {
-      // mid-animation state change: reflect it now at the current scale; the rAF
-      // loop keeps easing through the freshly-set drawRef.
-      drawAt(animCellRef.current);
+      // mid grow-animation: its rAF loop is already repainting every frame from the
+      // freshly-set drawRef, so there's nothing extra to schedule here.
     } else {
       animCellRef.current = cell;
-      drawAt(cell);
+      scheduleDraw(); // coalesced: at most one repaint per frame no matter how many ticks
     }
   }, [player.x, player.y, visited, blocked, specials, depots, collected, converted, flash, routes, TOTAL, vans, reserved, rivalVans, rivalDone, rivalColors, gcols, grows, cell, dayEnded, canvas, ACCENT]);
 

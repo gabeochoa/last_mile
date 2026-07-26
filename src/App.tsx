@@ -102,6 +102,8 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // bumped by the Settings "force end day" button; Grid ends the current day (no bonus) on change.
   const [forceEndSignal, setForceEndSignal] = useState(0);
+  // hover-cash tooltip: shows where income is coming from, percentage-wise.
+  const [cashTip, setCashTip] = useState<{ x: number; y: number } | null>(null);
   // player's chosen brand color; recolors the whole UI + canvas from one value.
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
@@ -321,7 +323,12 @@ export function App() {
         {/* Stats grouped left so they never collide with the right-hand controls. */}
         <div style={{ display: "flex", alignItems: "center", gap: 24, minWidth: 0 }}>
           <span>DAY {stats.routes + 1}</span>
-          <span>
+          <span
+            style={{ cursor: "help" }}
+            onMouseEnter={(e) => setCashTip({ x: e.clientX, y: e.clientY })}
+            onMouseMove={(e) => setCashTip({ x: e.clientX, y: e.clientY })}
+            onMouseLeave={() => setCashTip(null)}
+          >
             CASH ${fmtNum(displayCash)}
             <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
               {dayRate >= 0 ? "+" : "−"}${fmtNum(Math.abs(dayRate))}/day
@@ -520,6 +527,41 @@ export function App() {
           </div>
         </div>
       </div>
+
+      {cashTip && (
+        <div
+          style={{
+            position: "fixed",
+            left: cashTip.x + 14,
+            top: cashTip.y + 18,
+            zIndex: 50,
+            maxWidth: 260,
+            padding: "6px 10px",
+            background: "#161616",
+            border: "1px solid rgba(236,231,218,0.4)",
+            color: "#ECE7DA",
+            fontFamily: "ui-monospace, Menlo, monospace",
+            fontSize: 11,
+            letterSpacing: 0.5,
+            lineHeight: 1.6,
+            pointerEvents: "none",
+          }}
+        >
+          {(() => {
+            const total = perSec;
+            if (total <= 0) return "keep a day running to measure income";
+            const cPct = Math.round(100 * Math.min(1, contractPerSec / total));
+            const aPct = Math.max(0, 100 - cPct);
+            return (
+              <>
+                <div style={{ opacity: 0.7 }}>INCOME ~${fmtNum(total)}/s</div>
+                <div>deliveries &amp; bonuses · {aPct}%</div>
+                {contractPerSec > 0 && <div>contracts · {cPct}%</div>}
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {settingsOpen && (
         <Settings
