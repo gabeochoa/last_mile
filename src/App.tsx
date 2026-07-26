@@ -16,8 +16,9 @@ const END_PREVIEW = new URLSearchParams(window.location.search).get("end") !== n
 // ?intro forces the intro/title overlay so it can be screenshotted/tested.
 const INTRO_PREVIEW = new URLSearchParams(window.location.search).get("intro") !== null;
 
-// Eases a displayed value toward target via rAF so countdowns visibly tick.
-function useAnimatedNumber(target: number, ms = 500): number {
+// Eases a displayed value toward target via rAF so countdowns visibly tick. Rounds to
+// an integer unless a decimal count is given (the market share reads like 99.99%).
+function useAnimatedNumber(target: number, ms = 500, decimals = 0): number {
   const [value, setValue] = useState(target);
   useEffect(() => {
     const start = value;
@@ -32,7 +33,8 @@ function useAnimatedNumber(target: number, ms = 500): number {
     // value read as the animation's start point only when target changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, ms]);
-  return Math.round(value);
+  const f = 10 ** decimals;
+  return Math.round(value * f) / f;
 }
 
 export function App() {
@@ -109,16 +111,16 @@ export function App() {
     playSfx("purchase");
   };
 
-  // Cash earned per day: snapshot the cash gained between day completions. Always shown.
+  // Cash EARNED per day: track a running earnings total (income only — upgrade
+  // purchases never subtract from it) and snapshot the gain between day completions.
   const [dayRate, setDayRate] = useState(0);
-  const cashRef = useRef(cash);
-  cashRef.current = cash;
-  const lastDayCashRef = useRef(cash);
+  const earnedRef = useRef(0);
+  const lastDayEarnedRef = useRef(0);
   const prevRoutesRef = useRef(stats.routes);
   useEffect(() => {
     if (stats.routes > prevRoutesRef.current) {
-      setDayRate(cashRef.current - lastDayCashRef.current);
-      lastDayCashRef.current = cashRef.current;
+      setDayRate(earnedRef.current - lastDayEarnedRef.current);
+      lastDayEarnedRef.current = earnedRef.current;
       prevRoutesRef.current = stats.routes;
     }
   }, [stats.routes]);
@@ -140,7 +142,7 @@ export function App() {
     clearSave();
     window.location.reload();
   };
-  const displayShare = useAnimatedNumber(theirShare);
+  const displayShare = useAnimatedNumber(theirShare, 500, 2);
   const displayPackages = useAnimatedNumber(stats.packagesLeft);
 
   // Controls hint fades in under the map at the start, then fades out for good once
@@ -297,7 +299,7 @@ export function App() {
           footer={
             bigMap ? (
               <span style={{ color: accent, fontWeight: 700, fontSize: 22, letterSpacing: 2 }}>
-                {displayShare}% UNOWNED
+                {displayShare.toFixed(2)}% UNOWNED
               </span>
             ) : undefined
           }
@@ -328,7 +330,7 @@ export function App() {
             {/* Hero countdown: unowned market share — hits 0 when you win. */}
             <div style={{ textAlign: "center", color: accent }}>
               <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: 2, lineHeight: 0.9 }}>
-                {displayShare}%
+                {displayShare.toFixed(2)}%
               </div>
               <div style={{ fontSize: 16, opacity: 0.85, letterSpacing: 3 }}>
                 UNOWNED MARKET ▼
@@ -348,7 +350,10 @@ export function App() {
         )}
 
         <Grid
-          onEarn={(delta) => setCash((c) => c + delta)}
+          onEarn={(delta) => {
+            earnedRef.current += delta;
+            setCash((c) => c + delta);
+          }}
           onStats={setStats}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
