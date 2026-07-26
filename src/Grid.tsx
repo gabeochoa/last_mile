@@ -81,6 +81,7 @@ const stepRivalVan = (
   colors: string[],
   flowStep: (from: number, target: number) => [number, number] | null,
   done: Set<number>,
+  speed: number,
 ): RivalVan | null => {
   const { cols } = layout;
 
@@ -89,7 +90,7 @@ const stepRivalVan = (
   const dy = v.ty - v.y;
   const d = Math.hypot(dx, dy);
   if (d > 0.02) {
-    const s = Math.min(d, RIVAL_SPEED);
+    const s = Math.min(d, speed);
     return { ...v, x: v.x + (dx / d) * s, y: v.y + (dy / d) * s };
   }
 
@@ -172,6 +173,7 @@ export function Grid({
   autopilot,
   fleet,
   vanSpeed,
+  speedLimit,
   daySpeed,
   perDelivery,
   routeBonus,
@@ -192,6 +194,7 @@ export function Grid({
   autopilot: boolean;
   fleet: number;
   vanSpeed: number;
+  speedLimit: number;
   daySpeed: number;
   perDelivery: number;
   routeBonus: number;
@@ -296,6 +299,8 @@ export function Grid({
   fleetRef.current = fleet;
   const vanSpeedRef = useRef(vanSpeed);
   vanSpeedRef.current = vanSpeed;
+  const speedLimitRef = useRef(speedLimit);
+  speedLimitRef.current = speedLimit;
   const daySpeedRef = useRef(daySpeed);
   daySpeedRef.current = daySpeed;
   const perDeliveryRef = useRef(perDelivery);
@@ -401,10 +406,10 @@ export function Grid({
       const dir = flowStep(here, target);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, Math.max(45, Math.round(340 / vanSpeed)));
+    }, Math.max(45, Math.round(340 / (vanSpeed * speedLimit))));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autopilot, vanSpeed]);
+  }, [autopilot, vanSpeed, speedLimit]);
 
   // Keep the van array sized to `fleet` with each van spawned AT its home depot.
   // Van i homes to the i-th sorted depot (round-robin). A NEW layout (new day / live
@@ -442,7 +447,7 @@ export function Grid({
     if (fleet <= 0) return;
     // match the autopilot's cell-crossing time (same 340/vanSpeed cadence, 45ms floor),
     // capped below 1 so a van always visibly slides rather than teleporting.
-    const speed = Math.min(0.9, 45 / Math.max(45, Math.round(340 / vanSpeed)));
+    const speed = Math.min(0.9, 45 / Math.max(45, Math.round(340 / (vanSpeed * speedLimit))));
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
@@ -504,7 +509,7 @@ export function Grid({
     }, 45);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fleet, vanSpeed]);
+  }, [fleet, vanSpeed, speedLimit]);
 
   // Rivals field one van per column (like you). Re-seeded only when the RESERVED set
   // changes (new day / grow / buyout) — NOT when Spread Flyers adds specials, which
@@ -527,20 +532,28 @@ export function Grid({
       const layout = gsRef.current.layout;
       const reserved = layout.reserved ?? EMPTY_SET;
       const done = rivalDoneRef.current;
+      const speed = RIVAL_SPEED * speedLimitRef.current;
+      // Compute synchronously from the ref (NOT inside a setState updater — that runs
+      // later, so the `delivered` side-effect never fired: circles never got marked).
       const delivered: number[] = [];
-      setRivalVans((vs) =>
-        vs
-          .map((v) => {
-            // rivals have auto-deliver: sitting on ANY un-serviced rival point fills it in
-            if (Number.isInteger(v.x) && Number.isInteger(v.y)) {
-              const at = idx(v.x, v.y, layout.cols);
-              if (reserved.has(at) && !done.has(at)) delivered.push(at);
-            }
-            return stepRivalVan(v, layout, rivalColorsRef.current, flowStep, done);
-          })
-          .filter((v): v is RivalVan => v !== null),
-      );
-      if (delivered.length) setRivalDone((prev) => new Set([...prev, ...delivered]));
+      const next = rivalVansRef.current
+        .map((v) => {
+          // rivals have auto-deliver: sitting on ANY un-serviced rival point fills it in
+          if (Number.isInteger(v.x) && Number.isInteger(v.y)) {
+            const at = idx(v.x, v.y, layout.cols);
+            if (reserved.has(at) && !done.has(at)) delivered.push(at);
+          }
+          return stepRivalVan(v, layout, rivalColorsRef.current, flowStep, done, speed);
+        })
+        .filter((v): v is RivalVan => v !== null);
+      rivalVansRef.current = next;
+      setRivalVans(next);
+      if (delivered.length) {
+        const nd = new Set(done);
+        for (const c of delivered) nd.add(c);
+        rivalDoneRef.current = nd;
+        setRivalDone(nd);
+      }
       // rivals finishing (all points serviced + vans gone) can be the last thing the day
       // was waiting on — end it now if the player + fleet are already home.
       const fin = finishIfDone(gsRef.current, {

@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, speedLimit, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -438,6 +438,7 @@ export function App() {
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={driversOnGrid}
           vanSpeed={vanSpeed(upgrades)}
+          speedLimit={speedLimit(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
           companyCount={companyCount}

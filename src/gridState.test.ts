@@ -290,7 +290,7 @@ test("upgradeCost is round, starts at baseCost, and strictly increases", () => {
   for (let l = 0; l < 15; l++) {
     const c = upgradeCost(u, l);
     expect(c).toBeGreaterThan(prev); // strictly increasing
-    const step = c < 100 ? 5 : c < 1000 ? 10 : c < 10000 ? 50 : 100;
+    const step = c < 100 ? 5 : c < 1000 ? 25 : c < 100000 ? 50 : c < 1e7 ? 500 : 50000;
     expect(c % step).toBe(0); // rounded to a nice step
     prev = c;
   }

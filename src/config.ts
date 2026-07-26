@@ -88,8 +88,9 @@ export function fmtNum(n: number): string {
   return n.toExponential(2).replace("e+", "e"); // beyond the ladder: clean scientific
 }
 
-// Round to a clean step that scales with magnitude: 5 (<100), 10 (<1k), 50 (<10k), 100 (>=10k).
-const niceStep = (n: number) => (n < 100 ? 5 : n < 1000 ? 10 : n < 10000 ? 50 : 100);
+// Round costs to clean steps: 5 under 100 (keeps the cheap early upgrades usable), then
+// nearest 25, then nearest 50, scaling up for big numbers.
+const niceStep = (n: number) => (n < 100 ? 5 : n < 1000 ? 25 : n < 100000 ? 50 : n < 1e7 ? 500 : 50000);
 const roundNice = (n: number) => Math.round(n / niceStep(n)) * niceStep(n);
 
 // Cost of the next level: baseCost grows by costMult per level already owned, then
@@ -114,8 +115,9 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
       { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 300, requires: "autoDeliver", requiresLevel: 1, softCap: true, capHint: "One van per column — expand your map for more." },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
-      { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 5000, costMult: 1, maxLevel: 1 },
+      { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 1000000, costMult: 1, maxLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 60, requiresAny: ["autopilot", "fleet"] },
+      { id: "speedLimit", name: "Lobby for Higher Speed Limits", effect: "raises the city limit — EVERYONE drives faster (rivals too)", baseCost: 500, costMult: 1.4, maxLevel: 40, requires: "expand", requiresLevel: 5 },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
     ],
   },
@@ -131,7 +133,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "TERRITORY",
     items: [
-      { id: "expand", name: "Map Expansion", effect: "open new territory (mostly rival-held)", baseCost: 100, costMult: 1.12, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
+      { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.12, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
       // Contracts live in TERRITORY so Ops Manager (auto-buy skips TERRITORY) never
@@ -169,6 +171,10 @@ export function contractIncome(u: Record<string, number>) {
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {
   return 1 + (u.vanSpeed ?? 0) * 0.5;
+}
+// Higher Speed Limits -> global factor on EVERY van (yours + rivals), +0.25x/level.
+export function speedLimit(u: Record<string, number>) {
+  return 1 + (u.speedLimit ?? 0) * 0.25;
 }
 // Faster Days -> factor shortening the auto-start-day delay (level 0 = 1, +1/level).
 export function daySpeed(u: Record<string, number>) {
