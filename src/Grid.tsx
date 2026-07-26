@@ -59,8 +59,9 @@ const borderEntries = (layout: RLayout): [number, number, number, number][] => {
 
 const RIVAL_SPEED = 0.3; // cells per tick — the van SLIDES toward its next cell
 
-const spawnRivalVan = (layout: RLayout, colors: string[]): RivalVan | null => {
-  const res = layout.reserved ? [...layout.reserved] : [];
+const spawnRivalVan = (layout: RLayout, colors: string[], done: Set<number>): RivalVan | null => {
+  // only head for rival points not yet serviced this day; none left => no new van
+  const res = layout.reserved ? [...layout.reserved].filter((c) => !done.has(c)) : [];
   const border = borderEntries(layout);
   if (!res.length || !border.length) return null;
   const cell = res[Math.floor(Math.random() * res.length)];
@@ -79,7 +80,8 @@ const stepRivalVan = (
   layout: RLayout,
   colors: string[],
   flowStep: (from: number, target: number) => [number, number] | null,
-): RivalVan => {
+  done: Set<number>,
+): RivalVan | null => {
   const { cols, rows, blocked } = layout;
   const onGrid = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
   const open = (x: number, y: number) => !onGrid(x, y) || !blocked.has(idx(x, y, cols));
@@ -97,7 +99,8 @@ const stepRivalVan = (
   const cx = v.tx;
   const cy = v.ty;
   const van = { ...v, x: cx, y: cy };
-  if (van.stage === "out" && !onGrid(cx, cy)) return spawnRivalVan(layout, colors) ?? van; // left the map
+  // walked off the map: respawn for another undelivered point, or leave for good (null)
+  if (van.stage === "out" && !onGrid(cx, cy)) return spawnRivalVan(layout, colors, done);
   if (van.stage === "in" && cx === van.gx && cy === van.gy) {
     // delivered: turn around and head back out the nearest edge, pausing a beat
     return { ...van, stage: "out", wait: 5, gx: cx < cols / 2 ? -1 : cols, gy: cy };
@@ -242,8 +245,21 @@ export function Grid({
   boughtCountRef.current = boughtCount;
   const rivalColorsRef = useRef(rivalColors);
   rivalColorsRef.current = rivalColors;
-  // blue rival delivery vans driving in from offscreen to service rival points (cosmetic)
+  // blue rival delivery vans driving in from offscreen to service rival points
   const [rivalVans, setRivalVans] = useState<RivalVan[]>([]);
+  const rivalVansRef = useRef(rivalVans);
+  rivalVansRef.current = rivalVans;
+  // rival delivery points already serviced by a rival van this day (they fill in). The
+  // day can't end until every reserved point is done AND every rival van has driven back
+  // off the map (their offscreen depot) — the downside of expanding.
+  const [rivalDone, setRivalDone] = useState<Set<number>>(() => new Set());
+  const rivalDoneRef = useRef(rivalDone);
+  rivalDoneRef.current = rivalDone;
+  const rivalsAllDone = () => {
+    const res = gsRef.current.layout.reserved;
+    if (!res || res.size === 0) return true;
+    return rivalDoneRef.current.size >= res.size && rivalVansRef.current.length === 0;
+  };
 
   // refs so the once-bound keydown handler always sees latest state/props without
   // re-binding — and gsRef updates SYNCHRONOUSLY so rapid/held keys can't re-enter
@@ -316,6 +332,7 @@ export function Grid({
     perDelivery: perDeliveryRef.current,
     routeBonus: routeBonusRef.current,
     driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
+    rivalsDone: rivalsAllDone(),
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
     rows: rowsRef.current,
@@ -363,6 +380,7 @@ export function Grid({
       const fin = finishIfDone(s, {
         routeBonus: routeBonusRef.current,
         driversHome: allDriversHome(s.layout, vansRef.current),
+        rivalsDone: rivalsAllDone(),
       });
       if (fin.state !== s) {
         commit(fin);
@@ -488,6 +506,7 @@ export function Grid({
       const done = finishIfDone(gsRef.current, {
         routeBonus: routeBonusRef.current,
         driversHome: allDriversHome(gsRef.current.layout, next),
+        rivalsDone: rivalsAllDone(),
       });
       if (done.state !== gsRef.current) {
         gsRef.current = done.state;
@@ -505,8 +524,10 @@ export function Grid({
   useEffect(() => {
     const res = gs.layout.reserved;
     const count = res ? Math.min(res.size, gs.layout.cols) : 0;
+    const fresh = new Set<number>();
+    setRivalDone(fresh); // new day/layout: nothing delivered yet
     setRivalVans(
-      Array.from({ length: count }, () => spawnRivalVan(gs.layout, rivalColorsRef.current)).filter(
+      Array.from({ length: count }, () => spawnRivalVan(gs.layout, rivalColorsRef.current, fresh)).filter(
         (v): v is RivalVan => v !== null,
       ),
     );
@@ -515,7 +536,35 @@ export function Grid({
   useEffect(() => {
     if (!gs.layout.reserved?.size) return;
     const id = window.setInterval(() => {
-      setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout, rivalColorsRef.current, flowStep)));
+      const layout = gsRef.current.layout;
+      const reserved = layout.reserved ?? EMPTY_SET;
+      const done = rivalDoneRef.current;
+      const delivered: number[] = [];
+      setRivalVans((vs) =>
+        vs
+          .map((v) => {
+            // rivals have auto-deliver: sitting on ANY un-serviced rival point fills it in
+            if (Number.isInteger(v.x) && Number.isInteger(v.y)) {
+              const at = idx(v.x, v.y, layout.cols);
+              if (reserved.has(at) && !done.has(at)) delivered.push(at);
+            }
+            return stepRivalVan(v, layout, rivalColorsRef.current, flowStep, done);
+          })
+          .filter((v): v is RivalVan => v !== null),
+      );
+      if (delivered.length) setRivalDone((prev) => new Set([...prev, ...delivered]));
+      // rivals finishing (all points serviced + vans gone) can be the last thing the day
+      // was waiting on — end it now if the player + fleet are already home.
+      const fin = finishIfDone(gsRef.current, {
+        routeBonus: routeBonusRef.current,
+        driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
+        rivalsDone: rivalsAllDone(),
+      });
+      if (fin.state !== gsRef.current) {
+        gsRef.current = fin.state;
+        setGs(fin.state);
+        if (fin.earned) onEarnRef.current(fin.earned);
+      }
     }, 55);
     return () => window.clearInterval(id);
   }, [gs.layout.reserved]);
@@ -776,6 +825,19 @@ export function Grid({
 
     // (rival delivery-point rings are drawn in the cached static layer above)
 
+    // serviced rival points fill in (a rival van has delivered there)
+    const rivCenters = layout.rivalCenters ?? [];
+    for (const c of rivalDone) {
+      const cx = offX + (c % gcols) * cell + cell / 2;
+      const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, dot, 0, Math.PI * 2);
+      ctx.fillStyle = cellColor(c, rivCenters, gcols, rivalColors);
+      ctx.globalAlpha = 0.5;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     // rival delivery vans: solid squares in their company color, driving in from offscreen
     const rvi = Math.round(cell * 0.28);
     for (const v of rivalVans) {
@@ -849,7 +911,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, rivalVans, rivalColors, gcols, grows, cell, dayEnded, canvas, ACCENT]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, rivalVans, rivalDone, rivalColors, gcols, grows, cell, dayEnded, canvas, ACCENT]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
