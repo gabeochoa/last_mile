@@ -188,18 +188,24 @@ function roadLines(len: number, rng: () => number): number[] {
   return lines;
 }
 
-// City layout: a connected grid of open streets (road rows x road cols) with the
-// interior gaps filled by solid building blocks (blocked). Road rows and cols
-// always intersect, so every open cell is reachable; START is forced onto a road.
+// City layout: irregular road rows/cols, with the blocks between them filled by
+// buildings — but ORGANICALLY, not as a perfect lattice: some street cells sprout a
+// building (jagged frontages) and some interior cells are left open (courtyards/lots).
+// Connectivity isn't guaranteed here; genLayout runs ensureReachable to carve streets.
 export function cityBlocked(cols: number, rows: number, rng: () => number = Math.random): Set<number> {
   const roadCols = roadLines(cols, rng);
   const roadRows = roadLines(rows, rng);
-  // guarantee START (0,0) sits on the street network
-  if (!roadCols.includes(0) && !roadRows.includes(0)) roadCols.push(0);
+  const isRoad = (x: number, y: number) => roadCols.includes(x) || roadRows.includes(y);
   const blocked = new Set<number>();
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      if (!roadCols.includes(x) && !roadRows.includes(y)) blocked.add(idx(x, y, cols));
+      const c = idx(x, y, cols);
+      if (c === START) continue; // your first depot is always open
+      if (isRoad(x, y)) {
+        if (rng() < 0.12) blocked.add(c); // occasional building juts into the street
+      } else {
+        if (rng() < 0.88) blocked.add(c); // mostly buildings, with the odd open lot
+      }
     }
   }
   return blocked;
@@ -325,16 +331,8 @@ export function genLayout(
     const exclude = new Set<number>([...depots, ...reserved]);
     return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, exclude), depots, reserved, cols, rows };
   };
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const blocked = cityBlocked(cols, rows, rng);
-    if (!blocked.has(START) && allReachable(blocked, cols, rows)) return build(blocked);
-  }
-  // fallback: fixed road grid (cols 0,3 x rows 0,3) — always connected
-  const blocked = new Set<number>();
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      if (x !== 0 && x !== 3 && y !== 0 && y !== 3) blocked.add(idx(x, y, cols));
-    }
-  }
+  // organic city, then carve streets so every open cell is reachable from START
+  const blocked = cityBlocked(cols, rows, rng);
+  ensureReachable(blocked, cols, rows);
   return build(blocked);
 }
