@@ -190,9 +190,9 @@ export const BUYOUT_MAX =
 // unowned; hits 0% once fully expanded (EXPAND_MAX) and fully bought out (BUYOUT_MAX).
 export function unownedShare(u: Record<string, number>): number {
   const reached = expandLevel(u) / EXPAND_MAX; // how much of the planet you've expanded into
-  const claimed = (u.buyout ?? 0) / BUYOUT_MAX; // how much of it you've taken from rivals
+  const claimed = (u.buyout ?? 0) / rivalCompanyCount(EXPAND_MAX); // rival companies bought out
   // flyers are only an early trickle — capped at ~1% so they can never reach 0% on their
-  // own; the real countdown to 0 comes from expanding AND buying out (reached*claimed).
+  // own; the real countdown to 0 comes from expanding AND buying out every company.
   const flyers = Math.min(1, 0.01 * (u.demand ?? 0));
   const owned = 0.01 + flyers + 100 * reached * claimed;
   return Math.max(0, 100 - owned);

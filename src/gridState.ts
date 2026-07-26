@@ -26,11 +26,12 @@ export function newRoute(
   depotCount = 1,
   routes = 0,
   rng: () => number = Math.random,
-  rivalFraction = 0,
+  companyCount = 0,
+  boughtCount = 0,
 ): GridState {
   return {
     player: { x: 0, y: 0 },
-    layout: genLayout(cols, rows, packageCount, depotCount, rng, rivalFraction),
+    layout: genLayout(cols, rows, packageCount, depotCount, rng, companyCount, boughtCount),
     visited: new Set([START]),
     collected: new Set(),
     routes,
@@ -41,9 +42,9 @@ export function newRoute(
 // Start the next day: a fresh route carrying the current routes count forward.
 export function startDay(
   state: GridState,
-  opts: { cols: number; rows: number; packageCount: number; depotCount?: number; rng?: () => number; rivalFraction?: number },
+  opts: { cols: number; rows: number; packageCount: number; depotCount?: number; rng?: () => number; companyCount?: number; boughtCount?: number },
 ): GridState {
-  return newRoute(opts.cols, opts.rows, opts.packageCount, opts.depotCount ?? 1, state.routes, opts.rng, opts.rivalFraction ?? 0);
+  return newRoute(opts.cols, opts.rows, opts.packageCount, opts.depotCount ?? 1, state.routes, opts.rng, opts.companyCount ?? 0, opts.boughtCount ?? 0);
 }
 
 // Grow the CURRENT route's map to newCols x newRows LIVE (mid-route). growLayout

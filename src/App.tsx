@@ -87,12 +87,17 @@ export function App() {
   // in the current grid (open, non-depot, minus rival-held cells), so you can't add
   // more deliveries than there's room for. Grid reports this as stats.capacity.
   const dims = sizeForExpansion(expandLevel(upgrades));
+  // Rival companies present (a new one every 5 expansions) and how many you've claimed.
+  const companyCount = rivalCompanyCount(expandLevel(upgrades));
+  const boughtCount = upgrades.buyout ?? 0;
   const maxLevels: Record<string, number> = {
     demand: Math.max(0, stats.capacity - BASE_PACKAGES),
     // one van per column of the map — expand to field more drivers
     fleet: dims.cols,
     // each Contract reassigns a driver, so you can have at most as many as your fleet
     contracts: upgrades.fleet ?? 0,
+    // you can only buy out companies you've expanded far enough to see
+    buyout: companyCount,
   };
   // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
   const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
@@ -184,7 +189,9 @@ export function App() {
   autoBuyStepRef.current = () => {
     let best: string | null = null;
     let bestCost = Infinity;
-    for (const it of BUCKETS.flatMap((b) => b.items)) {
+    // Ops Manager never touches TERRITORY (expansion / buyout / depots) — those are
+    // deliberate player choices, not something to spend your cash on automatically.
+    for (const it of BUCKETS.filter((b) => b.name !== "TERRITORY").flatMap((b) => b.items)) {
       if (!it.id || it.id === "autobuy") continue;
       if (it.requires && (upgrades[it.requires] ?? 0) < (it.requiresLevel ?? 1)) continue;
       if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
@@ -217,8 +224,6 @@ export function App() {
     }
   }, [stats.routes]);
 
-  // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
-  const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
   // A new rival company (distinct color, never yours) appears every 5 expansions.
   // Memoized so its array reference is stable (the canvas caches keyed on it).
   const companyColors = useMemo(
@@ -434,7 +439,8 @@ export function App() {
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
-          rivalFraction={rivalFraction}
+          companyCount={companyCount}
+          boughtCount={boughtCount}
           rivalColors={companyColors}
           accent={accent}
           perDelivery={perDelivery(upgrades)}

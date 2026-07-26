@@ -24,13 +24,23 @@ const allDriversHome = (
 // x,y = float on-screen position (slides); tx,ty = the cell being slid toward;
 // gx,gy = the stage goal cell (rival point, then an offscreen edge).
 type RivalVan = { x: number; y: number; tx: number; ty: number; gx: number; gy: number; stage: "in" | "out"; wait: number; color: string };
-type RLayout = { reserved?: Set<number>; blocked: Set<number>; cols: number; rows: number };
+type RLayout = { reserved?: Set<number>; rivalCenters?: [number, number][]; blocked: Set<number>; cols: number; rows: number };
 
-// Deterministically map a cell to one of the rival company colors, so each company
-// owns a scattered-but-stable set of cells.
-const hashCell = (c: number) => (Math.imul(c + 1, 2654435761) >>> 0);
-const cellColor = (c: number, colors: string[]) =>
-  colors.length ? colors[hashCell(c) % colors.length] : RIVAL;
+// A cell's rival company = the nearest company center; its color follows from that.
+const cellCompany = (c: number, centers: [number, number][], cols: number) => {
+  if (!centers.length) return 0;
+  const cx = c % cols;
+  const cy = Math.floor(c / cols);
+  let bi = 0;
+  let bd = Infinity;
+  for (let i = 0; i < centers.length; i++) {
+    const d = Math.hypot(cx - centers[i][0], cy - centers[i][1]);
+    if (d < bd) { bd = d; bi = i; }
+  }
+  return bi;
+};
+const cellColor = (c: number, centers: [number, number][], cols: number, colors: string[]) =>
+  colors.length ? colors[cellCompany(c, centers, cols) % colors.length] : RIVAL;
 
 // Open cells on the grid border, with the outward offset — rival vans enter/leave here.
 const borderEntries = (layout: RLayout): [number, number, number, number][] => {
@@ -58,7 +68,7 @@ const spawnRivalVan = (layout: RLayout, colors: string[]): RivalVan | null => {
   // start just offscreen by an OPEN border cell; goal = the rival point (its company color)
   return {
     x: bx + ox, y: by + oy, tx: bx, ty: by, gx: cell % layout.cols, gy: Math.floor(cell / layout.cols),
-    stage: "in", wait: 0, color: cellColor(cell, colors),
+    stage: "in", wait: 0, color: cellColor(cell, layout.rivalCenters ?? [], layout.cols, colors),
   };
 };
 
@@ -166,7 +176,8 @@ export function Grid({
   extraPackages,
   depotCount,
   autoStartDay,
-  rivalFraction,
+  companyCount,
+  boughtCount,
   rivalColors,
   accent,
   cols,
@@ -185,8 +196,10 @@ export function Grid({
   extraPackages: number;
   depotCount: number;
   autoStartDay: boolean;
-  // fraction (0..1) of the expansion frontier held by rivals; buying them out lowers it
-  rivalFraction: number;
+  // total rival companies present on the map, and how many you've already bought out
+  // (bought companies' neighborhoods come back as YOUR deliveries)
+  companyCount: number;
+  boughtCount: number;
   // one color per rival company (a new company every 5 expansions); cells/vans colored by company
   rivalColors: string[];
   // player's brand color; drives the player, fleet, packages and armed-depot glyphs
@@ -212,7 +225,7 @@ export function Grid({
   // single source of truth for the route; pure applyMove/collectHere produce the next one.
   // The route layout starts fresh on load; only the resumed `routes` count carries over.
   const [gs, setGs] = useState<GridState>(() =>
-    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, rivalFraction),
+    newRoute(cols, rows, BASE_PACKAGES + extraPackages, depotCount, initialRoutes, undefined, companyCount, boughtCount),
   );
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
@@ -223,8 +236,10 @@ export function Grid({
   const [vans, setVans] = useState<{ x: number; y: number; dx: number; dy: number; home: number; target: number | null }[]>([]);
   const vansRef = useRef(vans);
   vansRef.current = vans;
-  const rivalFractionRef = useRef(rivalFraction);
-  rivalFractionRef.current = rivalFraction;
+  const companyCountRef = useRef(companyCount);
+  companyCountRef.current = companyCount;
+  const boughtCountRef = useRef(boughtCount);
+  boughtCountRef.current = boughtCount;
   const rivalColorsRef = useRef(rivalColors);
   rivalColorsRef.current = rivalColors;
   // blue rival delivery vans driving in from offscreen to service rival points (cosmetic)
@@ -451,6 +466,22 @@ export function Grid({
       });
       vansRef.current = next;
       setVans(next);
+      // mark every fleet van's cell as visited so YOUR drivers leave a gray trail too
+      // (like the player). Rivals don't — only your vans.
+      let vis = gsRef.current.visited;
+      let grew = false;
+      for (const v of next) {
+        const c = idx(v.x, v.y, gcols);
+        if (!vis.has(c)) {
+          if (!grew) { vis = new Set(vis); grew = true; }
+          vis.add(c);
+        }
+      }
+      if (grew) {
+        const st = { ...gsRef.current, visited: vis };
+        gsRef.current = st;
+        setGs(st);
+      }
       // once everyone (incl. the player) is home + all deliveries done, end the day
       const done = finishIfDone(gsRef.current, {
         routeBonus: routeBonusRef.current,
@@ -513,7 +544,7 @@ export function Grid({
     prevColsRef.current = cols;
     prevRowsRef.current = rows;
     if (!grew || gsRef.current.dayEnded) return;
-    const next = growState(gsRef.current, cols, rows, rivalFractionRef.current);
+    const next = growState(gsRef.current, cols, rows, 0.9);
     gsRef.current = next;
     setGs(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -531,7 +562,8 @@ export function Grid({
           rows: rowsRef.current,
           packageCount: BASE_PACKAGES + extraPackagesRef.current,
           depotCount: depotCountRef.current,
-          rivalFraction: rivalFractionRef.current,
+          companyCount: companyCountRef.current,
+          boughtCount: boughtCountRef.current,
         }),
         earned: 0,
       });
@@ -659,12 +691,13 @@ export function Grid({
       }
       b.globalAlpha = 1;
       b.lineWidth = 2;
+      const centers = layout.rivalCenters ?? [];
       for (const c of reserved) {
         const cx = offX + (c % gcols) * cell + cell / 2;
         const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
         b.beginPath();
         b.arc(cx, cy, dot, 0, Math.PI * 2);
-        b.strokeStyle = cellColor(c, rivalColors);
+        b.strokeStyle = cellColor(c, centers, gcols, rivalColors);
         b.stroke();
       }
       bgKeyRef.current = { blocked, reserved, colors: rivalColors, cell, offX, offY, w: canvas };
@@ -824,7 +857,8 @@ export function Grid({
         rows: rowsRef.current,
         packageCount: BASE_PACKAGES + extraPackagesRef.current,
         depotCount: depotCountRef.current,
-        rivalFraction: rivalFractionRef.current,
+        companyCount: companyCountRef.current,
+        boughtCount: boughtCountRef.current,
       }),
       earned: 0,
     });

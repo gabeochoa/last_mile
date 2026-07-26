@@ -156,13 +156,61 @@ export type Layout = {
   // warehouse cells the fleet homes to and the player can finish at. START(0) is
   // ALWAYS a depot; the Depots upgrade adds more on open non-START cells.
   depots: Set<number>;
-  // cells held by rival companies (blue delivery points). Your deliveries never spawn
-  // here and they don't count toward capacity — you buy them out to reclaim the space.
+  // cells held by rival companies you haven't bought out (their delivery points). Your
+  // deliveries never spawn here; you buy out a whole company to claim its cells.
   // Optional so older/simpler Layout literals (tests) stay valid.
   reserved?: Set<number>;
+  // one center per rival company (sorted nearest-START first); a reserved cell belongs
+  // to the company of its nearest center. Used for per-company color + buyout claiming.
+  rivalCenters?: [number, number][];
   cols: number;
   rows: number;
 };
+
+// Split the expansion frontier into `companyCount` rival NEIGHBORHOODS (clusters). The
+// first `boughtCount` companies (nearest START) are already yours — their cells come
+// back as `claimed` (your deliveries); the rest are `reserved` (still rivals).
+export function genNeighborhoods(
+  blocked: Set<number>,
+  cols: number,
+  rows: number,
+  companyCount: number,
+  boughtCount: number,
+  rng: () => number,
+  exclude: Set<number>,
+): { reserved: Set<number>; claimed: Set<number>; centers: [number, number][] } {
+  const reserved = new Set<number>();
+  const claimed = new Set<number>();
+  const centers: [number, number][] = [];
+  if (companyCount <= 0) return { reserved, claimed, centers };
+  const open: number[] = [];
+  for (let c = 0; c < cols * rows; c++) {
+    if (c !== START && !blocked.has(c) && !exclude.has(c) && isExpansionCell(c, cols)) open.push(c);
+  }
+  if (!open.length) return { reserved, claimed, centers };
+  for (let i = 0; i < companyCount; i++) {
+    const c = open[Math.floor(rng() * open.length)];
+    centers.push([c % cols, Math.floor(c / cols)]);
+  }
+  // company 0 = nearest START (first you'd expand into / buy out)
+  centers.sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
+  const sigma = Math.max(2.5, Math.sqrt(open.length) / (companyCount + 1));
+  for (const c of open) {
+    const cx = c % cols;
+    const cy = Math.floor(c / cols);
+    let bestI = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < centers.length; i++) {
+      const d = Math.hypot(cx - centers[i][0], cy - centers[i][1]);
+      if (d < bestD) { bestD = d; bestI = i; }
+    }
+    // dense near a center, ragged at the edges
+    if (rng() < 0.9 * Math.exp(-(bestD * bestD) / (2 * sigma * sigma)) + 0.05) {
+      (bestI < boughtCount ? claimed : reserved).add(c);
+    }
+  }
+  return { reserved, claimed, centers };
+}
 
 // Reserve `fraction` (0..1) of the open EXPANSION cells (non-START, non-depot) as
 // rival delivery points — the new frontier is mostly rival-held until you buy them out.
@@ -379,15 +427,18 @@ export function genLayout(
   count = BASE_PACKAGES,
   depotCount = 1,
   rng: () => number = Math.random,
-  rivalFraction = 0,
+  companyCount = 0,
+  boughtCount = 0,
 ): Layout {
-  // depots first, then rivals claim expansion cells, then your deliveries fill what's
-  // left (avoiding both) — so rivals genuinely take space away from you.
+  // depots first; then rival companies claim expansion neighborhoods (bought ones come
+  // back as YOUR deliveries); then your normal deliveries fill what's left of the map.
   const build = (blocked: Set<number>): Layout => {
     const depots = genDepots(blocked, cols, rows, depotCount, rng);
-    const reserved = genReserved(blocked, cols, rows, rivalFraction, rng, depots);
+    const { reserved, claimed, centers } = genNeighborhoods(blocked, cols, rows, companyCount, boughtCount, rng, depots);
     const exclude = new Set<number>([...depots, ...reserved]);
-    return { blocked, specials: genSpecials(blocked, cols, rows, count, rng, exclude), depots, reserved, cols, rows };
+    const specials = genSpecials(blocked, cols, rows, count, rng, exclude);
+    for (const c of claimed) specials.add(c); // bought-out companies are yours now
+    return { blocked, specials, depots, reserved, rivalCenters: centers, cols, rows };
   };
   // organic city, then carve streets so every open cell is reachable from START
   const blocked = cityBlocked(cols, rows, rng);

@@ -53,7 +53,7 @@ test("genLayout: rivals reserve expansion cells; deliveries never overlap them",
   // expand a few levels so expansion cells exist
   const { cols, rows } = sizeForExpansion(6);
   for (let i = 0; i < 20; i++) {
-    const { specials, depots, reserved } = genLayout(cols, rows, 4, 1, makeRng(i), 0.9);
+    const { specials, depots, reserved } = genLayout(cols, rows, 4, 1, makeRng(i), 3, 0);
     const rez = reserved ?? new Set<number>();
     // every reserved cell is in the expansion area and off depots/START
     for (const c of rez) {
