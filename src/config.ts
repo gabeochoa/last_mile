@@ -241,9 +241,11 @@ export function dayBonusReward(level: number) {
 export function routeBonus(u: Record<string, number>) {
   return dayBonusReward(u.dayBonus ?? 0);
 }
-// Contracts -> total passive cash per second (per-driver rate × number of contracts).
+// Contracts -> total passive cash per second (per-driver rate × number of contracts),
+// capped at $100M/s so it can't balloon past everything else late-game.
+export const CONTRACT_INCOME_CAP = 100_000_000;
 export function contractIncome(u: Record<string, number>) {
-  return (u.contracts ?? 0) * contractPerDriver(u);
+  return Math.min(CONTRACT_INCOME_CAP, (u.contracts ?? 0) * contractPerDriver(u));
 }
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {

@@ -115,8 +115,13 @@ export function App() {
   // Rival companies present (a new one every 5 expansions) and how many you've claimed.
   const companyCount = rivalCompanyCount(expandLevel(upgrades));
   const boughtCount = upgrades.buyout ?? 0;
-  // rival companies you haven't bought out yet (shown in the banner)
+  // rival companies you haven't bought out yet (shown in the banner). Until the map is
+  // fully expanded there are still hidden rivals, so show "N?" (some visible + more coming)
+  // or "???" (none visible yet, but the game isn't over so they're out there).
   const rivalsRemaining = Math.max(0, companyCount - boughtCount);
+  const allRivalsVisible = expandLevel(upgrades) >= EXPAND_MAX;
+  const rivalsLabel = allRivalsVisible ? String(rivalsRemaining) : rivalsRemaining > 0 ? `${rivalsRemaining}?` : "???";
+  const showRivals = rivalsRemaining > 0 || !allRivalsVisible;
   const maxLevels: Record<string, number> = {
     demand: Math.max(0, stats.capacity - BASE_PACKAGES),
     // ten vans per column, plus each rival you've bought out hands over their quota too:
@@ -138,6 +143,19 @@ export function App() {
 
   // Create/resume the AudioContext on the first user gesture (autoplay policy).
   useEffect(() => initAudioOnFirstGesture(), []);
+
+  // React's DEV build emits a performance.measure per render for the DevTools profiler; with
+  // our high re-render rate those pile up into hundreds of MB (a dev-only heap leak — the
+  // production build doesn't emit them). Periodically flush the buffer so dev testing stays
+  // light; it's a harmless no-op in production where there's nothing to clear.
+  useEffect(() => {
+    if (typeof performance === "undefined" || !performance.clearMeasures) return;
+    const id = window.setInterval(() => {
+      performance.clearMeasures();
+      performance.clearMarks?.();
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // Reveal the shop once you can afford the two cheapest upgrades — enough to make a
   // real first choice, not a single forced buy. Latches on.
@@ -371,7 +389,7 @@ export function App() {
             }}
           >
             <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>
-            {rivalsRemaining > 0 && <span>RIVALS {rivalsRemaining}{expandLevel(upgrades) >= EXPAND_MAX ? "" : "?"}</span>}
+            {showRivals && <span>RIVALS {rivalsLabel}</span>}
           </div>
         )}
 
