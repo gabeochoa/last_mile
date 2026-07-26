@@ -119,8 +119,8 @@ export function Settings({
                 </button>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $50</span>
-                <button style={btn("#ECE7DA")} onClick={onCheatRestart} title="Wipe progress and restart with $50">
+                <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $50K</span>
+                <button style={btn("#ECE7DA")} onClick={onCheatRestart} title="Wipe progress and restart with $50,000">
                   Restart
                 </button>
               </div>

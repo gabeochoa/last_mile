@@ -482,7 +482,7 @@ export function App() {
             setForceEndSignal((n) => n + 1);
             setSettingsOpen(false);
           }}
-          onCheatRestart={() => onRestart(50)}
+          onCheatRestart={() => onRestart(50000)}
           onClose={() => setSettingsOpen(false)}
         />
       )}
