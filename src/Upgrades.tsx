@@ -74,6 +74,8 @@ function UpgradeEnd({
   onBuy,
   setTip,
   accentOverride,
+  locked,
+  lockedHint,
 }: {
   item: Upgrade;
   level: number;
@@ -83,9 +85,22 @@ function UpgradeEnd({
   onBuy: (id: string) => void;
   setTip: (t: { x: number; y: number; text?: string; cost?: number } | null) => void;
   accentOverride?: string;
+  locked?: boolean;
+  lockedHint?: string;
 }) {
-  if (item.locked) {
-    return <Badge label="LOCKED" variant="neutral" />;
+  if (item.locked || locked) {
+    const badge = <Badge label="LOCKED" variant="neutral" />;
+    if (!lockedHint) return badge;
+    // hover the locked badge to learn what unlocks it (e.g. "expand a few more times")
+    return (
+      <span
+        style={{ display: "inline-flex" }}
+        onMouseMove={(e) => setTip({ text: lockedHint, x: e.clientX, y: e.clientY })}
+        onMouseLeave={() => setTip(null)}
+      >
+        {badge}
+      </span>
+    );
   }
   const cost = nextCost(item, level, { takeover, cash });
   const full = level >= maxLevel;
@@ -97,10 +112,12 @@ function UpgradeEnd({
   // overriding --color-accent recolors the astryx primary button (e.g. Buy Out Rivals
   // tinted by the next company's color).
   const style = accentOverride ? ({ ["--color-accent" as string]: accentOverride } as CSSProperties) : undefined;
+  // the free Cancel-a-Contract action reads as "Cancel", not a "$0" price
+  const label = item.id === "uncontract" ? "Cancel" : `$${fmtNum(cost)}`;
   const btn = (
     <span style={style}>
       <Button
-        label={`$${fmtNum(cost)}`}
+        label={label}
         size="sm"
         variant="primary"
         isDisabled={!canBuy}
@@ -132,11 +149,14 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
   useEffect(() => setTip(null), [upgrades]);
 
   // Newly-unlocked rows animate IN (start collapsed, then expand) instead of popping.
-  const isVisible = (i: Upgrade) =>
+  // real prerequisites met (buyable). A cash-gated unlock stays satisfied once owned.
+  const meetsReq = (i: Upgrade) =>
     (!i.requires || (upgrades[i.requires] ?? 0) >= (i.requiresLevel ?? 1)) &&
     (!i.requiresAny || i.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) &&
-    // cash-gated late-game unlocks stay hidden until you first reach the threshold (or own it)
     (i.requiresCash == null || cash >= i.requiresCash || (i.id != null && (upgrades[i.id] ?? 0) > 0));
+  // shown-but-locked preview once showFrom is reached (so the goal is visible early)
+  const showFromMet = (i: Upgrade) => i.showFrom != null && (upgrades[i.showFrom] ?? 0) >= (i.showFromLevel ?? 1);
+  const isVisible = (i: Upgrade) => meetsReq(i) || showFromMet(i);
   const seenRef = useRef<Set<string>>(new Set());
   const [, forceSeen] = useState(0);
   const visibleNames = BUCKETS.flatMap((b) => b.items).filter(isVisible).map((i) => i.name);
@@ -251,13 +271,13 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                         <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
                         {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
                       </HStack>
-                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} />
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
                     </HStack>
                     {/* Second row: description on the left, a tiny auto-buy checkbox under
                         the price button on the right (only once Ops Manager is owned). */}
                     <HStack justify="between" vAlign="center" gap={2}>
                       <Text type="supporting">{description}</Text>
-                      {autoBuyOwned && item.id != null && item.id !== "autobuy" && item.id !== "uncontract" && !item.locked && !isDone(item) && (
+                      {autoBuyOwned && item.id != null && item.id !== "autobuy" && item.id !== "uncontract" && !item.locked && meetsReq(item) && !isDone(item) && (
                         <span style={{ flexShrink: 0 }} title="Auto-buy this with Ops Manager">
                           <CheckboxInput
                             size="sm"

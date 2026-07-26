@@ -71,3 +71,31 @@ export function clearSave(): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SAVE_KEY);
 }
+
+// Export the current save as a portable base64 code (for backup / moving devices).
+export function exportSave(): string {
+  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(SAVE_KEY) : null;
+  if (!raw) return "";
+  try {
+    return btoa(unescape(encodeURIComponent(raw)));
+  } catch {
+    return raw;
+  }
+}
+
+// Import a code produced by exportSave (or raw save JSON). Validates before writing;
+// returns true on success. Caller reloads to apply.
+export function importSave(code: string): boolean {
+  const trimmed = code.trim();
+  if (!trimmed) return false;
+  let json = trimmed;
+  try {
+    json = decodeURIComponent(escape(atob(trimmed)));
+  } catch {
+    // not base64 — maybe it's raw JSON already
+  }
+  const parsed = parseSave(json);
+  if (!parsed) return false;
+  if (typeof localStorage !== "undefined") localStorage.setItem(SAVE_KEY, JSON.stringify(parsed));
+  return true;
+}

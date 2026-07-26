@@ -62,6 +62,11 @@ export type Upgrade = {
   requiresAny?: string[];
   // ...and/or until your cash first reaches this much (late-game unlocks)
   requiresCash?: number;
+  // Show the row (but LOCKED, with lockedHint) once this upgrade hits showFromLevel, even
+  // before `requires` is met — so you can see the goal and how far off it is.
+  showFrom?: string;
+  showFromLevel?: number;
+  lockedHint?: string;
   // maxLevel is a fluctuating capacity, not true completion: keep the row visible and
   // just disable the button when full (never show MAX / hide it).
   softCap?: boolean;
@@ -146,16 +151,17 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "ECONOMY",
     items: [
-      { id: "demand", name: "Spread Flyers", effect: "more deliveries per day", baseCost: 5, costMult: 1.1, softCap: true },
+      { id: "demand", name: "Spread Flyers", effect: "more deliveries per day", baseCost: 5, costMult: 1.05, softCap: true },
       { id: "routeOpt", name: "Better Rates", effect: "+$2 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "bookstore", name: "Buy the Bookstore", effect: "×5 pay on every delivery — same effort", baseCost: 10_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 10_000_000_000 },
       { id: "postoffice", name: "Take Over the Post Office", effect: "×10 pay on every delivery, on top of everything", baseCost: 100_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000_000 },
+      { id: "internet", name: "Get on the Internet", effect: "×100 pay on every delivery — you're shipping hard drives now", baseCost: 1_000_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 1_000_000_000_000 },
       { id: "police", name: "Police Contract", effect: "fine rivals — earn your delivery pay each time a rival delivers", baseCost: 100_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
       // raises the flat per-contract amount; Tips multiplies the whole thing.
       { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
-      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "contracts", requiresLevel: 1 },
+      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "autoStart", requiresLevel: 1 },
       { id: "contractBoost", name: "Corporate Accounts", effect: "+10% contract pay per level", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "×1.5 contract pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
     ],
@@ -163,9 +169,9 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "TERRITORY",
     items: [
-      { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.12, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
-      { id: "poach", name: "Poach Rivals", effect: "your vans can deliver to rival stops — each one pays you AND makes buying that rival out cheaper", baseCost: 1200, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5 },
-      { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
+      { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.09, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
+      { id: "poach", name: "Poach Rivals", effect: "your vans can deliver to rival stops — each one pays you AND makes buying that rival out cheaper", baseCost: 1200, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
+      { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5, showFrom: "expand", showFromLevel: 1, lockedHint: "Expand the map a few more times to reach their territory." },
     ],
   },
 ];
@@ -186,9 +192,10 @@ export function perDeliveryAt(routeOptLevel: number) {
   return SPECIAL_BONUS + routeOptLevel * ROUTE_RATE;
 }
 // Late-game businesses multiply EVERY delivery's pay for the same effort: the Bookstore
-// is ×5, taking over the Post Office is a further ×10 on top (×50 combined).
+// is ×5, taking over the Post Office is a further ×10, and getting on the Internet
+// (shipping hard drives) another ×100 on top — ×5000 combined.
 export function deliveryMult(u: Record<string, number>) {
-  return (u.bookstore ? 5 : 1) * (u.postoffice ? 10 : 1);
+  return (u.bookstore ? 5 : 1) * (u.postoffice ? 10 : 1) * (u.internet ? 100 : 1);
 }
 export function perDelivery(u: Record<string, number>) {
   return perDeliveryAt(u.routeOpt ?? 0) * deliveryMult(u);

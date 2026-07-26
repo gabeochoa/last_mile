@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { sfxEnabled, setSfxEnabled, type SfxName } from "./audio";
+import { exportSave, importSave } from "./save";
 
 const SFX_ROWS: { name: SfxName; label: string }[] = [
   { name: "deliver", label: "delivery complete" },
@@ -27,7 +28,7 @@ export function Settings({
   onCheatRestart: () => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"settings" | "about">("settings");
+  const [tab, setTab] = useState<"settings" | "save" | "cheats" | "about">("settings");
   const [confirmReset, setConfirmReset] = useState(false);
   const [sfx, setSfx] = useState(() => ({
     deliver: sfxEnabled("deliver"),
@@ -38,6 +39,21 @@ export function Settings({
     const on = !sfx[name];
     setSfxEnabled(name, on);
     setSfx((s) => ({ ...s, [name]: on }));
+  };
+  const [copied, setCopied] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importErr, setImportErr] = useState(false);
+  const doExport = () => {
+    const code = exportSave();
+    if (code && navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(() => setCopied(true)).catch(() => setCopied(true));
+    } else {
+      setCopied(true);
+    }
+  };
+  const doImport = () => {
+    if (importSave(importText)) window.location.reload();
+    else setImportErr(true);
   };
 
   const tabStyle = (active: boolean) => ({
@@ -88,8 +104,10 @@ export function Settings({
         }}
       >
         {/* Header: tabs + close */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20, borderBottom: "1px solid rgba(236,231,218,0.15)", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, borderBottom: "1px solid rgba(236,231,218,0.15)", marginBottom: 20 }}>
           <button style={tabStyle(tab === "settings")} onClick={() => setTab("settings")}>SETTINGS</button>
+          <button style={tabStyle(tab === "save")} onClick={() => setTab("save")}>SAVE DATA</button>
+          <button style={tabStyle(tab === "cheats")} onClick={() => setTab("cheats")} title="Cheats">💀</button>
           <button style={tabStyle(tab === "about")} onClick={() => setTab("about")}>ABOUT</button>
           <button
             onClick={onClose}
@@ -100,7 +118,7 @@ export function Settings({
           </button>
         </div>
 
-        {tab === "settings" ? (
+        {tab === "settings" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
               <span style={{ fontSize: 13, letterSpacing: 1 }}>VOLUME</span>
@@ -128,8 +146,39 @@ export function Settings({
                 />
               ))}
             </div>
+          </div>
+        )}
 
+        {tab === "save" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Export a portable code, or paste one to import. */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>EXPORT SAVE</span>
+              <button style={btn("#ECE7DA")} onClick={doExport} title="Copy your save code to the clipboard">
+                {copied ? "Copied!" : "Copy code"}
+              </button>
+            </div>
+            <input
+              value={importText}
+              onChange={(e) => { setImportText(e.target.value); setImportErr(false); }}
+              placeholder="paste a save code to import"
+              style={{
+                background: "transparent",
+                border: `1px solid ${importErr ? "#E23E5C" : "rgba(236,231,218,0.25)"}`,
+                color: "#ECE7DA",
+                fontFamily: "inherit",
+                fontSize: 11,
+                padding: "6px 8px",
+              }}
+            />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: importErr ? "#E23E5C" : "#8C877B" }}>
+                {importErr ? "Invalid save code" : "importing reloads the game"}
+              </span>
+              <button style={btn(accent)} onClick={doImport}>Load</button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid rgba(236,231,218,0.15)", paddingTop: 16 }}>
               <span style={{ fontSize: 13, letterSpacing: 1 }}>RESET PROGRESS</span>
               <button
                 style={btn(accent)}
@@ -139,25 +188,27 @@ export function Settings({
                 {confirmReset ? "Are you sure?" : "Reset"}
               </button>
             </div>
+          </div>
+        )}
 
-            {/* Cheats: dev/testing shortcuts, grouped + divided off at the bottom. */}
-            <div style={{ borderTop: "1px solid rgba(236,231,218,0.15)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-              <span style={{ fontSize: 11, letterSpacing: 2, color: "#8C877B" }}>CHEATS</span>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, letterSpacing: 1 }}>FORCE END DAY</span>
-                <button style={btn("#ECE7DA")} onClick={onForceEndDay} title="End the current day now — no completion bonus">
-                  End Day
-                </button>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $50K</span>
-                <button style={btn("#ECE7DA")} onClick={onCheatRestart} title="Wipe progress and restart with $50,000">
-                  Restart
-                </button>
-              </div>
+        {tab === "cheats" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>FORCE END DAY</span>
+              <button style={btn("#ECE7DA")} onClick={onForceEndDay} title="End the current day now — no completion bonus">
+                End Day
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $50K</span>
+              <button style={btn("#ECE7DA")} onClick={onCheatRestart} title="Wipe progress and restart with $50,000">
+                Restart
+              </button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {tab === "about" && (
           <div style={{ fontSize: 14, lineHeight: 1.9, opacity: 0.9, textAlign: "center", padding: "12px 0" }}>
             <div style={{ color: accent, fontSize: 22, fontWeight: 700, letterSpacing: 3, marginBottom: 12 }}>LAST MILE</div>
             <div>a tiny incremental game</div>
