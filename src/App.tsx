@@ -109,20 +109,19 @@ export function App() {
     playSfx("purchase");
   };
 
-  // Cash rate ($/s): sample the cash delta once a second. Shown in the banner once
-  // Autopilot is owned (that's when income runs hands-off and a rate is meaningful).
-  const [rate, setRate] = useState(0);
+  // Cash earned per day: snapshot the cash gained between day completions. Always shown.
+  const [dayRate, setDayRate] = useState(0);
   const cashRef = useRef(cash);
   cashRef.current = cash;
-  const lastCashRef = useRef(cash);
+  const lastDayCashRef = useRef(cash);
+  const prevRoutesRef = useRef(stats.routes);
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setRate(cashRef.current - lastCashRef.current);
-      lastCashRef.current = cashRef.current;
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
-  const showRate = (upgrades.autopilot ?? 0) > 0;
+    if (stats.routes > prevRoutesRef.current) {
+      setDayRate(cashRef.current - lastDayCashRef.current);
+      lastDayCashRef.current = cashRef.current;
+      prevRoutesRef.current = stats.routes;
+    }
+  }, [stats.routes]);
 
   // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
   const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
@@ -182,11 +181,9 @@ export function App() {
           <span>DAY {stats.routes + 1}</span>
           <span>
             CASH ${fmtNum(cash)}
-            {showRate && (
-              <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
-                {rate >= 0 ? "+" : "−"}${fmtNum(Math.abs(rate))}/s
-              </span>
-            )}
+            <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
+              {dayRate >= 0 ? "+" : "−"}${fmtNum(Math.abs(dayRate))}/day
+            </span>
           </span>
           {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
         </div>
