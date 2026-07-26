@@ -18,6 +18,7 @@ export const ACCENT_CHOICES = [
 export const RIVAL_PALETTE = [
   "#4C86E8", "#E5B72E", "#3FB56B", "#C13FD6", "#E23E5C", "#2FB6B0",
   "#7B61FF", "#F25CA2", "#9AE23E", "#3ED4E2", "#B5651D", "#8CA0B5",
+  "#F0862E", "#5CE1C0", "#D65C7A", "#A0D63E", "#6C7BE8", "#E8C85C",
 ];
 const hexRgb = (h: string): [number, number, number] => {
   const n = parseInt(h.replace("#", ""), 16);
@@ -36,7 +37,7 @@ export function rivalColors(accent: string, count: number): string[] {
   return Array.from({ length: Math.max(1, count) }, (_, i) => pool[i % pool.length]);
 }
 export function rivalCompanyCount(expandLvl: number): number {
-  return Math.floor(expandLvl / 10) + 1;
+  return Math.floor(expandLvl / 5) + 1;
 }
 
 // Economy: cash comes from delivering a package and, once the Bulk Contracts

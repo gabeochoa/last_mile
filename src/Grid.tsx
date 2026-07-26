@@ -411,7 +411,7 @@ export function Grid({
   // Keep a few rival delivery vans alive whenever rival points exist; re-seed on a
   // new layout. They drive in from offscreen, service a point, and drive back out.
   useEffect(() => {
-    const count = gs.layout.reserved ? Math.min(gs.layout.reserved.size, 4) : 0;
+    const count = gs.layout.reserved ? Math.min(gs.layout.reserved.size, 12) : 0;
     setRivalVans(
       Array.from({ length: count }, () => spawnRivalVan(gs.layout, rivalColorsRef.current)).filter(
         (v): v is RivalVan => v !== null,
