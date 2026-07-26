@@ -57,8 +57,6 @@ const borderEntries = (layout: RLayout): [number, number, number, number][] => {
   return out;
 };
 
-const RIVAL_SPEED = 0.3; // cells per tick — the van SLIDES toward its next cell
-
 const spawnRivalVan = (layout: RLayout, colors: string[], done: Set<number>): RivalVan | null => {
   // only head for rival points not yet serviced this day; none left => no new van
   const res = layout.reserved ? [...layout.reserved].filter((c) => !done.has(c)) : [];
@@ -173,7 +171,7 @@ export function Grid({
   autopilot,
   fleet,
   vanSpeed,
-  speedLimit,
+  lobby,
   daySpeed,
   perDelivery,
   routeBonus,
@@ -194,7 +192,8 @@ export function Grid({
   autopilot: boolean;
   fleet: number;
   vanSpeed: number;
-  speedLimit: number;
+  // once true (Lobby upgrade owned), rival vans drive at YOUR van speed instead of slower
+  lobby: boolean;
   daySpeed: number;
   perDelivery: number;
   routeBonus: number;
@@ -299,8 +298,8 @@ export function Grid({
   fleetRef.current = fleet;
   const vanSpeedRef = useRef(vanSpeed);
   vanSpeedRef.current = vanSpeed;
-  const speedLimitRef = useRef(speedLimit);
-  speedLimitRef.current = speedLimit;
+  const lobbyRef = useRef(lobby);
+  lobbyRef.current = lobby;
   const daySpeedRef = useRef(daySpeed);
   daySpeedRef.current = daySpeed;
   const perDeliveryRef = useRef(perDelivery);
@@ -406,10 +405,10 @@ export function Grid({
       const dir = flowStep(here, target);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, Math.max(45, Math.round(340 / (vanSpeed * speedLimit))));
+    }, Math.max(45, Math.round(340 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autopilot, vanSpeed, speedLimit]);
+  }, [autopilot, vanSpeed]);
 
   // Keep the van array sized to `fleet` with each van spawned AT its home depot.
   // Van i homes to the i-th sorted depot (round-robin). A NEW layout (new day / live
@@ -447,7 +446,7 @@ export function Grid({
     if (fleet <= 0) return;
     // match the autopilot's cell-crossing time (same 340/vanSpeed cadence, 45ms floor),
     // capped below 1 so a van always visibly slides rather than teleporting.
-    const speed = Math.min(0.9, 45 / Math.max(45, Math.round(340 / (vanSpeed * speedLimit))));
+    const speed = Math.min(0.9, 45 / Math.max(45, Math.round(340 / vanSpeed)));
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
@@ -509,7 +508,7 @@ export function Grid({
     }, 45);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fleet, vanSpeed, speedLimit]);
+  }, [fleet, vanSpeed]);
 
   // Rivals field one van per column (like you). Re-seeded only when the RESERVED set
   // changes (new day / grow / buyout) — NOT when Spread Flyers adds specials, which
@@ -532,7 +531,12 @@ export function Grid({
       const layout = gsRef.current.layout;
       const reserved = layout.reserved ?? EMPTY_SET;
       const done = rivalDoneRef.current;
-      const speed = RIVAL_SPEED * speedLimitRef.current;
+      // Rivals cross a cell in `rivalMs`. By default that's TWICE your van's cell time
+      // (they're slower); with the Lobby upgrade they match your speed exactly. Converted
+      // to a slide distance for the 55ms rival tick, capped below 1 so they never teleport.
+      const playerCellMs = Math.max(45, Math.round(340 / vanSpeedRef.current));
+      const rivalMs = lobbyRef.current ? playerCellMs : playerCellMs * 2;
+      const speed = Math.min(0.9, 55 / rivalMs);
       // Compute synchronously from the ref (NOT inside a setState updater — that runs
       // later, so the `delivered` side-effect never fired: circles never got marked).
       const delivered: number[] = [];
@@ -811,17 +815,33 @@ export function Grid({
     const armed = specials.size > 0 && collected.size === specials.size;
     for (const c of depots) drawDepot(c, armed);
 
+    // A small ⌂ stamped on any van that's on its way back to a depot — so it's obvious
+    // at a glance who's still delivering vs. who's heading home (what the day waits on).
+    // Only drawn when cells are big enough for the glyph to read (tiny late-game pixels skip it).
+    const homeGlyph = Math.round(cell * 0.5);
+    const showHome = cell >= 12;
+    const drawHome = (gx: number, gy: number) => {
+      ctx.fillStyle = BG;
+      ctx.font = `${homeGlyph}px ui-monospace, Menlo, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("⌂", offX + (gx + 0.5) * cell, offY + (gy + 0.5) * cell + 1);
+      ctx.textAlign = "left";
+    };
+
     // hired fleet = YOUR drivers: solid accent, just smaller than the main player so
-    // it still reads as "you" (rivals are the blue ones).
-    ctx.fillStyle = ACCENT;
+    // it still reads as "you" (rivals are the blue ones). A van with no committed
+    // package (target == null) is returning to its depot → stamp it with the home icon.
     const vinset = Math.round(cell * 0.25);
     for (const v of vans) {
+      ctx.fillStyle = ACCENT;
       ctx.fillRect(
         offX + v.dx * cell + vinset,
         offY + v.dy * cell + vinset,
         cell - vinset * 2,
         cell - vinset * 2,
       );
+      if (v.target == null && showHome) drawHome(v.dx, v.dy);
     }
 
     // (rival delivery-point rings are drawn in the cached static layer above)
@@ -839,14 +859,17 @@ export function Grid({
       ctx.globalAlpha = 1;
     }
 
-    // rival delivery vans: solid squares in their company color, driving in from offscreen
+    // rival delivery vans: solid squares in their company color, driving in from offscreen.
+    // Once they've delivered they head back offscreen (stage "out") → stamp the home icon.
     const rvi = Math.round(cell * 0.28);
     for (const v of rivalVans) {
       ctx.fillStyle = v.color;
       ctx.fillRect(offX + v.x * cell + rvi, offY + v.y * cell + rvi, cell - rvi * 2, cell - rvi * 2);
+      if (v.stage === "out" && showHome) drawHome(v.x, v.y);
     }
 
-    // player = solid accent square, slightly inset
+    // player = solid accent square, slightly inset. Once armed (every package collected)
+    // the only thing left is driving back to a depot → stamp the home icon here too.
     const inset = Math.round(cell * 0.125);
     ctx.fillStyle = ACCENT;
     ctx.fillRect(
@@ -855,6 +878,7 @@ export function Grid({
       cell - inset * 2,
       cell - inset * 2,
     );
+    if (armed && showHome) drawHome(player.x, player.y);
 
     // brief accent pop when a special is collected
     if (flash !== null) {
