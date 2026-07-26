@@ -22,43 +22,61 @@ const allDriversHome = (
 // delivery point, drop off, then drive back OUT and respawn. Positions may be
 // off-grid (drawn in the padding = "offscreen"). Purely visual.
 type RivalVan = { x: number; y: number; tx: number; ty: number; stage: "in" | "out"; wait: number };
-type RLayout = { reserved?: Set<number>; cols: number; rows: number };
+type RLayout = { reserved?: Set<number>; blocked: Set<number>; cols: number; rows: number };
+
+// Open cells on the grid border, with the outward offset — rival vans enter/leave here.
+const borderEntries = (layout: RLayout): [number, number, number, number][] => {
+  const { cols, rows, blocked } = layout;
+  const out: [number, number, number, number][] = [];
+  for (let x = 0; x < cols; x++) {
+    if (!blocked.has(idx(x, 0, cols))) out.push([x, 0, 0, -1]);
+    if (!blocked.has(idx(x, rows - 1, cols))) out.push([x, rows - 1, 0, 1]);
+  }
+  for (let y = 0; y < rows; y++) {
+    if (!blocked.has(idx(0, y, cols))) out.push([0, y, -1, 0]);
+    if (!blocked.has(idx(cols - 1, y, cols))) out.push([cols - 1, y, 1, 0]);
+  }
+  return out;
+};
 
 const spawnRivalVan = (layout: RLayout): RivalVan | null => {
   const res = layout.reserved ? [...layout.reserved] : [];
-  if (!res.length) return null;
+  const border = borderEntries(layout);
+  if (!res.length || !border.length) return null;
   const cell = res[Math.floor(Math.random() * res.length)];
-  const tx = cell % layout.cols;
-  const ty = Math.floor(cell / layout.cols);
-  // enter from one of the four edges, just offscreen, aligned to the target
-  const side = Math.floor(Math.random() * 4);
-  const start =
-    side === 0 ? { x: -1, y: ty } :
-    side === 1 ? { x: layout.cols, y: ty } :
-    side === 2 ? { x: tx, y: -1 } :
-    { x: tx, y: layout.rows };
-  return { ...start, tx, ty, stage: "in", wait: 0 };
+  const [bx, by, ox, oy] = border[Math.floor(Math.random() * border.length)];
+  // spawn just offscreen next to an OPEN border cell, heading for the rival point
+  return { x: bx + ox, y: by + oy, tx: cell % layout.cols, ty: Math.floor(cell / layout.cols), stage: "in", wait: 0 };
 };
 
 const stepRivalVan = (v: RivalVan, layout: RLayout): RivalVan => {
+  const { cols, rows, blocked } = layout;
+  const onGrid = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
+  const open = (x: number, y: number) => !onGrid(x, y) || !blocked.has(idx(x, y, cols));
   const toward = (): RivalVan => {
+    // route around walls with BFS while both ends are on the grid
+    if (onGrid(v.x, v.y) && onGrid(v.tx, v.ty)) {
+      const dir = bfsNextStep(blocked, idx(v.x, v.y, cols), idx(v.tx, v.ty, cols), cols, rows);
+      if (dir) return { ...v, x: v.x + dir[0], y: v.y + dir[1] };
+    }
+    // off-grid entry/exit: step straight, but never into a building
     const dx = Math.sign(v.tx - v.x);
     const dy = Math.sign(v.ty - v.y);
-    if (dx !== 0) return { ...v, x: v.x + dx };
-    if (dy !== 0) return { ...v, y: v.y + dy };
+    if (dx !== 0 && open(v.x + dx, v.y)) return { ...v, x: v.x + dx };
+    if (dy !== 0 && open(v.x, v.y + dy)) return { ...v, y: v.y + dy };
     return v;
   };
   if (v.stage === "in") {
     if (v.x === v.tx && v.y === v.ty) {
       // delivered: head back out to the nearest horizontal edge, pause a beat first
-      const exitX = v.tx < layout.cols / 2 ? -1 : layout.cols;
+      const exitX = v.tx < cols / 2 ? -1 : cols;
       return { ...v, stage: "out", wait: 3, tx: exitX, ty: v.ty };
     }
     return toward();
   }
   if (v.wait > 0) return { ...v, wait: v.wait - 1 };
   const moved = toward();
-  const off = moved.x < -1 || moved.x > layout.cols || moved.y < -1 || moved.y > layout.rows;
+  const off = moved.x < -1 || moved.x > cols || moved.y < -1 || moved.y > rows;
   return off ? spawnRivalVan(layout) ?? moved : moved;
 };
 
