@@ -13,6 +13,10 @@ export type GridState = {
   layout: Layout;
   visited: Set<number>;
   collected: Set<number>;
+  // rival stops (reserved cells) YOU delivered to this day — once the Poach upgrade is
+  // owned your vans can steal a rival's stop; it pays you and counts toward buying them
+  // out. Resets each day (the streets regenerate); the permanent effect is the discount.
+  converted: Set<number>;
   routes: number;
   // true after a route completes: the day is over, awaiting startDay() to begin the next
   dayEnded: boolean;
@@ -34,6 +38,7 @@ export function newRoute(
     layout: genLayout(cols, rows, packageCount, depotCount, rng, companyCount, boughtCount),
     visited: new Set([START]),
     collected: new Set(),
+    converted: new Set(),
     routes,
     dayEnded: false,
   };
@@ -65,6 +70,7 @@ export function growState(
     layout: growLayout(state.layout, newCols, newRows, rivalFraction, rng),
     visited: remapIndices(state.visited, oldCols, newCols),
     collected: remapIndices(state.collected, oldCols, newCols),
+    converted: remapIndices(state.converted, oldCols, newCols),
   };
 }
 
@@ -115,6 +121,8 @@ type MoveOpts = {
   // ...and once the rival companies have finished delivering to all their points
   // (default true = no rivals). The downside of expanding: more rivals = longer days.
   rivalsDone?: boolean;
+  // Poach upgrade owned: driving over an un-serviced rival stop steals it (pays you)
+  canPoach?: boolean;
   packageCount: number;
   // dims for the NEXT route seeded on completion (buying expansion mid-run grows it)
   cols: number;
@@ -161,13 +169,17 @@ export function applyMove(
   const visited = new Set(state.visited).add(cellIdx); // coverage for map% stat only
 
   let collected = state.collected;
+  let converted = state.converted;
   if (autoDeliver && state.layout.specials.has(cellIdx) && !collected.has(cellIdx)) {
     earned += perDelivery;
     collected = new Set(state.collected).add(cellIdx);
+  } else if (autoDeliver && opts.canPoach && state.layout.reserved?.has(cellIdx) && !converted.has(cellIdx)) {
+    earned += perDelivery;
+    converted = new Set(state.converted).add(cellIdx);
   }
 
   return {
-    state: { ...state, player: { x: nx, y: ny }, visited, collected },
+    state: { ...state, player: { x: nx, y: ny }, visited, collected, converted },
     earned,
   };
 }
@@ -192,33 +204,34 @@ export function finishIfDone(
   return { state, earned: 0 };
 }
 
-// Collect an arbitrary cell (used by fleet vans): adds an uncollected special to
-// `collected` + pays the bonus, else no-op.
+// Collect an arbitrary cell (used by fleet vans): an uncollected special goes to
+// `collected`; else, with canPoach, an un-serviced rival stop goes to `converted`.
+// Either pays perDelivery; otherwise no-op.
 export function collectAt(
   state: GridState,
   cellIdx: number,
-  opts: { perDelivery: number },
+  opts: { perDelivery: number; canPoach?: boolean },
 ): { state: GridState; earned: number } {
-  if (!state.layout.specials.has(cellIdx) || state.collected.has(cellIdx)) {
-    return { state, earned: 0 };
+  if (state.layout.specials.has(cellIdx) && !state.collected.has(cellIdx)) {
+    return {
+      state: { ...state, collected: new Set(state.collected).add(cellIdx) },
+      earned: opts.perDelivery,
+    };
   }
-  return {
-    state: { ...state, collected: new Set(state.collected).add(cellIdx) },
-    earned: opts.perDelivery,
-  };
+  if (opts.canPoach && state.layout.reserved?.has(cellIdx) && !state.converted.has(cellIdx)) {
+    return {
+      state: { ...state, converted: new Set(state.converted).add(cellIdx) },
+      earned: opts.perDelivery,
+    };
+  }
+  return { state, earned: 0 };
 }
 
-// Space action: collect an uncollected package underfoot (arms completion), else no-op.
+// Space action: collect a package underfoot (arms completion) or, with canPoach, steal
+// an un-serviced rival stop underfoot; else no-op.
 export function collectHere(
   state: GridState,
-  opts: { perDelivery: number },
+  opts: { perDelivery: number; canPoach?: boolean },
 ): { state: GridState; earned: number } {
-  const cellIdx = idx(state.player.x, state.player.y, state.layout.cols);
-  if (!state.layout.specials.has(cellIdx) || state.collected.has(cellIdx)) {
-    return { state, earned: 0 };
-  }
-  return {
-    state: { ...state, collected: new Set(state.collected).add(cellIdx) },
-    earned: opts.perDelivery,
-  };
+  return collectAt(state, idx(state.player.x, state.player.y, state.layout.cols), opts);
 }

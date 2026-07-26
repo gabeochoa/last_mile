@@ -85,6 +85,7 @@ test("regression: completing a route ends the day and freezes further moves", ()
     layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set([idx(2, 0, COLS)]),
     visited: new Set([START, idx(1, 0, COLS)]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -110,6 +111,7 @@ test("completing a day pays no bonus by default (routeBonus omitted)", () => {
     layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set([idx(2, 0, COLS)]),
     visited: new Set([START, idx(1, 0, COLS)]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -134,6 +136,7 @@ test("applyMove completes the route at ANY depot when armed, not just START", ()
     },
     collected: new Set([idx(3, 0, COLS)]), // all packages collected -> armed
     visited: new Set([START, idx(1, 0, COLS)]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -153,6 +156,7 @@ test("finishIfDone ends the day when armed + parked on a depot, without a move",
     layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set([idx(2, 0, COLS)]), // all packages collected -> armed
     visited: new Set([START]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -180,6 +184,7 @@ test("driversHome:false defers completion — player on depot moves in but day s
     layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set([idx(2, 0, COLS)]),
     visited: new Set([START, idx(1, 0, COLS)]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -202,6 +207,7 @@ test("collectHere collects an uncollected package underfoot, else no-op", () => 
     layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set(),
     visited: new Set([START]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -219,6 +225,7 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
     layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS },
     collected: new Set(),
     visited: new Set([START]),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -235,6 +242,32 @@ test("collectAt collects an uncollected special at any cell, else no-op", () => 
   expect(empty.state).toBe(base);
 });
 
+test("collectAt poaches an un-serviced rival stop only when canPoach is set", () => {
+  const rivalCell = idx(3, 0, COLS);
+  const base: GridState = {
+    player: { x: 0, y: 0 },
+    layout: { blocked: new Set(), specials: new Set([idx(2, 0, COLS)]), depots: new Set([START]), cols: COLS, rows: ROWS, reserved: new Set([rivalCell]) },
+    collected: new Set(),
+    converted: new Set(),
+    visited: new Set([START]),
+    routes: 0,
+    dayEnded: false,
+  };
+  // without canPoach a rival stop is untouchable
+  const blocked = collectAt(base, rivalCell, { perDelivery: SPECIAL_BONUS });
+  expect(blocked.earned).toBe(0);
+  expect(blocked.state).toBe(base);
+  // with canPoach it converts + pays, and doesn't touch `collected`
+  const hit = collectAt(base, rivalCell, { perDelivery: SPECIAL_BONUS, canPoach: true });
+  expect(hit.earned).toBe(SPECIAL_BONUS);
+  expect(hit.state.converted.has(rivalCell)).toBe(true);
+  expect(hit.state.collected.size).toBe(0);
+  // already poached -> no-op
+  const again = collectAt(hit.state, rivalCell, { perDelivery: SPECIAL_BONUS, canPoach: true });
+  expect(again.earned).toBe(0);
+  expect(again.state).toBe(hit.state);
+});
+
 test("addPackages: adds min(n, eligible), respects exclusions, prefers unvisited, deterministic", () => {
   const base: GridState = {
     player: { x: 0, y: 0 },
@@ -248,6 +281,7 @@ test("addPackages: adds min(n, eligible), respects exclusions, prefers unvisited
     // depot + one already-visited cell (so we can prove unvisited is preferred)
     visited: new Set([START, idx(3, 0, COLS)]),
     collected: new Set(),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
@@ -276,6 +310,7 @@ test("addPackages: adds min(n, eligible), respects exclusions, prefers unvisited
     layout: { blocked: new Set(), specials: new Set([idx(1, 0, COLS)]), depots: new Set([START]), cols: 2, rows: 1 },
     visited: new Set([START]),
     collected: new Set(),
+    converted: new Set(),
     routes: 0,
     dayEnded: false,
   };
