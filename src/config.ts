@@ -153,7 +153,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
       // raises the flat per-contract amount; Tips multiplies the whole thing.
       { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
-      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "contracts", requiresLevel: 1 },
+      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "autoStart", requiresLevel: 1 },
       { id: "contractBoost", name: "Corporate Accounts", effect: "+10% contract pay per level", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "×1.5 contract pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
     ],
