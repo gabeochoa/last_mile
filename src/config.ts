@@ -107,6 +107,22 @@ export function upgradeCost(u: Upgrade, level: number): number {
   return cost;
 }
 
+// Poaching rival stops (see Poach Rivals) cheapens Buy Out Rivals: 3% off per stop
+// you've ever stolen, capped at 90% off. `takeover` = lifetime poached-stop count.
+export function buyoutDiscount(takeover: number): number {
+  return Math.min(0.9, Math.max(0, takeover) * 0.03);
+}
+// Next-level cost with the poach discount applied to Buy Out Rivals (a no-op for
+// everything else). All cost display + charging routes through this.
+export function nextCost(u: Upgrade, level: number, takeover = 0): number {
+  const base = upgradeCost(u, level);
+  return u.id === "buyout" ? Math.round(base * (1 - buyoutDiscount(takeover))) : base;
+}
+// Poach Rivals owned: your vans may deliver to rival stops.
+export function poachActive(u: Record<string, number>): boolean {
+  return (u.poach ?? 0) >= 1;
+}
+
 export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "AUTOMATION",
@@ -133,6 +149,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "TERRITORY",
     items: [
       { id: "expand", name: "Map Expansion", effect: "open new (mostly rival-held) territory — the day won't end until its rivals finish", baseCost: 250, costMult: 1.12, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
+      { id: "poach", name: "Poach Rivals", effect: "your vans can deliver to rival stops — each one pays you AND makes buying that rival out cheaper", baseCost: 1200, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5 },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
       // Contracts live in TERRITORY so Ops Manager (auto-buy skips TERRITORY) never
