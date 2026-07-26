@@ -9,7 +9,11 @@ export const PAD = 16;
 
 // idx depends on the row width (cols); START is the depot at (0,0) = 0 always.
 export const idx = (x: number, y: number, cols: number) => y * cols + x;
+export const xOf = (c: number, cols: number) => c % cols;
+export const yOf = (c: number, cols: number) => Math.floor(c / cols);
 export const START = 0;
+// 4-neighbourhood steps, shared by every grid traversal.
+export const DIRS: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
 // Cells beyond the original BASE_COLS×BASE_ROWS area (the streets you claim by
 // expanding). Rival delivery points only sit here — your base map is already yours.
@@ -46,7 +50,7 @@ export function allReachable(blocked: Set<number>, cols: number, rows: number): 
     const c = queue.shift()!;
     const x = c % cols;
     const y = Math.floor(c / cols);
-    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    for (const [dx, dy] of DIRS) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
@@ -99,7 +103,7 @@ export function bfsNextStep(
     if (c === to) break;
     const x = c % cols;
     const y = Math.floor(c / cols);
-    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    for (const [dx, dy] of DIRS) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
@@ -215,7 +219,6 @@ export function remapIndices(set: Set<number>, oldCols: number, newCols: number)
 // the blocked cells along that path. Mutates `blocked`. Terminates because each pass
 // makes >=1 stranded cell reached and never strands a reached one.
 function ensureReachable(blocked: Set<number>, cols: number, rows: number): void {
-  const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
   for (;;) {
     // open cells reachable from START
     const reached = new Set([START]);
@@ -224,7 +227,7 @@ function ensureReachable(blocked: Set<number>, cols: number, rows: number): void
       const c = q.shift()!;
       const x = c % cols;
       const y = Math.floor(c / cols);
-      for (const [dx, dy] of dirs) {
+      for (const [dx, dy] of DIRS) {
         const nx = x + dx;
         const ny = y + dy;
         if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
@@ -249,7 +252,7 @@ function ensureReachable(blocked: Set<number>, cols: number, rows: number): void
       if (reached.has(c)) { hit = c; break; }
       const x = c % cols;
       const y = Math.floor(c / cols);
-      for (const [dx, dy] of dirs) {
+      for (const [dx, dy] of DIRS) {
         const nx = x + dx;
         const ny = y + dy;
         if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
