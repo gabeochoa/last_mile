@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { defineTheme } from "@astryxdesign/core";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Heading, Text } from "@astryxdesign/core/Text";
@@ -45,6 +45,7 @@ type UpgradesProps = {
   onBuy: (id: string) => void;
   maxLevels?: Record<string, number>;
   perSec?: number; // income/sec, for the "…until affordable" tooltip
+  buyoutColor?: string; // next rival company's color, tints the Buy Out Rivals button
   hideCompleted: boolean;
   onHideCompleted: (v: boolean) => void;
   footer?: ReactNode;
@@ -66,6 +67,7 @@ function UpgradeEnd({
   cash,
   onBuy,
   setTip,
+  accentOverride,
 }: {
   item: Upgrade;
   level: number;
@@ -73,6 +75,7 @@ function UpgradeEnd({
   cash: number;
   onBuy: (id: string) => void;
   setTip: (t: { x: number; y: number; text?: string; cost?: number } | null) => void;
+  accentOverride?: string;
 }) {
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
@@ -84,14 +87,19 @@ function UpgradeEnd({
     return <Badge label={maxLevel === 1 ? "OWNED" : "MAX"} variant="success" />;
   }
   const canBuy = !full && item.id != null && cash >= cost;
+  // overriding --color-accent recolors the astryx primary button (e.g. Buy Out Rivals
+  // tinted by the next company's color).
+  const style = accentOverride ? ({ ["--color-accent" as string]: accentOverride } as CSSProperties) : undefined;
   const btn = (
-    <Button
-      label={`$${fmtNum(cost)}`}
-      size="sm"
-      variant="primary"
-      isDisabled={!canBuy}
-      onClick={canBuy && item.id != null ? () => onBuy(item.id!) : undefined}
-    />
+    <span style={style}>
+      <Button
+        label={`$${fmtNum(cost)}`}
+        size="sm"
+        variant="primary"
+        isDisabled={!canBuy}
+        onClick={canBuy && item.id != null ? () => onBuy(item.id!) : undefined}
+      />
+    </span>
   );
   if (canBuy) return btn;
   // disabled → custom tooltip: soft-cap = static text; can't-afford = live cost (the
@@ -110,7 +118,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, buyoutColor, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
   // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
   // the tooltip stuck. Clear it whenever the upgrade set changes.
@@ -218,7 +226,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, hideCom
                         <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
                         {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
                       </HStack>
-                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} setTip={setTip} />
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} />
                     </HStack>
                     <Text type="supporting">{description}</Text>
                   </VStack>

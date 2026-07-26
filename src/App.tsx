@@ -372,6 +372,7 @@ export function App() {
           onBuy={onBuy}
           maxLevels={maxLevels}
           perSec={perSec}
+          buyoutColor={companyColors[boughtCount]}
           hideCompleted={hideCompleted}
           onHideCompleted={setHideCompleted}
           footer={

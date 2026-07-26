@@ -384,7 +384,7 @@ export function Grid({
       const dir = flowStep(here, target);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, Math.max(22, Math.round(340 / vanSpeed)));
+    }, Math.max(45, Math.round(340 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot, vanSpeed]);
@@ -423,7 +423,9 @@ export function Grid({
   // the slide speed but it's capped below 1 cell/tick, so vans never teleport.
   useEffect(() => {
     if (fleet <= 0) return;
-    const speed = Math.min(0.7, 0.12 * vanSpeed); // capped so it always visibly slides
+    // match the autopilot's cell-crossing time (same 340/vanSpeed cadence, 45ms floor),
+    // capped below 1 so a van always visibly slides rather than teleporting.
+    const speed = Math.min(0.9, 45 / Math.max(45, Math.round(340 / vanSpeed)));
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
