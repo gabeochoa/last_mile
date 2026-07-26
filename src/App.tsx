@@ -64,7 +64,11 @@ export function App() {
   // in the current grid (open, non-depot, minus rival-held cells), so you can't add
   // more deliveries than there's room for. Grid reports this as stats.capacity.
   const dims = sizeForExpansion(expandLevel(upgrades));
-  const maxLevels: Record<string, number> = { demand: Math.max(0, stats.capacity - BASE_PACKAGES) };
+  const maxLevels: Record<string, number> = {
+    demand: Math.max(0, stats.capacity - BASE_PACKAGES),
+    // you can run at most 10 drivers plus one per warehouse you operate
+    fleet: 10 + depotCount(upgrades),
+  };
   // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
   const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
     if (!it.id || it.softCap) return true; // soft caps (Demand) fluctuate — don't gate the ending
