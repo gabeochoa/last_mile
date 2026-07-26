@@ -38,16 +38,18 @@ function useAnimatedNumber(target: number, ms = 500): number {
 export function App() {
   // Resume meta from the last session (skipped in ?dev, which starts flush).
   const [loaded] = useState(() => (DEV ? null : load()));
-  // Show the title screen on a fresh start; skip in ?dev and when resuming
-  // a save with progress; force it with ?intro.
-  const [intro, setIntro] = useState(
-    () => INTRO_PREVIEW || (!DEV && !(loaded && (loaded.routes ?? 0) > 0))
-  );
+  // A resumed save counts as "in progress" if any day was run OR any upgrade owned —
+  // used to skip the intro and keep the shop revealed so a refresh doesn't look fresh.
+  const hasProgress =
+    !!loaded && ((loaded.routes ?? 0) > 0 || Object.keys(loaded.upgrades ?? {}).length > 0);
+  // Show the title screen on a fresh start; skip in ?dev and when resuming progress.
+  const [intro, setIntro] = useState(() => INTRO_PREVIEW || (!DEV && !hasProgress));
   const [cash, setCash] = useState(DEV ? 9999 : loaded?.cash ?? 0);
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
   const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, reserved: 0, total: 0, dayEnded: false });
-  // latch: the shop appears after the first route is finished, then stays.
-  const [revealed, setRevealed] = useState(DEV);
+  // latch: the shop appears once you can afford two upgrades, then stays — and is
+  // already shown when resuming a save with progress (so a refresh keeps the shop).
+  const [revealed, setRevealed] = useState(DEV || hasProgress);
   const [muted, setMutedState] = useState(isMuted);
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(true);
