@@ -153,12 +153,19 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, poachFr
   // the tooltip stuck. Clear it whenever the upgrade set changes.
   useEffect(() => setTip(null), [upgrades]);
 
-  // Newly-unlocked rows animate IN (start collapsed, then expand) instead of popping.
-  // real prerequisites met (buyable). A cash-gated unlock stays satisfied once owned.
+  // Once cash first reaches a requiresCash threshold, LATCH it unlocked so the row doesn't
+  // flicker away when auto-buy spends cash back below the threshold.
+  const cashUnlockedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const i of BUCKETS.flatMap((b) => b.items)) {
+      if (i.id != null && i.requiresCash != null && cash >= i.requiresCash) cashUnlockedRef.current.add(i.id);
+    }
+  }, [cash]);
+  // real prerequisites met (buyable). A cash-gated unlock stays satisfied once latched/owned.
   const meetsReq = (i: Upgrade) =>
     (!i.requires || (upgrades[i.requires] ?? 0) >= (i.requiresLevel ?? 1)) &&
     (!i.requiresAny || i.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) &&
-    (i.requiresCash == null || cash >= i.requiresCash || (i.id != null && (upgrades[i.id] ?? 0) > 0));
+    (i.requiresCash == null || cash >= i.requiresCash || (i.id != null && (cashUnlockedRef.current.has(i.id) || (upgrades[i.id] ?? 0) > 0)));
   // shown-but-locked preview once showFrom is reached (so the goal is visible early)
   const showFromMet = (i: Upgrade) => i.showFrom != null && (upgrades[i.showFrom] ?? 0) >= (i.showFromLevel ?? 1);
   const isVisible = (i: Upgrade) => meetsReq(i) || showFromMet(i);
@@ -195,7 +202,9 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, poachFr
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
-    if (item.locked || item.softCap || item.id === "uncontract") return false; // actions/soft-caps never "complete"
+    // hide-complete only hides upgrades that can NEVER return. Actions, soft-caps, and
+    // buyout (its max grows as you expand into new rival companies) are never "complete".
+    if (item.locked || item.softCap || item.id === "uncontract" || item.id === "buyout") return false;
     const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
     return level >= maxLevelFor(item);
   };

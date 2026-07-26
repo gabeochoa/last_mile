@@ -16,6 +16,7 @@ import { initAudioOnFirstGesture, getVolume, playSfx, setVolume } from "./audio"
 const ALL_BUYABLE_IDS = BUCKETS.flatMap((b) => b.items)
   .map((i) => i.id)
   .filter((x): x is string => !!x && x !== "autobuy");
+const UPGRADE_BY_ID = new Map(BUCKETS.flatMap((b) => b.items).filter((i) => i.id).map((i) => [i.id as string, i]));
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -95,10 +96,25 @@ export function App() {
   const isAutoBuyOn = (id: string) => autoBuySel[id] ?? false;
   const toggleAutoBuy = (id: string) =>
     setAutoBuySel((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
-  // banner button state/behavior: "on" if ANY upgrade auto-buys; clicking flips them all.
+  // an upgrade is "unlocked" when its prerequisites are met (requires / requiresAny / the
+  // cash threshold). Ops Manager and the cart both gate on this so nothing locked is bought.
+  const isUnlocked = (id: string) => {
+    const it = UPGRADE_BY_ID.get(id);
+    if (!it) return false;
+    if (it.requires && (upgrades[it.requires] ?? 0) < (it.requiresLevel ?? 1)) return false;
+    if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) return false;
+    if (it.requiresCash != null && cash < it.requiresCash && (upgrades[id] ?? 0) === 0) return false;
+    return true;
+  };
+  // banner button state/behavior: "on" if ANY upgrade auto-buys; clicking flips them all —
+  // but "turn all on" only enables currently-unlocked upgrades (never queues locked ones).
   const anyAutoBuyOn = ALL_BUYABLE_IDS.some((id) => isAutoBuyOn(id));
   const setAllAutoBuy = (on: boolean) =>
-    setAutoBuySel(Object.fromEntries(ALL_BUYABLE_IDS.map((id) => [id, on])));
+    setAutoBuySel((prev) => {
+      const next = { ...prev };
+      for (const id of ALL_BUYABLE_IDS) if (!on || isUnlocked(id)) next[id] = on;
+      return next;
+    });
   const [hideCompleted, setHideCompleted] = useState(loaded?.hideComplete ?? false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // bumped by the Settings "force end day" button; Grid ends the current day (no bonus) on change.
@@ -247,13 +263,22 @@ export function App() {
   const prevRoutesForTimeRef = useRef(stats.routes);
   // running earnings snapshot at the start of the current day, for "$ earned today".
   const dayStartEarnedRef = useRef(0);
+  // measured earnings of the last few completed days → banner shows their average (not a
+  // per-tick prediction). The dev intended a 3-day average; this actually wires it.
+  const dayEarningsRef = useRef<number[]>([]);
+  const [avgDayRate, setAvgDayRate] = useState(0);
   useEffect(() => {
     if (stats.routes !== prevRoutesForTimeRef.current) {
       const now = performance.now();
       dayMsRef.current = Math.max(500, now - lastDayAtRef.current);
       lastDayAtRef.current = now;
       prevRoutesForTimeRef.current = stats.routes;
+      const earnedThisDay = Math.max(0, earnedRef.current - dayStartEarnedRef.current);
       dayStartEarnedRef.current = earnedRef.current; // reset the per-day earnings baseline
+      const arr = dayEarningsRef.current;
+      arr.push(earnedThisDay);
+      if (arr.length > 3) arr.shift();
+      setAvgDayRate(arr.reduce((a, b) => a + b, 0) / arr.length);
     }
   }, [stats.routes]);
 
@@ -288,8 +313,7 @@ export function App() {
     for (const it of BUCKETS.flatMap((b) => b.items)) {
       if (!it.id || it.id === "autobuy" || it.id === "uncontract") continue;
       if (!isAutoBuyOn(it.id)) continue;
-      if (it.requires && (upgrades[it.requires] ?? 0) < (it.requiresLevel ?? 1)) continue;
-      if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
+      if (!isUnlocked(it.id)) continue; // never auto-buy a locked upgrade (requires / cash gate)
       const lvl = upgrades[it.id] ?? 0;
       if (lvl >= (maxLevels[it.id] ?? it.maxLevel ?? 1)) continue;
       const cost = nextCost(it, lvl, { poachFrac: stats.poachedFrac, cash, torque: (upgrades.torque ?? 0) > 0 });
@@ -391,7 +415,7 @@ export function App() {
           >
             CASH ${fmtNum(displayCash)}
             <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
-              {dayRate >= 0 ? "+" : "−"}${fmtNum(Math.abs(dayRate))}/day
+              +${fmtNum(dayEarningsRef.current.length ? avgDayRate : dayRate)}/day
             </span>
           </span>
         </div>

@@ -45,15 +45,13 @@ export function Settings({
     setSfx((s) => ({ ...s, [name]: on }));
   };
   const [copied, setCopied] = useState(false);
+  const [exportedCode, setExportedCode] = useState("");
   const [importText, setImportText] = useState("");
   const [importErr, setImportErr] = useState(false);
   const doExport = () => {
     const code = exportSave();
-    if (code && navigator.clipboard) {
-      navigator.clipboard.writeText(code).then(() => setCopied(true)).catch(() => setCopied(true));
-    } else {
-      setCopied(true);
-    }
+    setExportedCode(code); // always show it in a box — clipboard may be blocked (Brave)
+    navigator.clipboard?.writeText(code).then(() => setCopied(true)).catch(() => {});
   };
   const doImport = () => {
     if (importSave(importText)) window.location.reload();
@@ -158,10 +156,28 @@ export function Settings({
             {/* Export a portable code, or paste one to import. */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, letterSpacing: 1 }}>EXPORT SAVE</span>
-              <button style={btn("#ECE7DA")} onClick={doExport} title="Copy your save code to the clipboard">
-                {copied ? "Copied!" : "Copy code"}
+              <button style={btn("#ECE7DA")} onClick={doExport} title="Show your save code (also copies to clipboard)">
+                {copied ? "Copied!" : "Show code"}
               </button>
             </div>
+            {exportedCode && (
+              <textarea
+                readOnly
+                value={exportedCode}
+                onFocus={(e) => e.target.select()}
+                rows={3}
+                style={{
+                  background: "transparent",
+                  border: "1px solid rgba(236,231,218,0.25)",
+                  color: "#8C877B",
+                  fontFamily: "inherit",
+                  fontSize: 10,
+                  padding: "6px 8px",
+                  resize: "none",
+                  wordBreak: "break-all",
+                }}
+              />
+            )}
             <input
               value={importText}
               onChange={(e) => { setImportText(e.target.value); setImportErr(false); }}
