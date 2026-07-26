@@ -181,7 +181,26 @@ export function genReserved(
     if (c !== START && !blocked.has(c) && !exclude.has(c) && isExpansionCell(c, cols)) open.push(c);
   }
   const want = Math.min(open.length, Math.round(fraction * open.length));
-  while (reserved.size < want) reserved.add(open[Math.floor(rng() * open.length)]);
+  if (want <= 0) return reserved;
+  // Rivals cluster into NEIGHBORHOODS: scatter a few centers, then reserve the cells
+  // with the strongest gaussian pull toward a center (chunks, not uniform noise).
+  const clusters = Math.max(1, Math.round(want / 40));
+  const centers: [number, number][] = [];
+  for (let i = 0; i < clusters; i++) {
+    const c = open[Math.floor(rng() * open.length)];
+    centers.push([c % cols, Math.floor(c / cols)]);
+  }
+  const sigma = Math.max(2.5, Math.sqrt(open.length) / (clusters + 1));
+  const scored = open.map((c) => {
+    const cx = c % cols;
+    const cy = Math.floor(c / cols);
+    let best = Infinity;
+    for (const [ex, ey] of centers) best = Math.min(best, Math.hypot(cx - ex, cy - ey));
+    // gaussian proximity + a little noise so neighborhoods have ragged edges
+    return { c, w: Math.exp(-(best * best) / (2 * sigma * sigma)) + rng() * 0.12 };
+  });
+  scored.sort((a, b) => b.w - a.w);
+  for (let i = 0; i < want; i++) reserved.add(scored[i].c);
   return reserved;
 }
 
