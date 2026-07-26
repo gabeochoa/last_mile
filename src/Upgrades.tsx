@@ -208,6 +208,20 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, poachFr
     if (need <= 0) return "Ready to buy";
     return `Need $${fmtNum(need)} more` + (perSec > 0 ? ` (${untilStr(need / perSec)} until)` : "");
   };
+  // hover the "Lv N" badge to see how that level's number is derived (base × level, etc.)
+  const levelCalc = (id: string | undefined, lvl: number): string | null => {
+    switch (id) {
+      case "routeOpt": return `$1 base + ${lvl} × $2 = $${fmtNum(perDeliveryAt(lvl))} per delivery`;
+      case "surge": return `×1.5 per level → ×${fmtNum(1.5 ** lvl)} contract pay`;
+      case "contractBoost": return `+10% per level → +${lvl * 10}% per contract`;
+      case "dayBonus": return `$25 × 1.23^${lvl - 1} = $${fmtNum(dayBonusReward(lvl))} per day`;
+      case "mileage": return `${lvl} × $100k = $${fmtNum(lvl * 100000)} saved per cell driven`;
+      case "demand": return `+${lvl} deliveries per day`;
+      case "fleet": return `${lvl} hired van${lvl === 1 ? "" : "s"} on the grid`;
+      case "depots": return `${1 + lvl} warehouses to dispatch from`;
+      default: return null;
+    }
+  };
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
@@ -307,7 +321,21 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, poachFr
                     <HStack justify="between" vAlign="center" gap={2}>
                       <HStack gap={2} vAlign="center">
                         <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
-                        {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
+                        {level > 0 && (() => {
+                          const calc = levelCalc(item.id, level);
+                          const badge = <Badge label={`Lv ${level}`} variant="neutral" />;
+                          if (!calc) return badge;
+                          return (
+                            <span
+                              style={{ display: "inline-flex", cursor: "help" }}
+                              onMouseEnter={(e) => setTip({ text: calc, x: e.clientX, y: e.clientY })}
+                              onMouseMove={(e) => setTip({ text: calc, x: e.clientX, y: e.clientY })}
+                              onMouseLeave={() => setTip(null)}
+                            >
+                              {badge}
+                            </span>
+                          );
+                        })()}
                       </HStack>
                       <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} poachFrac={poachFrac} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} lastRival={item.id === "buyout" && lastRival} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
                     </HStack>
