@@ -117,7 +117,6 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
       { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 1000000, costMult: 1, maxLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 60, requiresAny: ["autopilot", "fleet"] },
-      { id: "speedLimit", name: "Lobby for Higher Speed Limits", effect: "rivals drive as fast as your vans — they finish the day sooner", baseCost: 500, costMult: 1, maxLevel: 1, requires: "expand", requiresLevel: 5 },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
     ],
   },
@@ -171,11 +170,6 @@ export function contractIncome(u: Record<string, number>) {
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {
   return 1 + (u.vanSpeed ?? 0) * 0.5;
-}
-// Lobby for Higher Speed Limits -> once owned, rivals drive at YOUR van speed instead
-// of their slower default (so they finish their deliveries sooner and the day ends faster).
-export function lobbyActive(u: Record<string, number>) {
-  return (u.speedLimit ?? 0) >= 1;
 }
 // Faster Days -> factor shortening the auto-start-day delay (level 0 = 1, +1/level).
 export function daySpeed(u: Record<string, number>) {

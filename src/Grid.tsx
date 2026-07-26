@@ -171,7 +171,6 @@ export function Grid({
   autopilot,
   fleet,
   vanSpeed,
-  lobby,
   daySpeed,
   perDelivery,
   routeBonus,
@@ -192,8 +191,6 @@ export function Grid({
   autopilot: boolean;
   fleet: number;
   vanSpeed: number;
-  // once true (Lobby upgrade owned), rival vans drive at YOUR van speed instead of slower
-  lobby: boolean;
   daySpeed: number;
   perDelivery: number;
   routeBonus: number;
@@ -298,8 +295,6 @@ export function Grid({
   fleetRef.current = fleet;
   const vanSpeedRef = useRef(vanSpeed);
   vanSpeedRef.current = vanSpeed;
-  const lobbyRef = useRef(lobby);
-  lobbyRef.current = lobby;
   const daySpeedRef = useRef(daySpeed);
   daySpeedRef.current = daySpeed;
   const perDeliveryRef = useRef(perDelivery);
@@ -531,11 +526,10 @@ export function Grid({
       const layout = gsRef.current.layout;
       const reserved = layout.reserved ?? EMPTY_SET;
       const done = rivalDoneRef.current;
-      // Rivals cross a cell in `rivalMs`. By default that's TWICE your van's cell time
-      // (they're slower); with the Lobby upgrade they match your speed exactly. Converted
-      // to a slide distance for the 55ms rival tick, capped below 1 so they never teleport.
-      const playerCellMs = Math.max(45, Math.round(340 / vanSpeedRef.current));
-      const rivalMs = lobbyRef.current ? playerCellMs : playerCellMs * 2;
+      // Rivals always drive one Faster-Vans level ahead of you (+0.5 to the speed factor),
+      // so they usually finish their deliveries before you do and you rarely wait on them.
+      // Converted to a slide distance for the 55ms rival tick, capped below 1 (no teleport).
+      const rivalMs = Math.max(45, Math.round(340 / (vanSpeedRef.current + 0.5)));
       const speed = Math.min(0.9, 55 / rivalMs);
       // Compute synchronously from the ref (NOT inside a setState updater — that runs
       // later, so the `delivered` side-effect never fired: circles never got marked).
