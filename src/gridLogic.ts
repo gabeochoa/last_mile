@@ -416,7 +416,9 @@ export function growLayout(
     const want = Math.round(rivalFraction * openNew.length);
     for (let i = 0; i < want; i++) reserved.add(openNew[i]);
   }
-  return { blocked, specials, depots, reserved, cols: newCols, rows: newRows };
+  // carry the rival company centers over (they're [x,y], width-independent) so grown
+  // cells still color by their nearest company instead of all falling back to company 0.
+  return { blocked, specials, depots, reserved, rivalCenters: layout.rivalCenters, cols: newCols, rows: newRows };
 }
 
 // fresh city layout: open streets + building blocks, START open & fully reachable.
