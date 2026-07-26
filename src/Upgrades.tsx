@@ -45,7 +45,7 @@ type UpgradesProps = {
   onBuy: (id: string) => void;
   maxLevels?: Record<string, number>;
   perSec?: number; // income/sec, for the "…until affordable" tooltip
-  takeover?: number; // lifetime poached-stop count, discounts the Buy Out Rivals price
+  poachFrac?: number; // fraction of current rival territory poached — scales the buyout discount 0..90%
   buyoutColor?: string; // next rival company's color, tints the Buy Out Rivals button
   lastRival?: boolean; // final rival left to buy out — makes the Buy Out Rivals button rainbow + jiggle
   // Ops Manager owned: show a per-upgrade auto-buy checkbox and report toggles up
@@ -71,7 +71,7 @@ function UpgradeEnd({
   level,
   maxLevel,
   cash,
-  takeover,
+  poachFrac,
   onBuy,
   setTip,
   accentOverride,
@@ -83,7 +83,7 @@ function UpgradeEnd({
   level: number;
   maxLevel: number;
   cash: number;
-  takeover: number;
+  poachFrac: number;
   onBuy: (id: string) => void;
   setTip: (t: { x: number; y: number; text?: string; cost?: number } | null) => void;
   accentOverride?: string;
@@ -106,7 +106,7 @@ function UpgradeEnd({
       </span>
     );
   }
-  const cost = nextCost(item, level, { takeover, cash });
+  const cost = nextCost(item, level, { poachFrac, cash });
   const full = level >= maxLevel;
   // permanent MAX/OWNED (not a soft cap) shows a badge, no button
   if (full && !item.softCap) {
@@ -177,7 +177,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeover = 0, buyoutColor, lastRival = false, autoBuyOwned = false, isAutoBuyOn, onToggleAutoBuy, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, poachFrac = 0, buyoutColor, lastRival = false, autoBuyOwned = false, isAutoBuyOn, onToggleAutoBuy, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
   // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
   // the tooltip stuck. Clear it whenever the upgrade set changes.
@@ -282,8 +282,8 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                   ? `a driver switches to Uber · +$${fmtNum(Math.round(contractPerDriver(upgrades)))}/second`
                   : item.id === "contractBoost"
                   ? `$${fmtNum(Math.round(contractPerDriver(upgrades)))}/contract → $${fmtNum(Math.round(contractPerDriver({ ...upgrades, contractBoost: level + 1 })))}`
-                  : item.id === "buyout" && takeover > 0
-                  ? `${Math.round(buyoutDiscount(takeover) * 100)}% off — you've poached ${takeover} rival ${takeover === 1 ? "stop" : "stops"}`
+                  : item.id === "buyout" && poachFrac > 0
+                  ? `${Math.round(buyoutDiscount(poachFrac) * 100)}% off — you've poached ${Math.round(poachFrac * 100)}% of their turf`
                   : item.effect;
               // Done+hide-complete rows collapse OUT; brand-new rows start collapsed and
               // animate IN — both via the same max-height/opacity transition (no popping).
@@ -309,7 +309,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
                         <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
                         {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
                       </HStack>
-                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} takeover={takeover} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} lastRival={item.id === "buyout" && lastRival} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} poachFrac={poachFrac} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} lastRival={item.id === "buyout" && lastRival} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
                     </HStack>
                     {/* Second row: description on the left, a tiny auto-buy checkbox under
                         the price button on the right (only once Ops Manager is owned). */}

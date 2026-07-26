@@ -10,6 +10,10 @@ export const ACCENT_CHOICES = [
   "#C13FD6", // magenta
   "#E23E5C", // red
   "#2FB6B0", // teal
+  "#7B61FF", // violet
+  "#F25CA2", // pink
+  "#9AE23E", // lime
+  "#E8E0D0", // bone
 ];
 
 // Broad palette for rival companies. A new rival company appears every 10 map
@@ -19,6 +23,8 @@ export const RIVAL_PALETTE = [
   "#4C86E8", "#E5B72E", "#3FB56B", "#C13FD6", "#E23E5C", "#2FB6B0",
   "#7B61FF", "#F25CA2", "#9AE23E", "#3ED4E2", "#B5651D", "#8CA0B5",
   "#F0862E", "#5CE1C0", "#D65C7A", "#A0D63E", "#6C7BE8", "#E8C85C",
+  "#E85CE8", "#5CE85C", "#E8785C", "#5CB0E8", "#B05CE8", "#E8D25C",
+  "#C0E85C", "#5CE8B0", "#E85C86", "#86E85C",
 ];
 const hexRgb = (h: string): [number, number, number] => {
   const n = parseInt(h.replace("#", ""), 16);
@@ -114,10 +120,11 @@ export function upgradeCost(u: Upgrade, level: number): number {
   return cost;
 }
 
-// Poaching rival stops (see Poach Rivals) cheapens Buy Out Rivals: 3% off per stop
-// you've ever stolen, capped at 90% off. `takeover` = lifetime poached-stop count.
-export function buyoutDiscount(takeover: number): number {
-  return Math.min(0.9, Math.max(0, takeover) * 0.03);
+// Poaching rival stops (see Poach Rivals) cheapens Buy Out Rivals proportionally: the
+// discount scales 0% → 90% with the FRACTION of the current rival territory you've stolen.
+// `poachFrac` = poached stops / total rival stops on the map right now (0..1).
+export function buyoutDiscount(poachFrac: number): number {
+  return Math.min(0.9, Math.max(0, poachFrac) * 0.9);
 }
 // Spread Flyers get a gentler growth curve the deeper you go: every 500 levels the
 // per-level multiplier's growth shrinks 40%, so late flyers don't explode into $-quintillions.
@@ -139,10 +146,10 @@ export function demandCost(level: number): number {
 // Next-level cost with contextual discounts applied: the poach discount on Buy Out Rivals,
 // and a 50% break on Map Expansion once you're a $100B operation (economies of scale).
 // Everything else is unchanged. All cost display + charging routes through this.
-export function nextCost(u: Upgrade, level: number, ctx: { takeover?: number; cash?: number } = {}): number {
+export function nextCost(u: Upgrade, level: number, ctx: { poachFrac?: number; cash?: number } = {}): number {
   if (u.id === "demand") return demandCost(level); // tiered curve, not the flat costMult
   const base = upgradeCost(u, level);
-  if (u.id === "buyout") return Math.round(base * (1 - buyoutDiscount(ctx.takeover ?? 0)));
+  if (u.id === "buyout") return Math.round(base * (1 - buyoutDiscount(ctx.poachFrac ?? 0)));
   if (u.id === "expand" && (ctx.cash ?? 0) >= 100_000_000_000) return Math.round(base * 0.5);
   return base;
 }
@@ -225,10 +232,11 @@ export function perDelivery(u: Record<string, number>) {
 export function contractPerDriver(u: Record<string, number>) {
   return CONTRACT_BASE * (1 + (u.contractBoost ?? 0) * CONTRACT_BOOST_PCT) * SURGE_MULT ** (u.surge ?? 0) * deliveryMult(u);
 }
-// Completion Bonus -> cash for finishing a day, scaling steeply (level^4) so late levels
-// pay real late-game money (~1B around level 86, up from ~190k at level^2).
+// Completion Bonus -> cash for finishing a day. Exponential (+23%/level) so it's GENTLE
+// early (25 → 31 → 38 …, not 25 → 400) but still compounds to ~1B by ~level 86 and keeps
+// paying real money deep late-game. Level 0 = no bonus.
 export function dayBonusReward(level: number) {
-  return Math.round(ROUTE_BONUS * level ** 4);
+  return level <= 0 ? 0 : Math.round(ROUTE_BONUS * 1.23 ** (level - 1));
 }
 export function routeBonus(u: Record<string, number>) {
   return dayBonusReward(u.dayBonus ?? 0);

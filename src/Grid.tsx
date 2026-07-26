@@ -10,6 +10,7 @@ const INK = "#ECE7DA";
 const INK_RGB: [number, number, number] = [236, 231, 218];
 const RIVAL = "#4C86E8"; // rival delivery companies (blue), confined to expanded territory
 const EMPTY_SET: Set<number> = new Set(); // stable empty fallback for optional layout.reserved
+const RIVAL_TICK_MS = 28; // rival van step interval — finer than before so they glide more smoothly
 
 // hex "#rrggbb" -> [r,g,b], for the pixel-buffer renderer on huge (zoomed-out) maps.
 const hexToRgb = (h: string): [number, number, number] => {
@@ -201,7 +202,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number }) => void;
   // called with how many rival stops you just poached (for the lifetime takeover count)
   onPoach?: (n: number) => void;
   // called with how many of YOUR stops were just delivered (lifetime packages count)
@@ -490,39 +491,20 @@ export function Grid({
     });
   }, [fleet, gs.layout.depots]);
 
-  // Fleet tick (single loop, fixed 45ms): each van SLIDES its on-screen position
-  // (dx,dy) toward its current logical cell (x,y) one axis at a time — so it follows
-  // the streets and never cuts corners. Only ON ARRIVAL does it take the next logical
-  // step (collect here, then bfs one cell toward its target/home). Faster Vans raises
-  // the slide speed but it's capped below 1 cell/tick, so vans never teleport.
+  // Fleet LOGIC tick: one cell-step per tick at the player's cadence (cellMs). Each tick a
+  // van collects where it is (poaching opportunistically), picks the nearest free stop, and
+  // BFS-steps one cell toward it (or home). The visible sliding is NOT done here — a
+  // separate rAF loop eases dx,dy toward x,y every frame, so motion stays 60fps-smooth no
+  // matter the tick rate.
   useEffect(() => {
     if (fleet <= 0) return;
-    // match the autopilot's cell-crossing time (same 340/vanSpeed cadence, 45ms floor),
-    // capped below 1 so a van always visibly slides rather than teleporting.
-    // Fleet crosses a cell in ~2 slide-ticks, so its tick interval is HALF the player's
-    // per-cell time — that way Faster Vans keeps speeding the fleet up to match the player.
-    // (A fixed 45ms tick + sub-cell cap pinned fleet speed once vanSpeed passed ~level 11.)
     const cellMs = Math.max(22, Math.round(300 / vanSpeed));
-    const fleetInterval = Math.max(12, Math.round(cellMs / 2));
-    const speed = 0.95;
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
       const { cols: gcols } = layout;
       const claimed = new Set<number>();
       const next = vansRef.current.map((van) => {
-        // 1) still sliding to the current cell? step one axis toward it (x then y).
-        if (van.dx !== van.x) {
-          const s = Math.sign(van.x - van.dx) * Math.min(Math.abs(van.x - van.dx), speed);
-          const ndx = van.dx + s;
-          return { ...van, dx: Math.abs(ndx - van.x) < 0.02 ? van.x : ndx };
-        }
-        if (van.dy !== van.y) {
-          const s = Math.sign(van.y - van.dy) * Math.min(Math.abs(van.y - van.dy), speed);
-          const ndy = van.dy + s;
-          return { ...van, dy: Math.abs(ndy - van.y) < 0.02 ? van.y : ndy };
-        }
-        // 2) arrived — collect here if it's a package, then choose the next cell.
         const cell = idx(van.x, van.y, gcols);
         let target = van.target;
         const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current });
@@ -573,10 +555,47 @@ export function Grid({
         setGs(done.state);
         if (done.earned) onEarnRef.current(done.earned);
       }
-    }, fleetInterval);
+    }, cellMs);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
+
+  // Fleet DISPLAY loop: every animation frame, ease each van's on-screen position (dx,dy)
+  // toward its logical cell (x,y) one axis at a time (so vans follow streets, never cut
+  // corners). Decoupled from the logic tick → smooth 60fps gliding even when a cell-step is
+  // slow. Mutates the van objects in place and repaints via the coalesced scheduleDraw, so
+  // it adds no React re-renders. Speed is tuned so a van crosses a cell in ~cellMs, keeping
+  // the visible position in step with the logic.
+  useEffect(() => {
+    if (fleet <= 0) return;
+    let raf = 0;
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = now - last;
+      last = now;
+      const cellMs = Math.max(22, Math.round(300 / vanSpeedRef.current));
+      const step = Math.max(0.02, dt / cellMs); // cells to advance this frame
+      let moving = false;
+      for (const v of vansRef.current) {
+        if (v.dx !== v.x) {
+          const d = v.x - v.dx;
+          const nx = v.dx + Math.sign(d) * Math.min(Math.abs(d), step);
+          v.dx = Math.abs(nx - v.x) < 0.01 ? v.x : nx;
+          moving = true;
+        } else if (v.dy !== v.y) {
+          const d = v.y - v.dy;
+          const ny = v.dy + Math.sign(d) * Math.min(Math.abs(d), step);
+          v.dy = Math.abs(ny - v.y) < 0.01 ? v.y : ny;
+          moving = true;
+        }
+      }
+      if (moving) scheduleDraw();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleet]);
 
   // Delivery Drones: invisible units (not rendered — they "drop in from above"). Each
   // tick, up to droneCount uncollected stops are completed instantly, ignoring roads. A
@@ -644,7 +663,7 @@ export function Grid({
       // so they usually finish their deliveries before you do and you rarely wait on them.
       // Converted to a slide distance for the 55ms rival tick, capped below 1 (no teleport).
       const rivalMs = Math.max(22, Math.round(300 / (vanSpeedRef.current + 0.5)));
-      const speed = Math.min(0.95, 55 / rivalMs);
+      const speed = Math.min(0.95, RIVAL_TICK_MS / rivalMs);
       // Compute synchronously from the ref (NOT inside a setState updater — that runs
       // later, so the `delivered` side-effect never fired: circles never got marked).
       const delivered: number[] = [];
@@ -680,7 +699,7 @@ export function Grid({
         setGs(fin.state);
         if (fin.earned) onEarnRef.current(fin.earned);
       }
-    }, 55);
+    }, RIVAL_TICK_MS);
     return () => window.clearInterval(id);
   }, [gs.layout.reserved]);
 
@@ -877,6 +896,10 @@ export function Grid({
   // report headline stats up to the app HUD. capacity = cells that can hold one of
   // YOUR deliveries (open, non-depot) — caps how far Demand Engine can be bought.
   const capacity = TOTAL - depots.size - reserved.size;
+  // fraction of the current rival territory you've poached (drives the buyout discount)
+  let poachedInRes = 0;
+  for (const c of converted) if (reserved.has(c)) poachedInRes++;
+  const poachedFrac = reserved.size ? poachedInRes / reserved.size : 0;
   useEffect(() => {
     onStatsRef.current({
       packagesLeft: dayEnded ? 0 : specials.size - collected.size,
@@ -884,8 +907,9 @@ export function Grid({
       routes,
       capacity,
       dayEnded,
+      poachedFrac,
     });
-  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity]);
+  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, poachedFrac]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -1226,7 +1250,7 @@ export function Grid({
         ref={canvasRef}
         width={canvas}
         height={canvas}
-        style={{ transition: "opacity 0.35s ease", opacity: dayEnded ? 0.55 : 1, display: "block" }}
+        style={{ transition: "opacity 0.7s ease-in-out", opacity: dayEnded ? 0.32 : 1, display: "block" }}
       />
       {/* Manual Start Day sits centered IN the box (auto-start hides it). */}
       {dayEnded && !autoStartDay && (

@@ -18,6 +18,7 @@ export function Settings({
   onReset,
   onForceEndDay,
   onCheatRestart,
+  onCheatRestart50k,
   onShowEnding,
   onClose,
 }: {
@@ -27,6 +28,7 @@ export function Settings({
   onReset: () => void;
   onForceEndDay: () => void;
   onCheatRestart: () => void;
+  onCheatRestart50k: () => void;
   onShowEnding: () => void;
   onClose: () => void;
 }) {
@@ -199,6 +201,12 @@ export function Settings({
               <span style={{ fontSize: 13, letterSpacing: 1 }}>FORCE END DAY</span>
               <button style={btn("#ECE7DA")} onClick={onForceEndDay} title="End the current day now — no completion bonus">
                 End Day
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $50K</span>
+              <button style={btn("#ECE7DA")} onClick={onCheatRestart50k} title="Wipe progress and restart with $50,000">
+                Restart
               </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
