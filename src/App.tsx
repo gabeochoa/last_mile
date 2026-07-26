@@ -256,6 +256,26 @@ export function App() {
     }
   }, [stats.routes]);
 
+  // "stuck?" watchdog: if no delivery has landed in 30s while a day is still running, a van
+  // or rival may be wedged — surface a manual force-end button in the banner.
+  const lastDeliveryAtRef = useRef(performance.now());
+  const prevDeliveredRef = useRef(0);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (stats.deliveredToday > prevDeliveredRef.current) lastDeliveryAtRef.current = performance.now();
+    prevDeliveredRef.current = stats.deliveredToday;
+  }, [stats.deliveredToday]);
+  useEffect(() => {
+    lastDeliveryAtRef.current = performance.now(); // fresh 30s window each new day
+    setStuck(false);
+  }, [stats.routes]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setStuck(!stats.dayEnded && performance.now() - lastDeliveryAtRef.current > 30000);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [stats.dayEnded]);
+
   // Ops Manager: once owned, auto-buy the single cheapest affordable, unlocked upgrade
   // on a tick. Held in a ref so the timer (bound once) always sees fresh cash/upgrades.
   const autoBuyStepRef = useRef(() => {});
@@ -431,6 +451,24 @@ export function App() {
               active={anyAutoBuyOn}
               onClick={() => setAllAutoBuy(!anyAutoBuyOn)}
             />
+          )}
+          {stuck && (
+            <button
+              onClick={() => { setForceEndSignal((n) => n + 1); setStuck(false); }}
+              title="No deliveries in a while — force the day to end (no bonus)"
+              style={{
+                background: "transparent",
+                border: `1px solid ${accent}`,
+                color: accent,
+                fontFamily: "inherit",
+                fontSize: 11,
+                letterSpacing: 0.5,
+                padding: "3px 8px",
+                cursor: "pointer",
+              }}
+            >
+              stuck? force end day
+            </button>
           )}
           <BannerBtn icon="⚙" label="Settings & about" onClick={() => setSettingsOpen(true)} />
         </div>
