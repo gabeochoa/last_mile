@@ -254,15 +254,17 @@ export function Grid({
   const rivalVansRef = useRef(rivalVans);
   rivalVansRef.current = rivalVans;
   // rival delivery points already serviced by a rival van this day (they fill in). The
-  // day can't end until every reserved point is done AND every rival van has driven back
-  // off the map (their offscreen depot) — the downside of expanding.
+  // day can't end until every reserved point is RESOLVED — serviced by a rival OR poached
+  // by you. We deliberately do NOT also wait for the rival vans to physically drive off
+  // the map: once every stop is done they have nothing left to do, and waiting on a van
+  // that's idling/pathing home would hang the day (the downside of expanding is finishing
+  // the deliveries, not babysitting empty vans).
   const [rivalDone, setRivalDone] = useState<Set<number>>(() => new Set());
   const rivalDoneRef = useRef(rivalDone);
   rivalDoneRef.current = rivalDone;
   const rivalsAllDone = () => {
     const res = gsRef.current.layout.reserved;
     if (!res || res.size === 0) return true;
-    if (rivalVansRef.current.length > 0) return false;
     // a reserved stop is resolved once a rival serviced it OR you poached it. rivalDone
     // and converted are kept disjoint (targeting excludes the other), so summing is safe.
     let poached = 0;
@@ -603,6 +605,46 @@ export function Grid({
     }, 55);
     return () => window.clearInterval(id);
   }, [gs.layout.reserved]);
+
+  // Failsafe: if all YOUR work is done (armed + player parked on a depot + fleet home) but
+  // the day still won't end, we're stuck waiting on rivals that can't finish (e.g. a stop
+  // no van can reach, or vans idling). If nothing changes — no rival delivery, no poach, no
+  // van count change — for STUCK_MS, force the day to complete so you're never soft-locked.
+  const STUCK_MS = 15000;
+  const stuckSinceRef = useRef<number | null>(null);
+  const stuckSigRef = useRef("");
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const s = gsRef.current;
+      if (s.dayEnded) { stuckSinceRef.current = null; return; }
+      const armed = s.layout.specials.size > 0 && s.collected.size === s.layout.specials.size;
+      const onDepot = s.layout.depots.has(idx(s.player.x, s.player.y, s.layout.cols));
+      // only relevant while waiting on rivals: your side is entirely done + already home
+      if (!(armed && onDepot && allDriversHome(s.layout, vansRef.current)) || rivalsAllDone()) {
+        stuckSinceRef.current = null;
+        return;
+      }
+      // reset the clock on any rival progress (a delivery, a poach, or a van appearing/leaving)
+      const sig = `${rivalDoneRef.current.size}:${s.converted.size}:${rivalVansRef.current.length}`;
+      if (sig !== stuckSigRef.current) {
+        stuckSigRef.current = sig;
+        stuckSinceRef.current = performance.now();
+        return;
+      }
+      if (stuckSinceRef.current == null) { stuckSinceRef.current = performance.now(); return; }
+      if (performance.now() - stuckSinceRef.current >= STUCK_MS) {
+        const done = finishIfDone(gsRef.current, { routeBonus: routeBonusRef.current, driversHome: true, rivalsDone: true });
+        if (done.state !== gsRef.current) {
+          gsRef.current = done.state;
+          setGs(done.state);
+          if (done.earned) onEarnRef.current(done.earned);
+        }
+        stuckSinceRef.current = null;
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A poach grows gs.converted; report the delta up so App can track the lifetime
   // "takeover" count (which discounts buyouts). converted resets to empty each new day,
