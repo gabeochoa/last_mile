@@ -171,13 +171,16 @@ export function genDepots(
   return depots;
 }
 
-// Pick road indices along an axis of length `len`: a random spacing (2 or 3) and
-// offset, e.g. cols [0,3] or rows [1,3,5]. Roads are open lanes; gaps become blocks.
+// Pick road indices along an axis of length `len`: roads with an IRREGULAR gap
+// (2–4 cells) between them, so the blocks they bound vary in size and the map reads
+// like a real city rather than a uniform lattice. Roads are open lanes; gaps = blocks.
 function roadLines(len: number, rng: () => number): number[] {
-  const spacing = 2 + Math.floor(rng() * 2); // 2 or 3
-  const offset = Math.floor(rng() * spacing);
   const lines: number[] = [];
-  for (let i = offset; i < len; i += spacing) lines.push(i);
+  let i = Math.floor(rng() * 2); // start on col/row 0 or 1
+  while (i < len) {
+    lines.push(i);
+    i += 2 + Math.floor(rng() * 3); // next road 2–4 cells along
+  }
   return lines;
 }
 
