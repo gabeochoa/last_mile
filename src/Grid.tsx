@@ -295,7 +295,7 @@ export function Grid({
       const dir = bfsNextStep(s.layout.blocked, here, target, gcols, grows);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, Math.max(40, Math.round(150 / vanSpeed)));
+    }, Math.max(40, Math.round(240 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot, vanSpeed]);
@@ -373,7 +373,7 @@ export function Grid({
         setGs(done.state);
         if (done.earned) onEarnRef.current(done.earned);
       }
-    }, Math.max(60, Math.round(220 / vanSpeed)));
+    }, Math.max(60, Math.round(340 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
