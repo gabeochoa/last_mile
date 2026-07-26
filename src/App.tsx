@@ -81,7 +81,7 @@ export function App() {
   const [takeover, setTakeover] = useState(loaded?.takeover ?? 0);
   // lifetime packages delivered (your stops + poached rival stops) — shown on the ending.
   const [totalDelivered, setTotalDelivered] = useState(loaded?.totalDelivered ?? 0);
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false, poachedFrac: 0 });
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false, poachedFrac: 0, deliveredToday: 0 });
   // latch: the shop appears once you can afford two upgrades, then stays — and is
   // already shown when resuming a save with progress (so a refresh keeps the shop).
   const [revealed, setRevealed] = useState(DEV || hasProgress);
@@ -226,12 +226,15 @@ export function App() {
   const dayMsRef = useRef(4000);
   const lastDayAtRef = useRef(performance.now());
   const prevRoutesForTimeRef = useRef(stats.routes);
+  // running earnings snapshot at the start of the current day, for "$ earned today".
+  const dayStartEarnedRef = useRef(0);
   useEffect(() => {
     if (stats.routes !== prevRoutesForTimeRef.current) {
       const now = performance.now();
       dayMsRef.current = Math.max(500, now - lastDayAtRef.current);
       lastDayAtRef.current = now;
       prevRoutesForTimeRef.current = stats.routes;
+      dayStartEarnedRef.current = earnedRef.current; // reset the per-day earnings baseline
     }
   }, [stats.routes]);
 
@@ -267,7 +270,10 @@ export function App() {
   // $/day is a PREDICTION of a day's income — your deliveries × per-delivery pay plus the
   // completion bonus — NOT a measured tally. Spending on upgrades (or a slow/fast day) no
   // longer distorts it; it just reflects what a day's route is worth right now.
-  const dayRate = (BASE_PACKAGES + extraPackages(upgrades)) * perDelivery(upgrades) + routeBonus(upgrades);
+  const dayRate =
+    (BASE_PACKAGES + extraPackages(upgrades)) * perDelivery(upgrades) +
+    routeBonus(upgrades) +
+    contractIncome(upgrades) * (dayMsRef.current / 1000);
 
   // A new rival company (distinct color, never yours) appears every 5 expansions.
   // Memoized so its array reference is stable (the canvas caches keyed on it).
@@ -582,6 +588,9 @@ export function App() {
                 <div>= ${fmtNum(deliveryIncome)} deliveries</div>
                 {bonus > 0 && <div>+ ${fmtNum(bonus)} end-of-day bonus</div>}
                 {contractsPerDay > 0 && <div>+ ${fmtNum(contractsPerDay)} contracts</div>}
+                <div style={{ opacity: 0.7, marginTop: 6 }}>TODAY</div>
+                <div>{fmtNum(stats.deliveredToday)} delivered so far</div>
+                <div>${fmtNum(Math.max(0, earnedRef.current - dayStartEarnedRef.current))} earned</div>
               </>
             );
           })()}

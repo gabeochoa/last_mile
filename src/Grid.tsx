@@ -202,7 +202,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number; deliveredToday: number }) => void;
   // called with how many rival stops you just poached (for the lifetime takeover count)
   onPoach?: (n: number) => void;
   // called with how many of YOUR stops were just delivered (lifetime packages count)
@@ -908,6 +908,8 @@ export function Grid({
   let poachedInRes = 0;
   for (const c of converted) if (reserved.has(c)) poachedInRes++;
   const poachedFrac = reserved.size ? poachedInRes / reserved.size : 0;
+  // deliveries you've completed THIS day so far (your stops + poached rival stops), live.
+  const deliveredToday = collected.size + converted.size;
   useEffect(() => {
     onStatsRef.current({
       packagesLeft: dayEnded ? 0 : specials.size - collected.size,
@@ -916,8 +918,9 @@ export function Grid({
       capacity,
       dayEnded,
       poachedFrac,
+      deliveredToday,
     });
-  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, poachedFrac]);
+  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, poachedFrac, deliveredToday]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
