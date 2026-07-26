@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -127,6 +127,8 @@ export function App() {
 
   // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
   const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
+  // A new rival company (distinct color, never yours) appears every 10 expansions.
+  const companyColors = rivalColors(accent, rivalCompanyCount(expandLevel(upgrades)));
   // Planet-wide unowned market share (starts 100%, → 0 when you own every spot).
   const theirShare = unownedShare(upgrades);
 
@@ -363,6 +365,7 @@ export function App() {
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
           rivalFraction={rivalFraction}
+          rivalColors={companyColors}
           accent={accent}
           perDelivery={perDelivery(upgrades)}
           routeBonus={routeBonus(upgrades)}

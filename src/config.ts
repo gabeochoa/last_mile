@@ -12,6 +12,33 @@ export const ACCENT_CHOICES = [
   "#2FB6B0", // teal
 ];
 
+// Broad palette for rival companies. A new rival company appears every 10 map
+// expansions, each in a distinct color drawn from here — never the player's color and
+// never one too close to it.
+export const RIVAL_PALETTE = [
+  "#4C86E8", "#E5B72E", "#3FB56B", "#C13FD6", "#E23E5C", "#2FB6B0",
+  "#7B61FF", "#F25CA2", "#9AE23E", "#3ED4E2", "#B5651D", "#8CA0B5",
+];
+const hexRgb = (h: string): [number, number, number] => {
+  const n = parseInt(h.replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const colorDist = (a: string, b: string): number => {
+  const [r1, g1, b1] = hexRgb(a);
+  const [r2, g2, b2] = hexRgb(b);
+  return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
+};
+// `count` rival company colors, excluding the player's accent and any color close to
+// it (so rivals never blend into "you"). One company per 10 Map Expansion levels.
+export function rivalColors(accent: string, count: number): string[] {
+  const usable = RIVAL_PALETTE.filter((c) => colorDist(c, accent) > 90);
+  const pool = usable.length ? usable : RIVAL_PALETTE;
+  return Array.from({ length: Math.max(1, count) }, (_, i) => pool[i % pool.length]);
+}
+export function rivalCompanyCount(expandLvl: number): number {
+  return Math.floor(expandLvl / 10) + 1;
+}
+
 // Economy: cash comes from delivering a package and, once the Bulk Contracts
 // upgrade is owned, a per-level bonus for finishing a day (0 by default).
 export const ROUTE_BONUS = 25; // bonus per Bulk Contracts level

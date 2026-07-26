@@ -21,8 +21,14 @@ const allDriversHome = (
 // The world exists past your map: blue vans drive IN from offscreen to a rival
 // delivery point, drop off, then drive back OUT and respawn. Positions may be
 // off-grid (drawn in the padding = "offscreen"). Purely visual.
-type RivalVan = { x: number; y: number; tx: number; ty: number; stage: "in" | "out"; wait: number };
+type RivalVan = { x: number; y: number; tx: number; ty: number; stage: "in" | "out"; wait: number; color: string };
 type RLayout = { reserved?: Set<number>; blocked: Set<number>; cols: number; rows: number };
+
+// Deterministically map a cell to one of the rival company colors, so each company
+// owns a scattered-but-stable set of cells.
+const hashCell = (c: number) => (Math.imul(c + 1, 2654435761) >>> 0);
+const cellColor = (c: number, colors: string[]) =>
+  colors.length ? colors[hashCell(c) % colors.length] : RIVAL;
 
 // Open cells on the grid border, with the outward offset — rival vans enter/leave here.
 const borderEntries = (layout: RLayout): [number, number, number, number][] => {
@@ -39,17 +45,18 @@ const borderEntries = (layout: RLayout): [number, number, number, number][] => {
   return out;
 };
 
-const spawnRivalVan = (layout: RLayout): RivalVan | null => {
+const spawnRivalVan = (layout: RLayout, colors: string[]): RivalVan | null => {
   const res = layout.reserved ? [...layout.reserved] : [];
   const border = borderEntries(layout);
   if (!res.length || !border.length) return null;
   const cell = res[Math.floor(Math.random() * res.length)];
   const [bx, by, ox, oy] = border[Math.floor(Math.random() * border.length)];
-  // spawn just offscreen next to an OPEN border cell, heading for the rival point
-  return { x: bx + ox, y: by + oy, tx: cell % layout.cols, ty: Math.floor(cell / layout.cols), stage: "in", wait: 0 };
+  // spawn just offscreen next to an OPEN border cell, heading for the rival point,
+  // colored by the company that owns that cell
+  return { x: bx + ox, y: by + oy, tx: cell % layout.cols, ty: Math.floor(cell / layout.cols), stage: "in", wait: 0, color: cellColor(cell, colors) };
 };
 
-const stepRivalVan = (v: RivalVan, layout: RLayout): RivalVan => {
+const stepRivalVan = (v: RivalVan, layout: RLayout, colors: string[]): RivalVan => {
   const { cols, rows, blocked } = layout;
   const onGrid = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
   const open = (x: number, y: number) => !onGrid(x, y) || !blocked.has(idx(x, y, cols));
@@ -77,7 +84,7 @@ const stepRivalVan = (v: RivalVan, layout: RLayout): RivalVan => {
   if (v.wait > 0) return { ...v, wait: v.wait - 1 };
   const moved = toward();
   const off = moved.x < -1 || moved.x > cols || moved.y < -1 || moved.y > rows;
-  return off ? spawnRivalVan(layout) ?? moved : moved;
+  return off ? spawnRivalVan(layout, colors) ?? moved : moved;
 };
 
 // Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
@@ -139,6 +146,7 @@ export function Grid({
   depotCount,
   autoStartDay,
   rivalFraction,
+  rivalColors,
   accent,
   cols,
   rows,
@@ -158,6 +166,8 @@ export function Grid({
   autoStartDay: boolean;
   // fraction (0..1) of the expansion frontier held by rivals; buying them out lowers it
   rivalFraction: number;
+  // one color per rival company (a new company every 10 expansions); cells/vans colored by company
+  rivalColors: string[];
   // player's brand color; drives the player, fleet, packages and armed-depot glyphs
   accent: string;
   cols: number;
@@ -191,6 +201,8 @@ export function Grid({
   vansRef.current = vans;
   const rivalFractionRef = useRef(rivalFraction);
   rivalFractionRef.current = rivalFraction;
+  const rivalColorsRef = useRef(rivalColors);
+  rivalColorsRef.current = rivalColors;
   // blue rival delivery vans driving in from offscreen to service rival points (cosmetic)
   const [rivalVans, setRivalVans] = useState<RivalVan[]>([]);
 
@@ -401,7 +413,7 @@ export function Grid({
   useEffect(() => {
     const count = gs.layout.reserved ? Math.min(gs.layout.reserved.size, 4) : 0;
     setRivalVans(
-      Array.from({ length: count }, () => spawnRivalVan(gs.layout)).filter(
+      Array.from({ length: count }, () => spawnRivalVan(gs.layout, rivalColorsRef.current)).filter(
         (v): v is RivalVan => v !== null,
       ),
     );
@@ -410,7 +422,7 @@ export function Grid({
   useEffect(() => {
     if (!gs.layout.reserved?.size) return;
     const id = window.setInterval(() => {
-      setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout)));
+      setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout, rivalColorsRef.current)));
     }, 130);
     return () => window.clearInterval(id);
   }, [gs.layout]);
@@ -637,21 +649,21 @@ export function Grid({
       );
     }
 
-    // rival delivery points: BLUE rings holding expansion cells (not yours until bought out)
+    // rival delivery points: rings in each owning company's color (not yours until bought out)
+    ctx.lineWidth = 2;
     for (const c of reserved) {
       const cx = offX + (c % gcols) * cell + cell / 2;
       const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
       ctx.beginPath();
       ctx.arc(cx, cy, dot, 0, Math.PI * 2);
-      ctx.strokeStyle = RIVAL;
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = cellColor(c, rivalColors);
       ctx.stroke();
     }
 
-    // rival delivery vans: solid blue squares driving in from offscreen (may be off-grid)
-    ctx.fillStyle = RIVAL;
+    // rival delivery vans: solid squares in their company color, driving in from offscreen
     const rvi = Math.round(cell * 0.28);
     for (const v of rivalVans) {
+      ctx.fillStyle = v.color;
       ctx.fillRect(offX + v.x * cell + rvi, offY + v.y * cell + rvi, cell - rvi * 2, cell - rvi * 2);
     }
 
@@ -715,7 +727,7 @@ export function Grid({
       animCellRef.current = cell;
       drawAt(cell);
     }
-  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, rivalVans, gcols, grows, cell, dayEnded, canvas, ACCENT]);
+  }, [player.x, player.y, visited, blocked, specials, depots, collected, flash, routes, TOTAL, vans, reserved, rivalVans, rivalColors, gcols, grows, cell, dayEnded, canvas, ACCENT]);
 
   // begin the next day: fresh route with current dims + package count (upgrades applied)
   const beginDay = () =>
