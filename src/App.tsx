@@ -581,7 +581,7 @@ export function App() {
                 {(upgrades.internet ?? 0) > 0 && <div>× 100 &nbsp;internet</div>}
                 <div>= ${fmtNum(deliveryIncome)} deliveries</div>
                 {bonus > 0 && <div>+ ${fmtNum(bonus)} end-of-day bonus</div>}
-                {contractsPerDay > 0 && <div>+ ${fmtNum(contractsPerDay)}/day contracts</div>}
+                {contractsPerDay > 0 && <div>+ ${fmtNum(contractsPerDay)} contracts</div>}
               </>
             );
           })()}

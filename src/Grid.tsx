@@ -514,7 +514,11 @@ export function Grid({
       const { layout } = gsRef.current;
       const { cols: gcols } = layout;
       const claimed = new Set<number>();
-      const next = vansRef.current.map((van) => {
+      // Mutate the van objects IN PLACE (no .map / no {...van} spread): allocating a fresh
+      // array of thousands of new van objects every tick was the biggest heap-churn source.
+      // The display rAF loop repaints from these same objects, so no setVans is needed here.
+      const vans = vansRef.current;
+      for (const van of vans) {
         const cell = idx(van.x, van.y, gcols);
         let target = van.target;
         const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current });
@@ -531,8 +535,6 @@ export function Grid({
         // collectAt above (a van standing on one steals it) — never chased, so no oscillation.
         const keep = target != null && layout.specials.has(target) && !collected.has(target) && !claimed.has(target);
         if (!keep) {
-          // pick the nearest free special in a single allocation-free pass (spreading +
-          // filtering the whole set per van was the GC hot path once fleets got large)
           let best: number | null = null;
           let bd = Infinity;
           for (const c of layout.specials) {
@@ -543,21 +545,17 @@ export function Grid({
           target = best;
         }
         if (target != null) claimed.add(target);
+        van.target = target;
         const dir = flowStep(cell, target ?? van.home);
-        if (!dir) return { ...van, target };
-        return { ...van, x: van.x + dir[0], y: van.y + dir[1], target };
-      });
-      vansRef.current = next;
-      setVans(next);
-      // mark every fleet van's cell visited so YOUR drivers leave a gray trail too (only
-      // your vans). Mutated IN PLACE — cloning this (large, growing) Set every tick was
-      // the top GC cost; setVans above already triggers the redraw that reads it.
+        if (dir) { van.x += dir[0]; van.y += dir[1]; }
+      }
+      // mark every fleet van's cell visited so YOUR drivers leave a gray trail too.
       const vis = gsRef.current.visited;
-      for (const v of next) vis.add(idx(v.x, v.y, gcols));
+      for (const van of vans) vis.add(idx(van.x, van.y, gcols));
       // once everyone (incl. the player) is home + all deliveries done, end the day
       const done = finishIfDone(gsRef.current, {
         routeBonus: routeBonusRef.current,
-        driversHome: allDriversHome(gsRef.current.layout, next),
+        driversHome: allDriversHome(gsRef.current.layout, vans),
         rivalsDone: rivalsAllDone(),
       });
       if (done.state !== gsRef.current) {
