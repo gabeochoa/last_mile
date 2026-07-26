@@ -124,6 +124,7 @@ type MoveOpts = {
   rivalsDone?: boolean;
   // Poach upgrade owned: driving over an un-serviced rival stop steals it (pays you)
   canPoach?: boolean;
+  poachPay?: number; // cash for poaching a stop (defaults to perDelivery)
   // Mileage Pay: cash earned for advancing one cell (0 if not owned)
   mileagePay?: number;
   packageCount: number;
@@ -177,7 +178,7 @@ export function applyMove(
     earned += perDelivery;
     collected = new Set(state.collected).add(cellIdx);
   } else if (autoDeliver && opts.canPoach && state.layout.reserved?.has(cellIdx) && !converted.has(cellIdx)) {
-    earned += perDelivery;
+    earned += opts.poachPay ?? perDelivery;
     converted = new Set(state.converted).add(cellIdx);
   }
 
@@ -213,7 +214,7 @@ export function finishIfDone(
 export function collectAt(
   state: GridState,
   cellIdx: number,
-  opts: { perDelivery: number; canPoach?: boolean },
+  opts: { perDelivery: number; canPoach?: boolean; poachPay?: number },
 ): { state: GridState; earned: number } {
   if (state.layout.specials.has(cellIdx) && !state.collected.has(cellIdx)) {
     return {
@@ -224,7 +225,7 @@ export function collectAt(
   if (opts.canPoach && state.layout.reserved?.has(cellIdx) && !state.converted.has(cellIdx)) {
     return {
       state: { ...state, converted: new Set(state.converted).add(cellIdx) },
-      earned: opts.perDelivery,
+      earned: opts.poachPay ?? opts.perDelivery,
     };
   }
   return { state, earned: 0 };
@@ -234,7 +235,7 @@ export function collectAt(
 // an un-serviced rival stop underfoot; else no-op.
 export function collectHere(
   state: GridState,
-  opts: { perDelivery: number; canPoach?: boolean },
+  opts: { perDelivery: number; canPoach?: boolean; poachPay?: number },
 ): { state: GridState; earned: number } {
   return collectAt(state, idx(state.player.x, state.player.y, state.layout.cols), opts);
 }

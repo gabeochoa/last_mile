@@ -5,7 +5,7 @@ import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Settings } from "./Settings";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, nextCost, poachActive, perDelivery, perDeliveryAt, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, droneCount, policeFine, mileagePay, lockerPerRow, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, EXPAND_MAX, fmtNum, rivalColors, rivalCompanyCount } from "./config";
+import { BUCKETS, nextCost, poachActive, poachPay, perDelivery, perDeliveryAt, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, droneCount, policeFine, mileagePay, lockerPerRow, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, EXPAND_MAX, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, getVolume, playSfx, setVolume } from "./audio";
@@ -81,7 +81,7 @@ export function App() {
   const [takeover, setTakeover] = useState(loaded?.takeover ?? 0);
   // lifetime packages delivered (your stops + poached rival stops) — shown on the ending.
   const [totalDelivered, setTotalDelivered] = useState(loaded?.totalDelivered ?? 0);
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false, poachedFrac: 0, deliveredToday: 0 });
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false, poachedFrac: 0, deliveredToday: 0, cellsPerDay: 0 });
   // latch: the shop appears once you can afford two upgrades, then stays — and is
   // already shown when resuming a save with progress (so a refresh keeps the shop).
   const [revealed, setRevealed] = useState(DEV || hasProgress);
@@ -164,7 +164,7 @@ export function App() {
       if (!it.id) return Infinity;
       const lvl = upgrades[it.id] ?? 0;
       const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
-      return lvl >= max ? Infinity : nextCost(it, lvl, { poachFrac: stats.poachedFrac, cash });
+      return lvl >= max ? Infinity : nextCost(it, lvl, { poachFrac: stats.poachedFrac, cash, torque: (upgrades.torque ?? 0) > 0 });
     })
     .sort((a, b) => a - b);
   const canAffordTwo = cash >= (nextCosts[0] ?? Infinity) + (nextCosts[1] ?? Infinity);
@@ -206,7 +206,7 @@ export function App() {
     if (!u) return;
     const level = upgrades[id] ?? 0;
     if (level >= (maxLevels[id] ?? u.maxLevel ?? 1)) return;
-    const cost = nextCost(u, level, { poachFrac: stats.poachedFrac, cash });
+    const cost = nextCost(u, level, { poachFrac: stats.poachedFrac, cash, torque: (upgrades.torque ?? 0) > 0 });
     if (cash < cost) return;
     setCash((c) => c - cost);
     setUpgrades((prev) => ({ ...prev, [id]: level + 1 }));
@@ -291,7 +291,7 @@ export function App() {
       if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
       const lvl = upgrades[it.id] ?? 0;
       if (lvl >= (maxLevels[it.id] ?? it.maxLevel ?? 1)) continue;
-      const cost = nextCost(it, lvl, { poachFrac: stats.poachedFrac, cash });
+      const cost = nextCost(it, lvl, { poachFrac: stats.poachedFrac, cash, torque: (upgrades.torque ?? 0) > 0 });
       if (cost <= cash && cost < bestCost) {
         best = it.id;
         bestCost = cost;
@@ -635,6 +635,7 @@ export function App() {
             const deliveryIncome = del * perDelivery(upgrades);
             const bonus = routeBonus(upgrades);
             const contractsPerDay = contractIncome(upgrades) * (dayMsRef.current / 1000);
+            const green = mileagePay(upgrades);
             return (
               <>
                 <div style={{ opacity: 0.7 }}>PER DAY</div>
@@ -645,6 +646,9 @@ export function App() {
                 <div>= ${fmtNum(deliveryIncome)} deliveries</div>
                 {bonus > 0 && <div>+ ${fmtNum(bonus)} end-of-day bonus</div>}
                 {contractsPerDay > 0 && <div>+ ${fmtNum(contractsPerDay)} contracts</div>}
+                {green > 0 && <div>+ ${fmtNum(green * stats.cellsPerDay)} green energy</div>}
+                {poachActive(upgrades) && <div>+ ${fmtNum(poachPay(upgrades))} per rival stop poached</div>}
+                {policeFine(upgrades) > 0 && <div>+ ${fmtNum(policeFine(upgrades))} per rival delivery (police)</div>}
                 <div style={{ opacity: 0.7, marginTop: 6 }}>TODAY</div>
                 <div>{fmtNum(stats.deliveredToday)} delivered so far</div>
                 <div>${fmtNum(Math.max(0, earnedRef.current - dayStartEarnedRef.current))} earned</div>

@@ -203,7 +203,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number; deliveredToday: number }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number; deliveredToday: number; cellsPerDay: number }) => void;
   // called with how many rival stops you just poached (for the lifetime takeover count)
   onPoach?: (n: number) => void;
   // called with how many of YOUR stops were just delivered (lifetime packages count)
@@ -347,6 +347,10 @@ export function Grid({
   policeFineRef.current = policeFine;
   const mileagePayRef = useRef(mileagePay);
   mileagePayRef.current = mileagePay;
+  // cells driven this day (fleet + player) and the last completed day's total — used to show
+  // Green Energy as a per-DAY figure in the income tooltip.
+  const cellsTodayRef = useRef(0);
+  const lastDayCellsRef = useRef(0);
   const lockerPerRowRef = useRef(lockerPerRow);
   lockerPerRowRef.current = lockerPerRow;
   const onStatsRef = useRef(onStats);
@@ -396,6 +400,7 @@ export function Grid({
     driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
     rivalsDone: rivalsAllDone(),
     canPoach: poachRef.current,
+    poachPay: perDeliveryRef.current * 1000,
     mileagePay: mileagePayRef.current,
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
@@ -420,7 +425,7 @@ export function Grid({
       }
       if (e.key === " ") {
         e.preventDefault();
-        commit(collectHere(gsRef.current, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current }));
+        commit(collectHere(gsRef.current, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current, poachPay: perDeliveryRef.current * 1000 }));
         return;
       }
       const d = deltas[e.key];
@@ -528,7 +533,7 @@ export function Grid({
       for (const van of vans) {
         const cell = idx(van.x, van.y, gcols);
         let target = van.target;
-        const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current });
+        const hit = collectAt(gsRef.current, cell, { perDelivery: perDeliveryRef.current, canPoach: poachRef.current, poachPay: perDeliveryRef.current * 1000 });
         if (hit.earned) {
           gsRef.current = hit.state;
           setGs(hit.state);
@@ -556,7 +561,10 @@ export function Grid({
         const dir = flowStep(cell, target ?? van.home);
         if (dir) { van.x += dir[0]; van.y += dir[1]; steps++; }
       }
-      if (steps > 0 && mileagePayRef.current > 0) onEarnRef.current(steps * mileagePayRef.current);
+      if (steps > 0) {
+        cellsTodayRef.current += steps;
+        if (mileagePayRef.current > 0) onEarnRef.current(steps * mileagePayRef.current);
+      }
       // mark every fleet van's cell visited so YOUR drivers leave a gray trail too.
       const vis = gsRef.current.visited;
       for (const van of vans) vis.add(idx(van.x, van.y, gcols));
@@ -918,6 +926,16 @@ export function Grid({
   const poachedFrac = reserved.size ? poachedInRes / reserved.size : 0;
   // deliveries you've completed THIS day so far (your stops + poached rival stops), live.
   const deliveredToday = collected.size + converted.size;
+  // when a day completes, snapshot the cells driven that day (for the per-day Green Energy
+  // figure) and reset the counter for the new day.
+  const prevRoutesForCellsRef = useRef(routes);
+  useEffect(() => {
+    if (routes !== prevRoutesForCellsRef.current) {
+      prevRoutesForCellsRef.current = routes;
+      lastDayCellsRef.current = cellsTodayRef.current;
+      cellsTodayRef.current = 0;
+    }
+  }, [routes]);
   useEffect(() => {
     onStatsRef.current({
       packagesLeft: dayEnded ? 0 : specials.size - collected.size,
@@ -927,6 +945,7 @@ export function Grid({
       dayEnded,
       poachedFrac,
       deliveredToday,
+      cellsPerDay: lastDayCellsRef.current,
     });
   }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, poachedFrac, deliveredToday]);
 

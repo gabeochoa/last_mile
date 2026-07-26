@@ -72,6 +72,7 @@ function UpgradeEnd({
   maxLevel,
   cash,
   poachFrac,
+  torque,
   onBuy,
   setTip,
   accentOverride,
@@ -84,6 +85,7 @@ function UpgradeEnd({
   maxLevel: number;
   cash: number;
   poachFrac: number;
+  torque: boolean;
   onBuy: (id: string) => void;
   setTip: (t: { x: number; y: number; text?: string; cost?: number } | null) => void;
   accentOverride?: string;
@@ -106,7 +108,7 @@ function UpgradeEnd({
       </span>
     );
   }
-  const cost = nextCost(item, level, { poachFrac, cash });
+  const cost = nextCost(item, level, { poachFrac, cash, torque });
   const full = level >= maxLevel;
   // permanent MAX/OWNED (not a soft cap) shows a badge, no button
   if (full && !item.softCap) {
@@ -337,7 +339,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, poachFr
                           );
                         })()}
                       </HStack>
-                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} poachFrac={poachFrac} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} lastRival={item.id === "buyout" && lastRival} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} poachFrac={poachFrac} torque={(upgrades.torque ?? 0) > 0} onBuy={onBuy} setTip={setTip} accentOverride={item.id === "buyout" ? buyoutColor : undefined} lastRival={item.id === "buyout" && lastRival} locked={!meetsReq(item)} lockedHint={item.lockedHint} />
                     </HStack>
                     {/* Second row: description on the left, a tiny auto-buy checkbox under
                         the price button on the right (only once Ops Manager is owned). */}

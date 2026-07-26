@@ -146,16 +146,21 @@ export function demandCost(level: number): number {
 // Next-level cost with contextual discounts applied: the poach discount on Buy Out Rivals,
 // and a 50% break on Map Expansion once you're a $100B operation (economies of scale).
 // Everything else is unchanged. All cost display + charging routes through this.
-export function nextCost(u: Upgrade, level: number, ctx: { poachFrac?: number; cash?: number } = {}): number {
+export function nextCost(u: Upgrade, level: number, ctx: { poachFrac?: number; cash?: number; torque?: boolean } = {}): number {
   if (u.id === "demand") return demandCost(level); // tiered curve, not the flat costMult
   const base = upgradeCost(u, level);
   if (u.id === "buyout") return Math.round(base * (1 - buyoutDiscount(ctx.poachFrac ?? 0)));
   if (u.id === "expand" && (ctx.cash ?? 0) >= 100_000_000_000) return Math.round(base * 0.5);
+  if (u.id === "vanSpeed" && ctx.torque) return Math.round(base * 0.75); // Increased Torque discount
   return base;
 }
 // Poach Rivals owned: your vans may deliver to rival stops.
 export function poachActive(u: Record<string, number>): boolean {
   return (u.poach ?? 0) >= 1;
+}
+// Cash for poaching one rival stop: 1000× a normal delivery (they're a premium grab).
+export function poachPay(u: Record<string, number>): number {
+  return perDelivery(u) * 1000;
 }
 
 export const BUCKETS: { name: string; items: Upgrade[] }[] = [
@@ -168,6 +173,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
       { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 1000000, costMult: 1, maxLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.35, maxLevel: 85, requiresAny: ["autopilot", "fleet"] },
+      { id: "torque", name: "Increased Torque", effect: "Faster Vans cost 25% less", baseCost: 10_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 10_000_000_000 },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
       { id: "drones", name: "Delivery Drones", effect: "+1 invisible drone — drops straight onto a stop, ignoring roads", baseCost: 1_000_000_000, costMult: 1.8, maxLevel: 200, requiresCash: 1_000_000_000 },
@@ -273,10 +279,10 @@ export function mileagePay(u: Record<string, number>) {
 export function lockerPerRow(u: Record<string, number>) {
   return u.lockers ?? 0;
 }
-// Police Contract -> cash earned each time a rival makes a delivery (per level, scaled to
-// your current per-delivery pay so it stays relevant as the economy grows).
+// Police Contract -> cash earned each time a rival makes a delivery: 1000× your per-delivery
+// pay (a hefty fine), so it stays relevant as the economy grows.
 export function policeFine(u: Record<string, number>) {
-  return (u.police ?? 0) * perDelivery(u);
+  return (u.police ?? 0) * perDelivery(u) * 1000;
 }
 // Map Expansion level -> feed to sizeForExpansion for the current grid dims.
 export function expandLevel(u: Record<string, number>) {
