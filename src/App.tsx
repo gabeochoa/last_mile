@@ -3,6 +3,7 @@ import { Theme } from "@astryxdesign/core";
 import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
+import { Settings } from "./Settings";
 import { Upgrades, makeMicrographic } from "./Upgrades";
 import { BUCKETS, upgradeCost, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, speedLimit, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
@@ -79,6 +80,7 @@ export function App() {
   const [autoStartEnabled, setAutoStartEnabled] = useState(loaded?.autoStartOn ?? true);
   const [autoBuyEnabled, setAutoBuyEnabled] = useState(loaded?.autoBuyOn ?? true);
   const [hideCompleted, setHideCompleted] = useState(loaded?.hideComplete ?? false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // player's chosen brand color; recolors the whole UI + canvas from one value.
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
@@ -338,18 +340,7 @@ export function App() {
               onClick={() => setAutoBuyEnabled((v) => !v)}
             />
           )}
-          <BannerBtn
-            icon={muted ? "🔇" : "🔊"}
-            label={muted ? "Sound: off" : "Sound: on"}
-            active={!muted}
-            onClick={() => {
-              const next = !muted;
-              setMuted(next);
-              setMutedState(next);
-            }}
-          />
-          {/* temporary: full reset (wipe save + reload) for testing */}
-          <BannerBtn icon="↺" label="Reset — wipe save, start with $50k" color={accent} onClick={onRestart} />
+          <BannerBtn icon="⚙" label="Settings & about" onClick={() => setSettingsOpen(true)} />
         </div>
       </div>
 
@@ -468,6 +459,20 @@ export function App() {
           </div>
         </div>
       </div>
+
+      {settingsOpen && (
+        <Settings
+          accent={accent}
+          muted={muted}
+          onToggleMute={() => {
+            const next = !muted;
+            setMuted(next);
+            setMutedState(next);
+          }}
+          onReset={onRestart}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
 
       {intro && <Intro accent={accent} onPickAccent={setAccent} onStart={() => setIntro(false)} />}
       {ended && (
