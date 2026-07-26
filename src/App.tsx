@@ -233,18 +233,10 @@ export function App() {
     return () => window.clearInterval(id);
   }, [upgrades.autobuy, autoBuyEnabled]);
 
-  // Cash EARNED per day: snapshot the running earnings total (see earnedRef) between
-  // day completions.
-  const [dayRate, setDayRate] = useState(0);
-  const lastDayEarnedRef = useRef(0);
-  const prevRoutesRef = useRef(stats.routes);
-  useEffect(() => {
-    if (stats.routes > prevRoutesRef.current) {
-      setDayRate(earnedRef.current - lastDayEarnedRef.current);
-      lastDayEarnedRef.current = earnedRef.current;
-      prevRoutesRef.current = stats.routes;
-    }
-  }, [stats.routes]);
+  // $/day is a PREDICTION of a day's income — your deliveries × per-delivery pay plus the
+  // completion bonus — NOT a measured tally. Spending on upgrades (or a slow/fast day) no
+  // longer distorts it; it just reflects what a day's route is worth right now.
+  const dayRate = (BASE_PACKAGES + extraPackages(upgrades)) * perDelivery(upgrades) + routeBonus(upgrades);
 
   // A new rival company (distinct color, never yours) appears every 5 expansions.
   // Memoized so its array reference is stable (the canvas caches keyed on it).
