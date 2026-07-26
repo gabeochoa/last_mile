@@ -60,6 +60,8 @@ export type Upgrade = {
   requiresLevel?: number;
   // ...or until ANY of these upgrades is owned (level >= 1)
   requiresAny?: string[];
+  // ...and/or until your cash first reaches this much (late-game unlocks)
+  requiresCash?: number;
   // maxLevel is a fluctuating capacity, not true completion: keep the row visible and
   // just disable the button when full (never show MAX / hide it).
   softCap?: boolean;

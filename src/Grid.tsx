@@ -7,8 +7,15 @@ import { playSfx } from "./audio";
 
 const BG = "#0F0F0F";
 const INK = "#ECE7DA";
+const INK_RGB: [number, number, number] = [236, 231, 218];
 const RIVAL = "#4C86E8"; // rival delivery companies (blue), confined to expanded territory
 const EMPTY_SET: Set<number> = new Set(); // stable empty fallback for optional layout.reserved
+
+// hex "#rrggbb" -> [r,g,b], for the pixel-buffer renderer on huge (zoomed-out) maps.
+const hexToRgb = (h: string): [number, number, number] => {
+  const n = parseInt(h.replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
 
 // Every hired driver back on a depot? (Trivially true with no fleet out.) The day
 // only completes once this holds AND the player is home AND all deliveries are done.
@@ -738,6 +745,10 @@ export function Grid({
   const bgKeyRef = useRef<{ blocked: unknown; reserved: unknown; colors: unknown; cell: number; offX: number; offY: number; w: number }>(
     { blocked: null, reserved: null, colors: null, cell: 0, offX: 0, offY: 0, w: 0 },
   );
+  // cols×rows offscreen buffer: on huge maps the dynamic layer is drawn one pixel per
+  // cell here (thousands of arcs/rects collapse to typed-array writes), then blitted scaled.
+  const pixelCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pixelImgRef = useRef<ImageData | null>(null); // reused each frame (fill(0), no realloc)
   const drawRef = useRef<(c: number) => void>(() => {});
   const animRafRef = useRef(0);
   const prevCellRef = useRef(cell);   // last real cell — a drop means the grid grew
@@ -784,7 +795,7 @@ export function Grid({
     const gridW = gcols * cell;
     const gridH = grows * cell;
 
-    const dot = Math.max(4, Math.round(cell * 0.15));
+    const dot = Math.max(2, Math.round(cell * 0.13));
 
     // depot glyph: ink outline box + ⌂ (accent when armed).
     const drawDepot = (c: number, accent: boolean) => {
@@ -849,6 +860,61 @@ export function Grid({
     }
     ctx.drawImage(bg, 0, 0);
 
+    const armed = specials.size > 0 && collected.size === specials.size;
+    const rivCenters = layout.rivalCenters ?? [];
+
+    // On zoomed-out maps each cell is only a pixel or two; drawing thousands of arcs and
+    // rects every frame is THE endgame bottleneck. Below this cell size, paint the whole
+    // dynamic layer into a cols×rows pixel buffer (one typed-array write per cell) and blit
+    // it scaled — a few thousand array writes + one drawImage instead of thousands of ctx ops.
+    const pixelMode = cell <= 6;
+
+    if (pixelMode) {
+      const pw = gcols;
+      const ph = grows;
+      if (!pixelCanvasRef.current) pixelCanvasRef.current = document.createElement("canvas");
+      const pc = pixelCanvasRef.current;
+      if (pc.width !== pw || pc.height !== ph) { pc.width = pw; pc.height = ph; pixelImgRef.current = null; }
+      const pctx = pc.getContext("2d")!;
+      let img = pixelImgRef.current;
+      if (!img) { img = pctx.createImageData(pw, ph); pixelImgRef.current = img; }
+      const data = img.data;
+      data.fill(0); // transparent; the cached static layer shows through untouched cells
+      const put = (c: number, rgb: [number, number, number], a: number) => {
+        const i = c * 4;
+        data[i] = rgb[0]; data[i + 1] = rgb[1]; data[i + 2] = rgb[2]; data[i + 3] = a;
+      };
+      const putXY = (x: number, y: number, rgb: [number, number, number], a: number) => {
+        if (x < 0 || x >= pw || y < 0 || y >= ph) return;
+        put(y * pw + x, rgb, a);
+      };
+      const accentRgb = hexToRgb(ACCENT);
+      const rgbCache = new Map<string, [number, number, number]>();
+      const rivalRgb = (c: number): [number, number, number] => {
+        const hex = cellColor(c, rivCenters, gcols, rivalColors);
+        let v = rgbCache.get(hex);
+        if (!v) { v = hexToRgb(hex); rgbCache.set(hex, v); }
+        return v;
+      };
+      // low -> high priority (later writes win over the same pixel)
+      for (const c of visited) put(c, INK_RGB, 46);
+      for (const c of specials) if (collected.has(c)) put(c, INK_RGB, 90);
+      for (const c of rivalDone) put(c, rivalRgb(c), 150);
+      for (const c of converted) put(c, accentRgb, 255);
+      for (const c of specials) if (!collected.has(c)) put(c, accentRgb, 255);
+      for (const c of depots) put(c, armed ? accentRgb : INK_RGB, 255);
+      for (const v of vans) putXY(Math.round(v.dx), Math.round(v.dy), accentRgb, 255);
+      for (const v of rivalVans) putXY(Math.round(v.x), Math.round(v.y), hexToRgb(v.color), 255);
+      putXY(player.x, player.y, accentRgb, 255);
+      pctx.putImageData(img, 0, 0);
+      const prevSmooth = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(pc, offX, offY, gridW, gridH);
+      ctx.imageSmoothingEnabled = prevSmooth;
+      return;
+    }
+
+    // ── shape rendering (small/medium maps where individual cells are legible) ──
     // visited cells filled ink at ~18% alpha (coverage feedback — always drawn)
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.18;
@@ -901,7 +967,6 @@ export function Grid({
 
     // every depot marked (ink outline box + ⌂ glyph); once all packages are
     // collected they arm and switch to an accent highlight (finish at any of them).
-    const armed = specials.size > 0 && collected.size === specials.size;
     for (const c of depots) drawDepot(c, armed);
 
     // A small ⌂ stamped on any van that's on its way back to a depot — so it's obvious
@@ -936,7 +1001,6 @@ export function Grid({
     // (rival delivery-point rings are drawn in the cached static layer above)
 
     // serviced rival points fill in (a rival van has delivered there)
-    const rivCenters = layout.rivalCenters ?? [];
     for (const c of rivalDone) {
       const cx = offX + (c % gcols) * cell + cell / 2;
       const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
