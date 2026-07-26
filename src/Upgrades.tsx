@@ -132,7 +132,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
         {BUCKETS.map((bucket) => {
           // hide upgrades whose prerequisite isn't owned yet, then optionally completed ones
           const visible = bucket.items.filter(
-            (i) => !i.requires || (upgrades[i.requires] ?? 0) >= 1,
+            (i) => !i.requires || (upgrades[i.requires] ?? 0) >= (i.requiresLevel ?? 1),
           );
           const items = hideCompleted ? visible.filter((i) => !isDone(i)) : visible;
           if (items.length === 0) return null;
