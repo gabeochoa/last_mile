@@ -131,9 +131,11 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
       <VStack isScrollable style={{ flex: 1, minHeight: 0 }}>
         {BUCKETS.map((bucket) => {
           // hide upgrades whose prerequisite isn't owned yet, then optionally completed ones
-          const visible = bucket.items.filter(
-            (i) => !i.requires || (upgrades[i.requires] ?? 0) >= (i.requiresLevel ?? 1),
-          );
+          const visible = bucket.items.filter((i) => {
+            if (i.requires && (upgrades[i.requires] ?? 0) < (i.requiresLevel ?? 1)) return false;
+            if (i.requiresAny && !i.requiresAny.some((id) => (upgrades[id] ?? 0) >= 1)) return false;
+            return true;
+          });
           const items = hideCompleted ? visible.filter((i) => !isDone(i)) : visible;
           if (items.length === 0) return null;
           return (

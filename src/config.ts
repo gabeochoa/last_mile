@@ -33,6 +33,8 @@ export type Upgrade = {
   // hide this upgrade in the shop until the named upgrade reaches requiresLevel (default 1)
   requires?: string;
   requiresLevel?: number;
+  // ...or until ANY of these upgrades is owned (level >= 1)
+  requiresAny?: string[];
   // maxLevel is a fluctuating capacity, not true completion: keep the row visible and
   // just disable the button when full (never show MAX / hide it).
   softCap?: boolean;
@@ -77,7 +79,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
       { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 10, requires: "autoDeliver", requiresLevel: 1 },
-      { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1 },
+      { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
       { id: "vanSpeed", name: "Faster Vans", effect: "vans drive faster", baseCost: 100, costMult: 1.5, maxLevel: 12, requires: "fleet" },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 8, requires: "autoStart", requiresLevel: 1 },
     ],
@@ -94,7 +96,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
   {
     name: "TERRITORY",
     items: [
-      { id: "expand", name: "Map Expansion", effect: "open new territory (mostly rival-held)", baseCost: 40, costMult: 1.2, maxLevel: 20 },
+      { id: "expand", name: "Map Expansion", effect: "open new territory (mostly rival-held)", baseCost: 40, costMult: 1.2, maxLevel: 20, requiresAny: ["autopilot", "fleet"] },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 8, requires: "buyout", requiresLevel: 1 },
     ],
