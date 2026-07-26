@@ -87,7 +87,7 @@ function UpgradeEnd({
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
   }
-  const cost = nextCost(item, level, takeover);
+  const cost = nextCost(item, level, { takeover, cash });
   const full = level >= maxLevel;
   // permanent MAX/OWNED (not a soft cap) shows a badge, no button
   if (full && !item.softCap) {
@@ -134,7 +134,9 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
   // Newly-unlocked rows animate IN (start collapsed, then expand) instead of popping.
   const isVisible = (i: Upgrade) =>
     (!i.requires || (upgrades[i.requires] ?? 0) >= (i.requiresLevel ?? 1)) &&
-    (!i.requiresAny || i.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1));
+    (!i.requiresAny || i.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) &&
+    // cash-gated late-game unlocks stay hidden until you first reach the threshold (or own it)
+    (i.requiresCash == null || cash >= i.requiresCash || (i.id != null && (upgrades[i.id] ?? 0) > 0));
   const seenRef = useRef<Set<string>>(new Set());
   const [, forceSeen] = useState(0);
   const visibleNames = BUCKETS.flatMap((b) => b.items).filter(isVisible).map((i) => i.name);

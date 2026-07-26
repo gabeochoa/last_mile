@@ -33,6 +33,18 @@ export function setVolume(v: number): void {
   localStorage.setItem(VOL_KEY, String(Math.min(1, Math.max(0, v))));
 }
 
+// Per-sound enable flags (default on) so players can silence individual chirps.
+export type SfxName = "deliver" | "purchase" | "route";
+const SFX_KEY = "lastmile.sfx.";
+export function sfxEnabled(name: SfxName): boolean {
+  if (typeof localStorage === "undefined") return true;
+  return localStorage.getItem(SFX_KEY + name) !== "0";
+}
+export function setSfxEnabled(name: SfxName, on: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(SFX_KEY + name, on ? "1" : "0");
+}
+
 // One osc + gain envelope: quick attack, exponential decay.
 function blip(c: AudioContext, freq: number, start: number, dur: number, peak: number): void {
   const osc = c.createOscillator();
@@ -47,9 +59,9 @@ function blip(c: AudioContext, freq: number, start: number, dur: number, peak: n
   osc.stop(start + dur + 0.02);
 }
 
-export function playSfx(name: "deliver" | "purchase" | "route"): void {
+export function playSfx(name: SfxName): void {
   const vol = getVolume();
-  if (vol <= 0) return;
+  if (vol <= 0 || !sfxEnabled(name)) return;
   const c = getCtx();
   if (!c) return;
   const t = c.currentTime;

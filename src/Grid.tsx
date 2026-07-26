@@ -179,6 +179,7 @@ export function Grid({
   autopilot,
   fleet,
   poach = false,
+  quietSfx = false,
   vanSpeed,
   daySpeed,
   perDelivery,
@@ -204,6 +205,8 @@ export function Grid({
   fleet: number;
   // Poach Rivals owned: your vans may deliver to (steal) rival stops
   poach?: boolean;
+  // late game (huge $): throttle the delivery chirp to 1 per 50 deliveries so it isn't a drone
+  quietSfx?: boolean;
   vanSpeed: number;
   daySpeed: number;
   perDelivery: number;
@@ -431,7 +434,7 @@ export function Grid({
       const dir = flowStep(here, target);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, Math.max(45, Math.round(340 / vanSpeed)));
+    }, Math.max(22, Math.round(300 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot, vanSpeed]);
@@ -472,7 +475,7 @@ export function Grid({
     if (fleet <= 0) return;
     // match the autopilot's cell-crossing time (same 340/vanSpeed cadence, 45ms floor),
     // capped below 1 so a van always visibly slides rather than teleporting.
-    const speed = Math.min(0.9, 45 / Math.max(45, Math.round(340 / vanSpeed)));
+    const speed = Math.min(0.95, 45 / Math.max(22, Math.round(300 / vanSpeed)));
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
@@ -567,8 +570,8 @@ export function Grid({
       // Rivals always drive one Faster-Vans level ahead of you (+0.5 to the speed factor),
       // so they usually finish their deliveries before you do and you rarely wait on them.
       // Converted to a slide distance for the 55ms rival tick, capped below 1 (no teleport).
-      const rivalMs = Math.max(45, Math.round(340 / (vanSpeedRef.current + 0.5)));
-      const speed = Math.min(0.9, 55 / rivalMs);
+      const rivalMs = Math.max(22, Math.round(300 / (vanSpeedRef.current + 0.5)));
+      const speed = Math.min(0.95, 55 / rivalMs);
       // Compute synchronously from the ref (NOT inside a setState updater — that runs
       // later, so the `delivered` side-effect never fired: circles never got marked).
       const delivered: number[] = [];
@@ -764,7 +767,12 @@ export function Grid({
   const prevCollectedRef = useRef(collected.size);
   const prevSfxRoutesRef = useRef(routes);
   useEffect(() => {
-    if (collected.size > prevCollectedRef.current) playSfx("deliver");
+    if (collected.size > prevCollectedRef.current) {
+      // late game the chirp would machine-gun; throttle to ~1 per 50 deliveries
+      if (!quietSfx || Math.floor(collected.size / 50) > Math.floor(prevCollectedRef.current / 50)) {
+        playSfx("deliver");
+      }
+    }
     prevCollectedRef.current = collected.size;
   }, [collected]);
   useEffect(() => {

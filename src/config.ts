@@ -114,11 +114,14 @@ export function upgradeCost(u: Upgrade, level: number): number {
 export function buyoutDiscount(takeover: number): number {
   return Math.min(0.9, Math.max(0, takeover) * 0.03);
 }
-// Next-level cost with the poach discount applied to Buy Out Rivals (a no-op for
-// everything else). All cost display + charging routes through this.
-export function nextCost(u: Upgrade, level: number, takeover = 0): number {
+// Next-level cost with contextual discounts applied: the poach discount on Buy Out Rivals,
+// and a 50% break on Map Expansion once you're a $100B operation (economies of scale).
+// Everything else is unchanged. All cost display + charging routes through this.
+export function nextCost(u: Upgrade, level: number, ctx: { takeover?: number; cash?: number } = {}): number {
   const base = upgradeCost(u, level);
-  return u.id === "buyout" ? Math.round(base * (1 - buyoutDiscount(takeover))) : base;
+  if (u.id === "buyout") return Math.round(base * (1 - buyoutDiscount(ctx.takeover ?? 0)));
+  if (u.id === "expand" && (ctx.cash ?? 0) >= 100_000_000_000) return Math.round(base * 0.5);
+  return base;
 }
 // Poach Rivals owned: your vans may deliver to rival stops.
 export function poachActive(u: Record<string, number>): boolean {
@@ -131,10 +134,10 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
-      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 300, requires: "autoDeliver", requiresLevel: 1, softCap: true, capHint: "One van per column — expand your map for more." },
+      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 3000, requires: "autoDeliver", requiresLevel: 1, softCap: true, capHint: "Up to ten vans per column — expand your map for more." },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
       { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 1000000, costMult: 1, maxLevel: 1 },
-      { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 60, requiresAny: ["autopilot", "fleet"] },
+      { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 85, requiresAny: ["autopilot", "fleet"] },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
     ],
@@ -144,6 +147,8 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "demand", name: "Spread Flyers", effect: "more deliveries per day", baseCost: 5, costMult: 1.1, softCap: true },
       { id: "routeOpt", name: "Better Rates", effect: "+$2 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
+      { id: "bookstore", name: "Buy the Bookstore", effect: "×5 pay on every delivery — same effort", baseCost: 10_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 10_000_000_000 },
+      { id: "postoffice", name: "Take Over the Post Office", effect: "×10 pay on every delivery, on top of everything", baseCost: 100_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000_000 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
       // raises the flat per-contract amount; Tips multiplies the whole thing.
@@ -177,8 +182,13 @@ export const ROUTE_RATE = 2;
 export function perDeliveryAt(routeOptLevel: number) {
   return SPECIAL_BONUS + routeOptLevel * ROUTE_RATE;
 }
+// Late-game businesses multiply EVERY delivery's pay for the same effort: the Bookstore
+// is ×5, taking over the Post Office is a further ×10 on top (×50 combined).
+export function deliveryMult(u: Record<string, number>) {
+  return (u.bookstore ? 5 : 1) * (u.postoffice ? 10 : 1);
+}
 export function perDelivery(u: Record<string, number>) {
-  return perDeliveryAt(u.routeOpt ?? 0);
+  return perDeliveryAt(u.routeOpt ?? 0) * deliveryMult(u);
 }
 // Per-contract cash/sec: $25 base, +10%/Corporate Accounts level, then ×1.5/Tips level.
 // Corporate Accounts grows the amount (a percentage boost); Tips scales the whole thing.

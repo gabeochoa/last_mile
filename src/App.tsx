@@ -118,10 +118,12 @@ export function App() {
   // Rival companies present (a new one every 5 expansions) and how many you've claimed.
   const companyCount = rivalCompanyCount(expandLevel(upgrades));
   const boughtCount = upgrades.buyout ?? 0;
+  // rival companies you haven't bought out yet (shown in the banner)
+  const rivalsRemaining = Math.max(0, companyCount - boughtCount);
   const maxLevels: Record<string, number> = {
     demand: Math.max(0, stats.capacity - BASE_PACKAGES),
-    // one van per column of the map — expand to field more drivers
-    fleet: dims.cols,
+    // up to ten vans per column of the map — expand to field more drivers
+    fleet: dims.cols * 10,
     // each Contract reassigns a driver, so you can have at most as many as your fleet
     contracts: upgrades.fleet ?? 0,
     // you can only buy out companies you've expanded far enough to see
@@ -146,7 +148,7 @@ export function App() {
       if (!it.id) return Infinity;
       const lvl = upgrades[it.id] ?? 0;
       const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
-      return lvl >= max ? Infinity : nextCost(it, lvl, takeover);
+      return lvl >= max ? Infinity : nextCost(it, lvl, { takeover, cash });
     })
     .sort((a, b) => a - b);
   const canAffordTwo = cash >= (nextCosts[0] ?? Infinity) + (nextCosts[1] ?? Infinity);
@@ -180,7 +182,7 @@ export function App() {
     if (!u) return;
     const level = upgrades[id] ?? 0;
     if (level >= (maxLevels[id] ?? u.maxLevel ?? 1)) return;
-    const cost = nextCost(u, level, takeover);
+    const cost = nextCost(u, level, { takeover, cash });
     if (cash < cost) return;
     setCash((c) => c - cost);
     setUpgrades((prev) => ({ ...prev, [id]: level + 1 }));
@@ -227,7 +229,7 @@ export function App() {
       if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
       const lvl = upgrades[it.id] ?? 0;
       if (lvl >= (maxLevels[it.id] ?? it.maxLevel ?? 1)) continue;
-      const cost = nextCost(it, lvl, takeover);
+      const cost = nextCost(it, lvl, { takeover, cash });
       if (cost <= cash && cost < bestCost) {
         best = it.id;
         bestCost = cost;
@@ -313,7 +315,6 @@ export function App() {
         {/* Stats grouped left so they never collide with the right-hand controls. */}
         <div style={{ display: "flex", alignItems: "center", gap: 24, minWidth: 0 }}>
           <span>DAY {stats.routes + 1}</span>
-          {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
           <span>
             CASH ${fmtNum(displayCash)}
             <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
@@ -321,6 +322,24 @@ export function App() {
             </span>
           </span>
         </div>
+
+        {/* Deliveries + rivals, absolutely centered across the banner. */}
+        {bigMap && (
+          <div
+            style={{
+              position: "absolute",
+              insetInlineStart: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>
+            {rivalsRemaining > 0 && <span>RIVALS {rivalsRemaining}</span>}
+          </div>
+        )}
 
         {/* Controls grouped right: autopilot toggle · drivers · SFX · reset */}
         <div
@@ -455,6 +474,7 @@ export function App() {
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={driversOnGrid}
           poach={poachActive(upgrades)}
+          quietSfx={cash >= 100_000_000_000}
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}

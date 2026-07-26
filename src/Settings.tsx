@@ -1,4 +1,11 @@
 import { useState } from "react";
+import { sfxEnabled, setSfxEnabled, type SfxName } from "./audio";
+
+const SFX_ROWS: { name: SfxName; label: string }[] = [
+  { name: "deliver", label: "delivery complete" },
+  { name: "purchase", label: "upgrade bought" },
+  { name: "route", label: "day ended" },
+];
 
 // Gear-button modal: Settings (volume + reset + cheats) and About tabs. Micrographic
 // styling via inline styles (like Intro/Ending), accent-tinted from the player's color.
@@ -21,6 +28,16 @@ export function Settings({
 }) {
   const [tab, setTab] = useState<"settings" | "about">("settings");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [sfx, setSfx] = useState(() => ({
+    deliver: sfxEnabled("deliver"),
+    purchase: sfxEnabled("purchase"),
+    route: sfxEnabled("route"),
+  }));
+  const toggleSfx = (name: SfxName) => {
+    const on = !sfx[name];
+    setSfxEnabled(name, on);
+    setSfx((s) => ({ ...s, [name]: on }));
+  };
 
   const tabStyle = (active: boolean) => ({
     background: "transparent",
@@ -98,6 +115,33 @@ export function Settings({
                 <span style={{ fontSize: 12, opacity: 0.7, width: 36, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
               </div>
             </div>
+            {/* Per-sound toggles so annoying chirps can be silenced individually. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontSize: 11, letterSpacing: 2, color: "#8C877B" }}>SOUNDS</span>
+              {SFX_ROWS.map((row) => (
+                <button
+                  key={row.name}
+                  onClick={() => toggleSfx(row.name)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    color: sfx[row.name] ? "#ECE7DA" : "#57534A",
+                  }}
+                >
+                  <span>{row.label}</span>
+                  <span>{sfx[row.name] ? "☑" : "☐"}</span>
+                </button>
+              ))}
+            </div>
+
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, letterSpacing: 1 }}>RESET PROGRESS</span>
               <button
