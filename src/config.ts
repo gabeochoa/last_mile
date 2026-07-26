@@ -140,6 +140,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 85, requiresAny: ["autopilot", "fleet"] },
       { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
+      { id: "drones", name: "Delivery Drones", effect: "+1 invisible drone — drops straight onto a stop, ignoring roads", baseCost: 1_000_000_000, costMult: 1.8, maxLevel: 200, requiresCash: 1_000_000_000 },
     ],
   },
   {
@@ -149,11 +150,12 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "routeOpt", name: "Better Rates", effect: "+$2 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "bookstore", name: "Buy the Bookstore", effect: "×5 pay on every delivery — same effort", baseCost: 10_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 10_000_000_000 },
       { id: "postoffice", name: "Take Over the Post Office", effect: "×10 pay on every delivery, on top of everything", baseCost: 100_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000_000 },
+      { id: "police", name: "Police Contract", effect: "fine rivals — earn your delivery pay each time a rival delivers", baseCost: 100_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
       // raises the flat per-contract amount; Tips multiplies the whole thing.
       { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
-      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "autoStart", requiresLevel: 1 },
+      { id: "uncontract", name: "Cancel a Contract", effect: "return a driver to the grid (−1 contract); next contract costs less again", baseCost: 0, costMult: 1, requires: "contracts", requiresLevel: 1 },
       { id: "contractBoost", name: "Corporate Accounts", effect: "+10% contract pay per level", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "×1.5 contract pay per level", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
     ],
@@ -218,6 +220,15 @@ export function daySpeed(u: Record<string, number>) {
 // Depots upgrade -> number of warehouses (START is always one).
 export function depotCount(u: Record<string, number>) {
   return 1 + (u.depots ?? 0);
+}
+// Delivery Drones -> how many invisible drones deliver to your stops each tick.
+export function droneCount(u: Record<string, number>) {
+  return u.drones ?? 0;
+}
+// Police Contract -> cash earned each time a rival makes a delivery (per level, scaled to
+// your current per-delivery pay so it stays relevant as the economy grows).
+export function policeFine(u: Record<string, number>) {
+  return (u.police ?? 0) * perDelivery(u);
 }
 // Map Expansion level -> feed to sizeForExpansion for the current grid dims.
 export function expandLevel(u: Record<string, number>) {

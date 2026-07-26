@@ -180,6 +180,8 @@ export function Grid({
   fleet,
   poach = false,
   quietSfx = false,
+  droneCount = 0,
+  policeFine = 0,
   vanSpeed,
   daySpeed,
   perDelivery,
@@ -207,6 +209,10 @@ export function Grid({
   poach?: boolean;
   // late game (huge $): throttle the delivery chirp to 1 per 50 deliveries so it isn't a drone
   quietSfx?: boolean;
+  // Delivery Drones: invisible units that auto-complete this many of your stops per tick
+  droneCount?: number;
+  // Police Contract: cash paid to you each time a rival makes a delivery (0 = not owned)
+  policeFine?: number;
   vanSpeed: number;
   daySpeed: number;
   perDelivery: number;
@@ -315,6 +321,8 @@ export function Grid({
   onPoachRef.current = onPoach;
   const poachRef = useRef(poach);
   poachRef.current = poach;
+  const policeFineRef = useRef(policeFine);
+  policeFineRef.current = policeFine;
   const onStatsRef = useRef(onStats);
   onStatsRef.current = onStats;
   const autoDeliverRef = useRef(autoDeliver);
@@ -541,6 +549,42 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
 
+  // Delivery Drones: invisible units (not rendered — they "drop in from above"). Each
+  // tick, up to droneCount uncollected stops are completed instantly, ignoring roads. A
+  // pure income/clear-speed boost for the very late game; can finish the day's route too.
+  useEffect(() => {
+    if (droneCount <= 0) return;
+    const id = window.setInterval(() => {
+      if (gsRef.current.dayEnded) return;
+      let state = gsRef.current;
+      let earned = 0;
+      let n = droneCount;
+      for (const c of state.layout.specials) {
+        if (n <= 0) break;
+        if (state.collected.has(c)) continue;
+        const hit = collectAt(state, c, { perDelivery: perDeliveryRef.current });
+        if (hit.earned) { state = hit.state; earned += hit.earned; n--; }
+      }
+      if (state === gsRef.current) return;
+      gsRef.current = state;
+      setGs(state);
+      if (earned) onEarnRef.current(earned);
+      // drones may have cleared the last stops — end the day if everyone else is already home
+      const done = finishIfDone(gsRef.current, {
+        routeBonus: routeBonusRef.current,
+        driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
+        rivalsDone: rivalsAllDone(),
+      });
+      if (done.state !== gsRef.current) {
+        gsRef.current = done.state;
+        setGs(done.state);
+        if (done.earned) onEarnRef.current(done.earned);
+      }
+    }, 250);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [droneCount]);
+
   // Rivals field one van per column (like you). Re-seeded only when the RESERVED set
   // changes (new day / grow / buyout) — NOT when Spread Flyers adds specials, which
   // makes a fresh layout object but keeps the same reserved reference.
@@ -592,6 +636,8 @@ export function Grid({
         for (const c of delivered) nd.add(c);
         rivalDoneRef.current = nd;
         setRivalDone(nd);
+        // Police Contract: fine the rivals for every delivery they just made on your turf
+        if (policeFineRef.current > 0) onEarnRef.current(policeFineRef.current * delivered.length);
       }
       // rivals finishing (all points serviced + vans gone) can be the last thing the day
       // was waiting on — end it now if the player + fleet are already home.
