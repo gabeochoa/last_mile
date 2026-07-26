@@ -181,13 +181,13 @@ export function App() {
         {/* Stats grouped left so they never collide with the right-hand controls. */}
         <div style={{ display: "flex", alignItems: "center", gap: 24, minWidth: 0 }}>
           <span>DAY {stats.routes + 1}</span>
+          {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
           <span>
             CASH ${fmtNum(cash)}
             <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
               {dayRate >= 0 ? "+" : "−"}${fmtNum(Math.abs(dayRate))}/day
             </span>
           </span>
-          {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
         </div>
 
         {/* Controls grouped right: autopilot toggle · drivers · SFX · reset */}
