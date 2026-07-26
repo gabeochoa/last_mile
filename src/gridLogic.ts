@@ -121,17 +121,19 @@ export function bfsNextStep(
   return [(step % cols) - (from % cols), Math.floor(step / cols) - Math.floor(from / cols)];
 }
 
-// Flow field: ONE BFS from `target` over open cells, returning for every cell the
-// next cell to step to in order to reach `target` (-1 at the target, -2 unreachable).
-// Compute once per target and reuse for every van heading there — O(cells) instead of
-// a fresh BFS per van per tick. Uses a ring-buffer queue (no O(n) Array.shift).
-export function flowField(blocked: Set<number>, cols: number, rows: number, target: number): Int32Array {
+// Flow field: ONE BFS from `target` over open cells, returning for every cell a 1-byte
+// DIRECTION code for the next step toward `target`: 0 = target/unreachable (don't move),
+// 1 = +x, 2 = −x, 3 = +y, 4 = −y. A Uint8Array (not Int32) keeps each cached field 4× smaller
+// (they're grid-sized and there can be dozens cached). Compute once per target, reuse for
+// every van. Ring-buffer queue (no O(n) Array.shift).
+export function flowField(blocked: Set<number>, cols: number, rows: number, target: number): Uint8Array {
   const n = cols * rows;
-  const from = new Int32Array(n).fill(-2);
+  const dir = new Uint8Array(n); // 0 everywhere = unreachable/target until BFS fills it
+  const seen = new Uint8Array(n);
   const q = new Int32Array(n);
   let head = 0;
   let tail = 0;
-  from[target] = -1;
+  seen[target] = 1;
   q[tail++] = target;
   while (head < tail) {
     const c = q[head++];
@@ -142,12 +144,24 @@ export function flowField(blocked: Set<number>, cols: number, rows: number, targ
       const ny = y + dy;
       if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
       const nc = ny * cols + nx;
-      if (from[nc] !== -2 || blocked.has(nc)) continue;
-      from[nc] = c; // to head toward target from nc, step to c
+      if (seen[nc] || blocked.has(nc)) continue;
+      seen[nc] = 1;
+      // from nc, step back toward c (= nc − (dx,dy)) to head to the target
+      dir[nc] = -dx === 1 ? 1 : -dx === -1 ? 2 : -dy === 1 ? 3 : 4;
       q[tail++] = nc;
     }
   }
-  return from;
+  return dir;
+}
+// Decode a flow-field direction code (see flowField) into a [dx,dy] step, or null to stop.
+export function flowDir(code: number): [number, number] | null {
+  switch (code) {
+    case 1: return [1, 0];
+    case 2: return [-1, 0];
+    case 3: return [0, 1];
+    case 4: return [0, -1];
+    default: return null;
+  }
 }
 
 export type Layout = {

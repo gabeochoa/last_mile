@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
-import { BASE_COLS, CELL, PAD, idx, flowField } from "./gridLogic";
+import { BASE_COLS, CELL, PAD, idx, flowField, flowDir } from "./gridLogic";
 import { addPackages, applyMove, collectAt, collectHere, finishIfDone, growState, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
@@ -306,21 +306,31 @@ export function Grid({
   const beginDayRef = useRef<() => void>(() => {});
   // autopilot's committed package target (persists until collected) — prevents dithering
   const autopilotTargetRef = useRef<number | null>(null);
-  // Cached BFS flow fields per target cell — computed once, reused by every van until
-  // the map changes (new day / grow), so pathfinding is paid once, not per tick.
-  const flowCacheRef = useRef<{ blocked: Set<number> | null; map: Map<number, Int32Array> }>({ blocked: null, map: new Map() });
+  // Cached BFS flow fields per target cell — computed once, reused by every van until the
+  // map changes (new day / grow), so pathfinding is paid once, not per tick. Each field is
+  // a full-grid Int32Array (~cols*rows*4 bytes), so the cache is LRU-CAPPED: with lockers
+  // turning the whole map into targets an uncapped cache would balloon to hundreds of MB.
+  const FLOW_CACHE_CAP = 64;
+  const flowCacheRef = useRef<{ blocked: Set<number> | null; map: Map<number, Uint8Array> }>({ blocked: null, map: new Map() });
   const flowStep = (from: number, target: number): [number, number] | null => {
     if (from === target) return null;
     const { blocked, cols, rows } = gsRef.current.layout;
-    if (flowCacheRef.current.blocked !== blocked) flowCacheRef.current = { blocked, map: new Map() };
-    let field = flowCacheRef.current.map.get(target);
-    if (!field) {
-      field = flowField(blocked, cols, rows, target);
-      flowCacheRef.current.map.set(target, field);
+    const cache = flowCacheRef.current;
+    if (cache.blocked !== blocked) {
+      cache.blocked = blocked;
+      cache.map.clear();
     }
-    const nc = field[from];
-    if (nc < 0) return null;
-    return [(nc % cols) - (from % cols), Math.floor(nc / cols) - Math.floor(from / cols)];
+    let field = cache.map.get(target);
+    if (field) {
+      // LRU touch: move to newest so it survives eviction
+      cache.map.delete(target);
+      cache.map.set(target, field);
+    } else {
+      field = flowField(blocked, cols, rows, target);
+      cache.map.set(target, field);
+      if (cache.map.size > FLOW_CACHE_CAP) cache.map.delete(cache.map.keys().next().value!); // evict oldest
+    }
+    return flowDir(field[from]);
   };
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;

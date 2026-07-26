@@ -220,6 +220,21 @@ export function App() {
     return () => window.clearInterval(id);
   }, []);
 
+  // Measured wall-clock length of a day (ms) — used to express passive contract income as a
+  // per-day figure in the cash breakdown (so every line there shares the same unit). Starts
+  // at a rough guess until the first day completes.
+  const dayMsRef = useRef(4000);
+  const lastDayAtRef = useRef(performance.now());
+  const prevRoutesForTimeRef = useRef(stats.routes);
+  useEffect(() => {
+    if (stats.routes !== prevRoutesForTimeRef.current) {
+      const now = performance.now();
+      dayMsRef.current = Math.max(500, now - lastDayAtRef.current);
+      lastDayAtRef.current = now;
+      prevRoutesForTimeRef.current = stats.routes;
+    }
+  }, [stats.routes]);
+
   // Ops Manager: once owned, auto-buy the single cheapest affordable, unlocked upgrade
   // on a tick. Held in a ref so the timer (bound once) always sees fresh cash/upgrades.
   const autoBuyStepRef = useRef(() => {});
@@ -544,6 +559,7 @@ export function App() {
             fontSize: 11,
             letterSpacing: 0.5,
             lineHeight: 1.6,
+            textAlign: "left",
             pointerEvents: "none",
           }}
         >
@@ -555,7 +571,7 @@ export function App() {
             const base = perDeliveryAt(upgrades.routeOpt ?? 0); // before businesses
             const deliveryIncome = del * perDelivery(upgrades);
             const bonus = routeBonus(upgrades);
-            const contracts = contractIncome(upgrades);
+            const contractsPerDay = contractIncome(upgrades) * (dayMsRef.current / 1000);
             return (
               <>
                 <div style={{ opacity: 0.7 }}>PER DAY</div>
@@ -565,7 +581,7 @@ export function App() {
                 {(upgrades.internet ?? 0) > 0 && <div>× 100 &nbsp;internet</div>}
                 <div>= ${fmtNum(deliveryIncome)} deliveries</div>
                 {bonus > 0 && <div>+ ${fmtNum(bonus)} end-of-day bonus</div>}
-                {contracts > 0 && <div>+ ${fmtNum(contracts)}/s contracts</div>}
+                {contractsPerDay > 0 && <div>+ ${fmtNum(contractsPerDay)}/day contracts</div>}
               </>
             );
           })()}
