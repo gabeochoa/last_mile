@@ -212,9 +212,10 @@ export function Grid({
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
   // (ref-mirrored). Van i homes to the i-th depot (round-robin over sorted depots).
-  // target = the package cell this van committed to (persists until collected) so it
-  // doesn't flip between equidistant packages and bounce in place.
-  const [vans, setVans] = useState<{ x: number; y: number; home: number; target: number | null }[]>([]);
+  // x,y = logical cell (steps on the fleet tick); dx,dy = eased on-screen position so
+  // the van SLIDES between cells. target = the package it committed to (persists until
+  // collected) so it doesn't flip between equidistant packages and bounce in place.
+  const [vans, setVans] = useState<{ x: number; y: number; dx: number; dy: number; home: number; target: number | null }[]>([]);
   const vansRef = useRef(vans);
   vansRef.current = vans;
   const rivalFractionRef = useRef(rivalFraction);
@@ -363,7 +364,9 @@ export function Grid({
     const sortedDepots = [...gs.layout.depots].sort((a, b) => a - b);
     const mkVan = (i: number) => {
       const home = sortedDepots[i % sortedDepots.length];
-      return { x: home % gcols, y: Math.floor(home / gcols), home, target: null };
+      const x = home % gcols;
+      const y = Math.floor(home / gcols);
+      return { x, y, dx: x, dy: y, home, target: null };
     };
     setVans((prev) => {
       if (layoutChanged || prev.length > fleet) {
@@ -406,7 +409,7 @@ export function Grid({
         const goal = target ?? van.home;
         const dir = bfsNextStep(layout.blocked, from, goal, gcols, grows);
         if (!dir) return { ...van, target };
-        const nv = { x: van.x + dir[0], y: van.y + dir[1], home: van.home, target };
+        const nv = { x: van.x + dir[0], y: van.y + dir[1], dx: van.dx, dy: van.dy, home: van.home, target };
         const { state, earned } = collectAt(gsRef.current, idx(nv.x, nv.y, gcols), {
           perDelivery: perDeliveryRef.current,
         });
@@ -435,6 +438,27 @@ export function Grid({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
+
+  // Smoothly ease each fleet van's on-screen position (dx,dy) toward its logical cell
+  // (x,y) so it slides between cells. Skips re-render once every van has settled.
+  useEffect(() => {
+    if (fleet <= 0) return;
+    const id = window.setInterval(() => {
+      setVans((vs) => {
+        let moved = false;
+        const next = vs.map((v) => {
+          if (v.dx === v.x && v.dy === v.y) return v;
+          const ndx = v.dx + (v.x - v.dx) * 0.35;
+          const ndy = v.dy + (v.y - v.dy) * 0.35;
+          moved = true;
+          const settled = Math.abs(ndx - v.x) < 0.02 && Math.abs(ndy - v.y) < 0.02;
+          return { ...v, dx: settled ? v.x : ndx, dy: settled ? v.y : ndy };
+        });
+        return moved ? next : vs;
+      });
+    }, 55);
+    return () => window.clearInterval(id);
+  }, [fleet]);
 
   // Keep a few rival delivery vans alive whenever rival points exist; re-seed on a
   // new layout. They drive in from offscreen, service a point, and drive back out.
@@ -675,8 +699,8 @@ export function Grid({
     const vinset = Math.round(cell * 0.25);
     for (const v of vans) {
       ctx.fillRect(
-        offX + v.x * cell + vinset,
-        offY + v.y * cell + vinset,
+        offX + v.dx * cell + vinset,
+        offY + v.dy * cell + vinset,
         cell - vinset * 2,
         cell - vinset * 2,
       );
