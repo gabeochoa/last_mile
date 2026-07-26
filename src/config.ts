@@ -96,7 +96,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "expand", name: "Map Expansion", effect: "open new territory (mostly rival-held)", baseCost: 40, costMult: 1.2, maxLevel: 20 },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
-      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 8 },
+      { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 8, requires: "buyout", requiresLevel: 1 },
     ],
   },
 ];
