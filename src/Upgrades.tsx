@@ -192,7 +192,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, hideCom
                   : item.id === "dayBonus"
                   ? `$${fmtNum(dayBonusReward(level))}/day → $${fmtNum(dayBonusReward(level + 1))}`
                   : item.id === "surge"
-                  ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} contract pay`
+                  ? `×${fmtNum(1.5 ** level)} → ×${fmtNum(1.5 ** (level + 1))} contract pay`
                   : item.id === "contracts"
                   ? `a driver switches to Uber · +$${fmtNum(Math.round(contractPerDriver(upgrades)))}/second`
                   : item.effect;

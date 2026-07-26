@@ -67,18 +67,25 @@ export type Upgrade = {
   capHint?: string;
 };
 
-// Compact number formatting for big values: 30000 -> "30k", 1_500_000 -> "1.5m".
+// Human-readable number formatting for an idle game: whole numbers stay whole under
+// 1000 (no premature scientific — 1234 not "1.2e3"), then a suffix ladder
+// (k, M, B, T, Qa, …) with ~3 sig-figs. Only falls back to scientific past the ladder.
+const NUM_SUFFIXES = [
+  "", "k", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No",
+  "Dc", "UDc", "DDc", "TDc", "QaDc", "QiDc", "SxDc", "SpDc", "OcDc", "NoDc", "Vg",
+];
 export function fmtNum(n: number): string {
+  if (!isFinite(n)) return "∞";
   const abs = Math.abs(n);
-  if (abs < 1000) return `${n}`;
-  const units: [number, string][] = [[1e9, "b"], [1e6, "m"], [1e3, "k"]];
-  for (const [v, s] of units) {
-    if (abs >= v) {
-      const x = n / v;
-      return `${x >= 100 ? Math.round(x) : x.toFixed(1).replace(/\.0$/, "")}${s}`;
-    }
+  if (abs < 1000) return `${Math.round(n)}`;
+  const tier = Math.floor(Math.log10(abs) / 3);
+  if (tier < NUM_SUFFIXES.length) {
+    const scaled = n / 10 ** (tier * 3);
+    // 3 significant figures: 999 -> "999", 12.3 -> "12.3", 1.23 -> "1.23"
+    const digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+    return `${scaled.toFixed(digits).replace(/\.0+$/, "")}${NUM_SUFFIXES[tier]}`;
   }
-  return `${n}`;
+  return n.toExponential(2).replace("e+", "e"); // beyond the ladder: clean scientific
 }
 
 // Round to a clean step that scales with magnitude: 5 (<100), 10 (<1k), 50 (<10k), 100 (>=10k).

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
-import { BASE_COLS, CELL, PAD, idx, bfsNextStep } from "./gridLogic";
+import { BASE_COLS, CELL, PAD, idx, flowField } from "./gridLogic";
 import { addPackages, applyMove, collectAt, collectHere, finishIfDone, growState, newRoute, startDay, type GridState } from "./gridState";
 import { BASE_PACKAGES } from "./config";
 import { playSfx } from "./audio";
@@ -64,7 +64,12 @@ const spawnRivalVan = (layout: RLayout, colors: string[]): RivalVan | null => {
 
 // Ease the van toward its immediate target cell; when it arrives, pick the next cell
 // along a wall-avoiding path to its goal (the rival point, then back offscreen).
-const stepRivalVan = (v: RivalVan, layout: RLayout, colors: string[]): RivalVan => {
+const stepRivalVan = (
+  v: RivalVan,
+  layout: RLayout,
+  colors: string[],
+  flowStep: (from: number, target: number) => [number, number] | null,
+): RivalVan => {
   const { cols, rows, blocked } = layout;
   const onGrid = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
   const open = (x: number, y: number) => !onGrid(x, y) || !blocked.has(idx(x, y, cols));
@@ -92,7 +97,7 @@ const stepRivalVan = (v: RivalVan, layout: RLayout, colors: string[]): RivalVan 
   let nx = cx;
   let ny = cy;
   if (onGrid(cx, cy) && onGrid(van.gx, van.gy)) {
-    const dir = bfsNextStep(blocked, idx(cx, cy, cols), idx(van.gx, van.gy, cols), cols, rows);
+    const dir = flowStep(idx(cx, cy, cols), idx(van.gx, van.gy, cols));
     if (dir) { nx = cx + dir[0]; ny = cy + dir[1]; }
   } else {
     const sx = Math.sign(van.gx - cx);
@@ -233,6 +238,22 @@ export function Grid({
   const beginDayRef = useRef<() => void>(() => {});
   // autopilot's committed package target (persists until collected) — prevents dithering
   const autopilotTargetRef = useRef<number | null>(null);
+  // Cached BFS flow fields per target cell — computed once, reused by every van until
+  // the map changes (new day / grow), so pathfinding is paid once, not per tick.
+  const flowCacheRef = useRef<{ blocked: Set<number> | null; map: Map<number, Int32Array> }>({ blocked: null, map: new Map() });
+  const flowStep = (from: number, target: number): [number, number] | null => {
+    if (from === target) return null;
+    const { blocked, cols, rows } = gsRef.current.layout;
+    if (flowCacheRef.current.blocked !== blocked) flowCacheRef.current = { blocked, map: new Map() };
+    let field = flowCacheRef.current.map.get(target);
+    if (!field) {
+      field = flowField(blocked, cols, rows, target);
+      flowCacheRef.current.map.set(target, field);
+    }
+    const nc = field[from];
+    if (nc < 0) return null;
+    return [(nc % cols) - (from % cols), Math.floor(nc / cols) - Math.floor(from / cols)];
+  };
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;
   const onStatsRef = useRef(onStats);
@@ -332,7 +353,7 @@ export function Grid({
         commit(fin);
         return;
       }
-      const { cols: gcols, rows: grows } = s.layout;
+      const { cols: gcols } = s.layout;
       const here = idx(s.player.x, s.player.y, gcols);
       const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
       const dist = (c: number) =>
@@ -345,7 +366,7 @@ export function Grid({
         autopilotTargetRef.current = t;
       }
       const target = t ?? [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
-      const dir = bfsNextStep(s.layout.blocked, here, target, gcols, grows);
+      const dir = flowStep(here, target);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
     }, Math.max(22, Math.round(340 / vanSpeed)));
@@ -391,7 +412,7 @@ export function Grid({
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
-      const { cols: gcols, rows: grows } = layout;
+      const { cols: gcols } = layout;
       const claimed = new Set<number>();
       const next = vansRef.current.map((van) => {
         // 1) still sliding to the current cell? step one axis toward it (x then y).
@@ -424,7 +445,7 @@ export function Grid({
           target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
         }
         if (target != null) claimed.add(target);
-        const dir = bfsNextStep(layout.blocked, cell, target ?? van.home, gcols, grows);
+        const dir = flowStep(cell, target ?? van.home);
         if (!dir) return { ...van, target };
         return { ...van, x: van.x + dir[0], y: van.y + dir[1], target };
       });
@@ -461,7 +482,7 @@ export function Grid({
   useEffect(() => {
     if (!gs.layout.reserved?.size) return;
     const id = window.setInterval(() => {
-      setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout, rivalColorsRef.current)));
+      setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout, rivalColorsRef.current, flowStep)));
     }, 55);
     return () => window.clearInterval(id);
   }, [gs.layout.reserved]);

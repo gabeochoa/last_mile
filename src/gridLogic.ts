@@ -121,6 +121,35 @@ export function bfsNextStep(
   return [(step % cols) - (from % cols), Math.floor(step / cols) - Math.floor(from / cols)];
 }
 
+// Flow field: ONE BFS from `target` over open cells, returning for every cell the
+// next cell to step to in order to reach `target` (-1 at the target, -2 unreachable).
+// Compute once per target and reuse for every van heading there — O(cells) instead of
+// a fresh BFS per van per tick. Uses a ring-buffer queue (no O(n) Array.shift).
+export function flowField(blocked: Set<number>, cols: number, rows: number, target: number): Int32Array {
+  const n = cols * rows;
+  const from = new Int32Array(n).fill(-2);
+  const q = new Int32Array(n);
+  let head = 0;
+  let tail = 0;
+  from[target] = -1;
+  q[tail++] = target;
+  while (head < tail) {
+    const c = q[head++];
+    const x = c % cols;
+    const y = (c - x) / cols;
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+      const nc = ny * cols + nx;
+      if (from[nc] !== -2 || blocked.has(nc)) continue;
+      from[nc] = c; // to head toward target from nc, step to c
+      q[tail++] = nc;
+    }
+  }
+  return from;
+}
+
 export type Layout = {
   blocked: Set<number>;
   specials: Set<number>;
