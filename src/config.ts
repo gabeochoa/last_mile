@@ -126,8 +126,6 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "customers tip your contract drivers", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
-      { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
-      { id: "contractBoost", name: "Corporate Accounts", effect: "each contract pays more", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
     ],
   },
   {
@@ -136,6 +134,10 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "expand", name: "Map Expansion", effect: "open new territory (mostly rival-held)", baseCost: 100, costMult: 1.12, maxLevel: 300, requiresAny: ["autopilot", "fleet"] },
       { id: "buyout", name: "Buy Out Rivals", effect: "claim rival streets — grows your market share", baseCost: 2500, costMult: 1.6, maxLevel: 6, requires: "expand", requiresLevel: 5 },
       { id: "depots", name: "Depots", effect: "another warehouse to dispatch from", baseCost: 200, costMult: 1.5, maxLevel: 30, requires: "buyout", requiresLevel: 1 },
+      // Contracts live in TERRITORY so Ops Manager (auto-buy skips TERRITORY) never
+      // reassigns your drivers to contracts behind your back.
+      { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
+      { id: "contractBoost", name: "Corporate Accounts", effect: "each contract pays more", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
     ],
   },
 ];
