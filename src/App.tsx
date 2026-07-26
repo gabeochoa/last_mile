@@ -83,6 +83,8 @@ export function App() {
   const [autoBuyEnabled, setAutoBuyEnabled] = useState(loaded?.autoBuyOn ?? true);
   const [hideCompleted, setHideCompleted] = useState(loaded?.hideComplete ?? false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // bumped by the Settings "force end day" button; Grid ends the current day (no bonus) on change.
+  const [forceEndSignal, setForceEndSignal] = useState(0);
   // player's chosen brand color; recolors the whole UI + canvas from one value.
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
@@ -445,6 +447,7 @@ export function App() {
           routeBonus={routeBonus(upgrades)}
           extraPackages={extraPackages(upgrades)}
           depotCount={depotCount(upgrades)}
+          forceEndSignal={forceEndSignal}
           {...dims}
           initialRoutes={loaded?.routes ?? 0}
         />
@@ -475,6 +478,10 @@ export function App() {
             setMutedState(next);
           }}
           onReset={onRestart}
+          onForceEndDay={() => {
+            setForceEndSignal((n) => n + 1);
+            setSettingsOpen(false);
+          }}
           onClose={() => setSettingsOpen(false)}
         />
       )}

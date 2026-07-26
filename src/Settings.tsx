@@ -7,12 +7,14 @@ export function Settings({
   muted,
   onToggleMute,
   onReset,
+  onForceEndDay,
   onClose,
 }: {
   accent: string;
   muted: boolean;
   onToggleMute: () => void;
   onReset: () => void;
+  onForceEndDay: () => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"settings" | "about">("settings");
@@ -84,6 +86,12 @@ export function Settings({
               <span style={{ fontSize: 13, letterSpacing: 1 }}>SOUND</span>
               <button style={btn(muted ? "rgba(236,231,218,0.4)" : "#ECE7DA")} onClick={onToggleMute}>
                 {muted ? "🔇 OFF" : "🔊 ON"}
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>FORCE END DAY</span>
+              <button style={btn("#ECE7DA")} onClick={onForceEndDay} title="End the current day now — no completion bonus">
+                End Day
               </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

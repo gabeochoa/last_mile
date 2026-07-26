@@ -185,6 +185,7 @@ export function Grid({
   accent,
   cols,
   rows,
+  forceEndSignal = 0,
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
@@ -213,6 +214,8 @@ export function Grid({
   accent: string;
   cols: number;
   rows: number;
+  // incremented by the Settings "force end day" button — ends the current day (no bonus)
+  forceEndSignal?: number;
   initialRoutes?: number;
 }) {
   const ACCENT = accent; // component-scoped so the canvas draw code stays unchanged
@@ -406,19 +409,15 @@ export function Grid({
       const here = idx(s.player.x, s.player.y, gcols);
       const dist = (c: number) =>
         Math.abs((c % gcols) - s.player.x) + Math.abs(Math.floor(c / gcols) - s.player.y);
-      // a valid target: your uncollected package, or (Poach owned) an un-serviced rival stop
-      const canGrab = (c: number) =>
-        (s.layout.specials.has(c) && !s.collected.has(c)) ||
-        (poachRef.current && !!s.layout.reserved?.has(c) && !s.converted.has(c) && !rivalDoneRef.current.has(c));
-      // commit to a target until it's grabbed (no dithering between equidistant ones);
-      // once none remain, finish at the nearest depot.
+      // commit to a package until it's collected (no dithering between equidistant ones);
+      // once none remain, finish at the nearest depot. Rival stops are poached only when
+      // driven OVER on the way (applyMove's auto-deliver converts them below) — never
+      // chased. Chasing them made the player oscillate forever between stops that faster
+      // rivals kept servicing first, so the day never ended.
+      const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
       let t = autopilotTargetRef.current;
-      if (!(t != null && canGrab(t))) {
-        const targets = [...s.layout.specials].filter((c) => !s.collected.has(c));
-        if (poachRef.current && s.layout.reserved) {
-          for (const c of s.layout.reserved) if (!s.converted.has(c) && !rivalDoneRef.current.has(c)) targets.push(c);
-        }
-        t = targets.length ? targets.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
+      if (!(t != null && s.layout.specials.has(t) && !s.collected.has(t))) {
+        t = left.length ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
         autopilotTargetRef.current = t;
       }
       const target = t ?? [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
@@ -495,19 +494,13 @@ export function Grid({
           target = null;
         }
         const collected = gsRef.current.collected;
-        const converted = gsRef.current.converted;
         const dist = (c: number) =>
           Math.abs((c % gcols) - van.x) + Math.abs(Math.floor(c / gcols) - van.y);
-        // a van may target your uncollected packages and, if poaching, un-serviced rival stops
-        const canGrab = (c: number) =>
-          (layout.specials.has(c) && !collected.has(c)) ||
-          (poachRef.current && !!layout.reserved?.has(c) && !converted.has(c) && !rivalDoneRef.current.has(c));
-        const keep = target != null && canGrab(target) && !claimed.has(target);
+        // targets are your own stops only; rival stops are poached opportunistically via
+        // collectAt above (a van standing on one steals it) — never chased, so no oscillation.
+        const keep = target != null && layout.specials.has(target) && !collected.has(target) && !claimed.has(target);
         if (!keep) {
           const avail = [...layout.specials].filter((c) => !collected.has(c) && !claimed.has(c));
-          if (poachRef.current && layout.reserved) {
-            for (const c of layout.reserved) if (!converted.has(c) && !rivalDoneRef.current.has(c) && !claimed.has(c)) avail.push(c);
-          }
           target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
         }
         if (target != null) claimed.add(target);
@@ -606,10 +599,20 @@ export function Grid({
     return () => window.clearInterval(id);
   }, [gs.layout.reserved]);
 
-  // Failsafe: if all YOUR work is done (armed + player parked on a depot + fleet home) but
-  // the day still won't end, we're stuck waiting on rivals that can't finish (e.g. a stop
-  // no van can reach, or vans idling). If nothing changes — no rival delivery, no poach, no
-  // van count change — for STUCK_MS, force the day to complete so you're never soft-locked.
+  // End the day RIGHT NOW without the completion bonus, skipping the armed/home/rivals
+  // gates. Used by the stuck-day failsafe and the Settings "force end day" button — a
+  // forced finish is a bail-out, not an earned completion, so it never pays the bonus.
+  const forceEndDay = () => {
+    const s = gsRef.current;
+    if (s.dayEnded) return;
+    const next = { ...s, routes: s.routes + 1, dayEnded: true };
+    gsRef.current = next;
+    setGs(next);
+  };
+
+  // Failsafe: once YOUR deliveries are all done (armed) we're only waiting on rivals. If
+  // nothing progresses — no rival delivery, no poach, no van coming/going — for STUCK_MS,
+  // force the day to end (no bonus) so a stuck rival can never soft-lock you.
   const STUCK_MS = 15000;
   const stuckSinceRef = useRef<number | null>(null);
   const stuckSigRef = useRef("");
@@ -618,9 +621,8 @@ export function Grid({
       const s = gsRef.current;
       if (s.dayEnded) { stuckSinceRef.current = null; return; }
       const armed = s.layout.specials.size > 0 && s.collected.size === s.layout.specials.size;
-      const onDepot = s.layout.depots.has(idx(s.player.x, s.player.y, s.layout.cols));
-      // only relevant while waiting on rivals: your side is entirely done + already home
-      if (!(armed && onDepot && allDriversHome(s.layout, vansRef.current)) || rivalsAllDone()) {
+      // only relevant once your deliveries are done and rivals still haven't finished
+      if (!armed || rivalsAllDone()) {
         stuckSinceRef.current = null;
         return;
       }
@@ -633,18 +635,23 @@ export function Grid({
       }
       if (stuckSinceRef.current == null) { stuckSinceRef.current = performance.now(); return; }
       if (performance.now() - stuckSinceRef.current >= STUCK_MS) {
-        const done = finishIfDone(gsRef.current, { routeBonus: routeBonusRef.current, driversHome: true, rivalsDone: true });
-        if (done.state !== gsRef.current) {
-          gsRef.current = done.state;
-          setGs(done.state);
-          if (done.earned) onEarnRef.current(done.earned);
-        }
+        forceEndDay();
         stuckSinceRef.current = null;
       }
     }, 1000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Settings "force end day" button bumps forceEndSignal; end the day (no bonus) on change.
+  const prevForceEndRef = useRef(forceEndSignal);
+  useEffect(() => {
+    if (forceEndSignal !== prevForceEndRef.current) {
+      prevForceEndRef.current = forceEndSignal;
+      forceEndDay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceEndSignal]);
 
   // A poach grows gs.converted; report the delta up so App can track the lifetime
   // "takeover" count (which discounts buyouts). converted resets to empty each new day,
