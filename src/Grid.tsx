@@ -212,7 +212,9 @@ export function Grid({
   const [flash, setFlash] = useState<number | null>(null);
   // hired fleet vans: {x,y} + their HOME depot cell, driven by the fleet tick
   // (ref-mirrored). Van i homes to the i-th depot (round-robin over sorted depots).
-  const [vans, setVans] = useState<{ x: number; y: number; home: number }[]>([]);
+  // target = the package cell this van committed to (persists until collected) so it
+  // doesn't flip between equidistant packages and bounce in place.
+  const [vans, setVans] = useState<{ x: number; y: number; home: number; target: number | null }[]>([]);
   const vansRef = useRef(vans);
   vansRef.current = vans;
   const rivalFractionRef = useRef(rivalFraction);
@@ -228,6 +230,8 @@ export function Grid({
   gsRef.current = gs;
   // latest beginDay(), so the once-bound keydown handler can start the day on Space
   const beginDayRef = useRef<() => void>(() => {});
+  // autopilot's committed package target (persists until collected) — prevents dithering
+  const autopilotTargetRef = useRef<number | null>(null);
   const onEarnRef = useRef(onEarn);
   onEarnRef.current = onEarn;
   const onStatsRef = useRef(onStats);
@@ -332,12 +336,14 @@ export function Grid({
       const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
       const dist = (c: number) =>
         Math.abs((c % gcols) - s.player.x) + Math.abs(Math.floor(c / gcols) - s.player.y);
-      // ponytail: Manhattan picks the target package; bfsNextStep still routes
-      // around walls. Swap for a BFS-distance nearest if a wall makes it dither.
-      // Once armed, finish at whichever depot is nearest (any depot completes).
-      const target = left.length
-        ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a))
-        : [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      // commit to a package until it's collected (no dithering between equidistant ones);
+      // once none remain, finish at the nearest depot.
+      let t = autopilotTargetRef.current;
+      if (!(t != null && s.layout.specials.has(t) && !s.collected.has(t))) {
+        t = left.length ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
+        autopilotTargetRef.current = t;
+      }
+      const target = t ?? [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
       const dir = bfsNextStep(s.layout.blocked, here, target, gcols, grows);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
@@ -357,7 +363,7 @@ export function Grid({
     const sortedDepots = [...gs.layout.depots].sort((a, b) => a - b);
     const mkVan = (i: number) => {
       const home = sortedDepots[i % sortedDepots.length];
-      return { x: home % gcols, y: Math.floor(home / gcols), home };
+      return { x: home % gcols, y: Math.floor(home / gcols), home, target: null };
     };
     setVans((prev) => {
       if (layoutChanged || prev.length > fleet) {
@@ -383,19 +389,24 @@ export function Grid({
       const { layout } = gsRef.current;
       const { cols: gcols, rows: grows } = layout;
       const claimed = new Set<number>();
+      const collected = gsRef.current.collected;
       const next = vansRef.current.map((van) => {
         const from = idx(van.x, van.y, gcols);
         const dist = (c: number) =>
           Math.abs((c % gcols) - van.x) + Math.abs(Math.floor(c / gcols) - van.y);
-        const avail = [...layout.specials].filter(
-          (c) => !gsRef.current.collected.has(c) && !claimed.has(c),
-        );
-        // claim a package if any remain; else head back to this van's HOME depot
-        const target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : van.home;
-        if (avail.length) claimed.add(target);
-        const dir = bfsNextStep(layout.blocked, from, target, gcols, grows);
-        if (!dir) return van;
-        const nv = { x: van.x + dir[0], y: van.y + dir[1], home: van.home };
+        // keep the committed target if it's still an uncollected, unclaimed package;
+        // otherwise claim the nearest free one (null => nothing left, head home)
+        let target = van.target;
+        const keep = target != null && layout.specials.has(target) && !collected.has(target) && !claimed.has(target);
+        if (!keep) {
+          const avail = [...layout.specials].filter((c) => !collected.has(c) && !claimed.has(c));
+          target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
+        }
+        if (target != null) claimed.add(target);
+        const goal = target ?? van.home;
+        const dir = bfsNextStep(layout.blocked, from, goal, gcols, grows);
+        if (!dir) return { ...van, target };
+        const nv = { x: van.x + dir[0], y: van.y + dir[1], home: van.home, target };
         const { state, earned } = collectAt(gsRef.current, idx(nv.x, nv.y, gcols), {
           perDelivery: perDeliveryRef.current,
         });
@@ -403,6 +414,7 @@ export function Grid({
           gsRef.current = state;
           setGs(state);
           onEarnRef.current(earned);
+          nv.target = null; // delivered — pick a fresh target next tick
         }
         return nv;
       });
