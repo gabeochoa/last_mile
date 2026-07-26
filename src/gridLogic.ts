@@ -194,7 +194,8 @@ export const DISTRICT_STYLES: { name: string; road: number; off: number }[] = [
   { name: "organic", road: 0.12, off: 0.88 }, // jagged frontages + courtyards
   { name: "grid", road: 0.0, off: 1.0 },      // perfect lattice of blocks
   { name: "open", road: 0.0, off: 0.45 },     // sparse — lots of plazas/lots
-  { name: "dense", road: 0.28, off: 0.96 },   // mazey, buildings crowd the streets
+  { name: "dense", road: 0.28, off: 0.96 },   // buildings crowd the streets
+  { name: "maze", road: 0.62, off: 0.99 },    // nearly solid — ensureReachable carves winding corridors
 ];
 export const REGION = 100; // world splits into REGION×REGION districts, each its own style
 // origin=organic, right=grid, below=open, diagonal=dense, then the 2×2 pattern repeats.

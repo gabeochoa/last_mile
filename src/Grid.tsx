@@ -348,7 +348,7 @@ export function Grid({
       const dir = bfsNextStep(s.layout.blocked, here, target, gcols, grows);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
-    }, Math.max(40, Math.round(340 / vanSpeed)));
+    }, Math.max(22, Math.round(340 / vanSpeed)));
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot, vanSpeed]);
@@ -387,7 +387,7 @@ export function Grid({
   // the slide speed but it's capped below 1 cell/tick, so vans never teleport.
   useEffect(() => {
     if (fleet <= 0) return;
-    const speed = Math.min(0.5, 0.12 * vanSpeed); // capped so it always visibly slides
+    const speed = Math.min(0.7, 0.12 * vanSpeed); // capped so it always visibly slides
     const id = window.setInterval(() => {
       if (gsRef.current.dayEnded) return; // pause the fleet on the day-end screen
       const { layout } = gsRef.current;
@@ -622,8 +622,7 @@ export function Grid({
     }
     ctx.globalAlpha = 1;
 
-    // visited cells filled ink at ~18% alpha (skipped on huge maps)
-    if (detailed) {
+    // visited cells filled ink at ~18% alpha (coverage feedback — always drawn)
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.18;
     for (const c of visited) {
@@ -632,7 +631,6 @@ export function Grid({
       ctx.fillRect(offX + cx * cell, offY + cy * cell, cell, cell);
     }
     ctx.globalAlpha = 1;
-    }
 
     // grid lines at ~15% ink alpha (skipped on huge maps)
     if (detailed) {

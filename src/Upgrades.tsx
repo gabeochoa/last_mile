@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { defineTheme } from "@astryxdesign/core";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Heading, Text } from "@astryxdesign/core/Text";
@@ -6,7 +6,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { List } from "@astryxdesign/core/List";
-import { BUCKETS, upgradeCost, fmtNum, contractPerDriver, type Upgrade } from "./config";
+import { BUCKETS, upgradeCost, fmtNum, contractPerDriver, dayBonusReward, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme). Built from the player's chosen
@@ -112,6 +112,9 @@ function UpgradeEnd({
 
 export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
+  // A buy can remove/replace the hovered button before its onMouseLeave fires, leaving
+  // the tooltip stuck. Clear it whenever the upgrade set changes.
+  useEffect(() => setTip(null), [upgrades]);
   // live tooltip body: static text, or a "$X more (M:SS until)" that updates as cash rises
   const tipBody = (): string => {
     if (!tip) return "";
@@ -187,7 +190,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, hideCom
                 item.id === "routeOpt"
                   ? `$${1 + level}/delivery → $${1 + level + 1}`
                   : item.id === "dayBonus"
-                  ? `$${level * 25}/day → $${(level + 1) * 25}`
+                  ? `$${fmtNum(dayBonusReward(level))}/day → $${fmtNum(dayBonusReward(level + 1))}`
                   : item.id === "surge"
                   ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} contract pay`
                   : item.id === "contracts"
