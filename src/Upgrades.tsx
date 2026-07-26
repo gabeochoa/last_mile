@@ -152,13 +152,13 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
             if (i.requiresAny && !i.requiresAny.some((id) => (upgrades[id] ?? 0) >= 1)) return false;
             return true;
           });
-          const items = hideCompleted ? visible.filter((i) => !isDone(i)) : visible;
-          if (items.length === 0) return null;
+          const items = visible;
+          // whole bucket gone once every visible item is complete + hide is on
+          if (hideCompleted && items.every((i) => isDone(i))) return null;
           return (
           <List
             key={bucket.name}
             density="compact"
-            hasDividers
             header={
               <Text type="supporting" color="accent" style={{ paddingInline: "var(--spacing-4)" }}>
                 {bucket.name}
@@ -176,20 +176,33 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
                   : item.id === "surge"
                   ? `×${(1.5 ** level).toFixed(1)} → ×${(1.5 ** (level + 1)).toFixed(1)} pay`
                   : item.effect;
-              // Custom row: ListItem.label is string-only, so build the row with
-              // Stacks to keep the level badge inline with the title while the
-              // description spans the full width below.
+              // Hidden (done + hide-complete) rows collapse + fade out instead of popping.
+              const hidden = hideCompleted && isDone(item);
               return (
-                <VStack key={item.name} gap={1} paddingInline={4} paddingBlock={2}>
-                  <HStack justify="between" vAlign="center" gap={2}>
-                    <HStack gap={2} vAlign="center">
-                      <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
-                      {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
+                <div
+                  key={item.name}
+                  style={{
+                    overflow: "hidden",
+                    maxHeight: hidden ? 0 : 120,
+                    opacity: hidden ? 0 : 1,
+                    pointerEvents: hidden ? "none" : undefined,
+                    borderBlockEnd: "1px solid var(--color-border)",
+                    transition: "max-height 320ms ease, opacity 320ms ease",
+                  }}
+                >
+                  {/* Custom row: ListItem.label is string-only, so build the row with
+                      Stacks to keep the level badge inline with the title. */}
+                  <VStack gap={1} paddingInline={4} paddingBlock={2}>
+                    <HStack justify="between" vAlign="center" gap={2}>
+                      <HStack gap={2} vAlign="center">
+                        <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
+                        {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
+                      </HStack>
+                      <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} setTip={setTip} />
                     </HStack>
-                    <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} setTip={setTip} />
-                  </HStack>
-                  <Text type="supporting">{description}</Text>
-                </VStack>
+                    <Text type="supporting">{description}</Text>
+                  </VStack>
+                </div>
               );
             })}
           </List>
