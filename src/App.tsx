@@ -250,6 +250,9 @@ export function App() {
             flexShrink: 0,
           }}
         >
+          {driversOnGrid > 0 && (
+            <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {driversOnGrid}</span>
+          )}
           {(upgrades.autopilot ?? 0) > 0 && (
             <button
               onClick={() => setAutopilotEnabled((v) => !v)}
@@ -303,9 +306,6 @@ export function App() {
             >
               {autoBuyEnabled ? "AUTO-BUY ON" : "AUTO-BUY OFF"}
             </button>
-          )}
-          {driversOnGrid > 0 && (
-            <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {driversOnGrid}</span>
           )}
           <button
             onClick={() => {
