@@ -184,6 +184,7 @@ export function Grid({
   quietSfx = false,
   droneCount = 0,
   policeFine = 0,
+  mileagePay = 0,
   lockerPerRow = 0,
   vanSpeed,
   daySpeed,
@@ -218,6 +219,8 @@ export function Grid({
   droneCount?: number;
   // Police Contract: cash paid to you each time a rival makes a delivery (0 = not owned)
   policeFine?: number;
+  // Mileage Pay: cash per cell any of your vans drives (0 = not owned)
+  mileagePay?: number;
   // Rainforest Lockers: fraction of buildings converted to delivery stops in new routes
   lockerPerRow?: number;
   vanSpeed: number;
@@ -342,6 +345,8 @@ export function Grid({
   poachRef.current = poach;
   const policeFineRef = useRef(policeFine);
   policeFineRef.current = policeFine;
+  const mileagePayRef = useRef(mileagePay);
+  mileagePayRef.current = mileagePay;
   const lockerPerRowRef = useRef(lockerPerRow);
   lockerPerRowRef.current = lockerPerRow;
   const onStatsRef = useRef(onStats);
@@ -391,6 +396,7 @@ export function Grid({
     driversHome: allDriversHome(gsRef.current.layout, vansRef.current),
     rivalsDone: rivalsAllDone(),
     canPoach: poachRef.current,
+    mileagePay: mileagePayRef.current,
     packageCount: BASE_PACKAGES + extraPackagesRef.current,
     cols: colsRef.current,
     rows: rowsRef.current,
@@ -514,6 +520,7 @@ export function Grid({
       const { layout } = gsRef.current;
       const { cols: gcols } = layout;
       const claimed = new Set<number>();
+      let steps = 0; // cells driven this tick, for Mileage Pay
       // Mutate the van objects IN PLACE (no .map / no {...van} spread): allocating a fresh
       // array of thousands of new van objects every tick was the biggest heap-churn source.
       // The display rAF loop repaints from these same objects, so no setVans is needed here.
@@ -547,8 +554,9 @@ export function Grid({
         if (target != null) claimed.add(target);
         van.target = target;
         const dir = flowStep(cell, target ?? van.home);
-        if (dir) { van.x += dir[0]; van.y += dir[1]; }
+        if (dir) { van.x += dir[0]; van.y += dir[1]; steps++; }
       }
+      if (steps > 0 && mileagePayRef.current > 0) onEarnRef.current(steps * mileagePayRef.current);
       // mark every fleet van's cell visited so YOUR drivers leave a gray trail too.
       const vis = gsRef.current.visited;
       for (const van of vans) vis.add(idx(van.x, van.y, gcols));

@@ -124,6 +124,8 @@ type MoveOpts = {
   rivalsDone?: boolean;
   // Poach upgrade owned: driving over an un-serviced rival stop steals it (pays you)
   canPoach?: boolean;
+  // Mileage Pay: cash earned for advancing one cell (0 if not owned)
+  mileagePay?: number;
   packageCount: number;
   // dims for the NEXT route seeded on completion (buying expansion mid-run grows it)
   cols: number;
@@ -166,7 +168,7 @@ export function applyMove(
     };
   }
 
-  let earned = 0;
+  let earned = opts.mileagePay ?? 0; // paid for advancing one cell (Mileage Pay)
   const visited = new Set(state.visited).add(cellIdx); // coverage for map% stat only
 
   let collected = state.collected;

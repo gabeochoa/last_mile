@@ -5,7 +5,7 @@ import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Settings } from "./Settings";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, nextCost, poachActive, perDelivery, perDeliveryAt, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, droneCount, policeFine, lockerPerRow, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, EXPAND_MAX, fmtNum, rivalColors, rivalCompanyCount } from "./config";
+import { BUCKETS, nextCost, poachActive, perDelivery, perDeliveryAt, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, droneCount, policeFine, mileagePay, lockerPerRow, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, EXPAND_MAX, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, getVolume, playSfx, setVolume } from "./audio";
@@ -572,6 +572,7 @@ export function App() {
           quietSfx={cash >= 100_000_000_000}
           droneCount={droneCount(upgrades)}
           policeFine={policeFine(upgrades)}
+          mileagePay={mileagePay(upgrades)}
           lockerPerRow={lockerPerRow(upgrades)}
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}

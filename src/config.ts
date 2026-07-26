@@ -182,6 +182,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "postoffice", name: "Take Over the Post Office", effect: "×10 pay on every delivery, on top of everything", baseCost: 100_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000_000 },
       { id: "internet", name: "Get on the Internet", effect: "×100 pay on every delivery — you're shipping hard drives now", baseCost: 1_000_000_000_000, costMult: 1, maxLevel: 1, requiresCash: 1_000_000_000_000 },
       { id: "police", name: "Police Contract", effect: "fine rivals — earn your delivery pay each time a rival delivers", baseCost: 100_000_000, costMult: 1, maxLevel: 1, requiresCash: 100_000_000 },
+      { id: "mileage", name: "Mileage Pay", effect: "+$10 per cell your vans drive each day, per level", baseCost: 1_000_000_000, costMult: 1.5, maxLevel: 100, requiresCash: 1_000_000_000 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       // Contract trio: Contracts turns drivers into passive income; Corporate Accounts
       // raises the flat per-contract amount; Tips multiplies the whole thing.
@@ -262,6 +263,10 @@ export function depotCount(u: Record<string, number>) {
 // Delivery Drones -> how many invisible drones deliver to your stops each tick.
 export function droneCount(u: Record<string, number>) {
   return u.drones ?? 0;
+}
+// Mileage Pay -> cash earned per cell any of your vans (or you) drive: $10 per level.
+export function mileagePay(u: Record<string, number>) {
+  return (u.mileage ?? 0) * 10;
 }
 // Rainforest Lockers -> buildings converted into delivery stops PER ROW (one per row per
 // level), so buying levels steadily fills the map with deliveries.
