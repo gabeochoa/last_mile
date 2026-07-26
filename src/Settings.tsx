@@ -1,20 +1,22 @@
 import { useState } from "react";
 
-// Gear-button modal: Settings (sound + reset) and About tabs. Micrographic styling
-// via inline styles (like Intro/Ending), accent-tinted from the player's brand color.
+// Gear-button modal: Settings (volume + reset + cheats) and About tabs. Micrographic
+// styling via inline styles (like Intro/Ending), accent-tinted from the player's color.
 export function Settings({
   accent,
-  muted,
-  onToggleMute,
+  volume,
+  onVolume,
   onReset,
   onForceEndDay,
+  onCheatRestart,
   onClose,
 }: {
   accent: string;
-  muted: boolean;
-  onToggleMute: () => void;
+  volume: number;
+  onVolume: (v: number) => void;
   onReset: () => void;
   onForceEndDay: () => void;
+  onCheatRestart: () => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"settings" | "about">("settings");
@@ -82,17 +84,19 @@ export function Settings({
 
         {tab === "settings" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, letterSpacing: 1 }}>SOUND</span>
-              <button style={btn(muted ? "rgba(236,231,218,0.4)" : "#ECE7DA")} onClick={onToggleMute}>
-                {muted ? "🔇 OFF" : "🔊 ON"}
-              </button>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, letterSpacing: 1 }}>FORCE END DAY</span>
-              <button style={btn("#ECE7DA")} onClick={onForceEndDay} title="End the current day now — no completion bonus">
-                End Day
-              </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+              <span style={{ fontSize: 13, letterSpacing: 1 }}>VOLUME</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, justifyContent: "flex-end" }}>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(volume * 100)}
+                  onChange={(e) => onVolume(Number(e.target.value) / 100)}
+                  style={{ width: 160, accentColor: accent, cursor: "pointer" }}
+                />
+                <span style={{ fontSize: 12, opacity: 0.7, width: 36, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
+              </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, letterSpacing: 1 }}>RESET PROGRESS</span>
@@ -103,6 +107,23 @@ export function Settings({
               >
                 {confirmReset ? "Are you sure?" : "Reset"}
               </button>
+            </div>
+
+            {/* Cheats: dev/testing shortcuts, grouped + divided off at the bottom. */}
+            <div style={{ borderTop: "1px solid rgba(236,231,218,0.15)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              <span style={{ fontSize: 11, letterSpacing: 2, color: "#8C877B" }}>CHEATS</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, letterSpacing: 1 }}>FORCE END DAY</span>
+                <button style={btn("#ECE7DA")} onClick={onForceEndDay} title="End the current day now — no completion bonus">
+                  End Day
+                </button>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, letterSpacing: 1 }}>RESTART W/ $50</span>
+                <button style={btn("#ECE7DA")} onClick={onCheatRestart} title="Wipe progress and restart with $50">
+                  Restart
+                </button>
+              </div>
             </div>
           </div>
         ) : (

@@ -2,6 +2,7 @@
 // Context is created lazily on first user gesture (autoplay policy).
 
 const MUTE_KEY = "lastmile.muted";
+const VOL_KEY = "lastmile.volume";
 
 let ctx: AudioContext | null = null;
 
@@ -15,14 +16,21 @@ function getCtx(): AudioContext | null {
   return ctx;
 }
 
-export function isMuted(): boolean {
-  if (typeof localStorage === "undefined") return false;
-  return localStorage.getItem(MUTE_KEY) === "1";
+// Master volume 0..1, persisted. Older saves used a mute flag — honor it as volume 0 on
+// first read so a previously-muted player stays muted. Defaults to full (1) otherwise.
+export function getVolume(): number {
+  if (typeof localStorage === "undefined") return 1;
+  const raw = localStorage.getItem(VOL_KEY);
+  if (raw !== null) {
+    const v = parseFloat(raw);
+    return isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+  }
+  return localStorage.getItem(MUTE_KEY) === "1" ? 0 : 1;
 }
 
-export function setMuted(b: boolean): void {
+export function setVolume(v: number): void {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(MUTE_KEY, b ? "1" : "0");
+  localStorage.setItem(VOL_KEY, String(Math.min(1, Math.max(0, v))));
 }
 
 // One osc + gain envelope: quick attack, exponential decay.
@@ -40,20 +48,23 @@ function blip(c: AudioContext, freq: number, start: number, dur: number, peak: n
 }
 
 export function playSfx(name: "deliver" | "purchase" | "route"): void {
-  if (isMuted()) return;
+  const vol = getVolume();
+  if (vol <= 0) return;
   const c = getCtx();
   if (!c) return;
   const t = c.currentTime;
+  // scale every note's peak by the master volume
+  const b = (freq: number, start: number, dur: number, peak: number) => blip(c, freq, start, dur, peak * vol);
   if (name === "deliver") {
-    blip(c, 880, t, 0.09, 0.08);
+    b(880, t, 0.09, 0.08);
   } else if (name === "purchase") {
-    blip(c, 440, t, 0.08, 0.09);
-    blip(c, 660, t + 0.06, 0.1, 0.09);
+    b(440, t, 0.08, 0.09);
+    b(660, t + 0.06, 0.1, 0.09);
   } else {
     // route: brief rising 3-note arpeggio, celebratory but subtle.
-    blip(c, 523, t, 0.1, 0.07);
-    blip(c, 659, t + 0.06, 0.1, 0.07);
-    blip(c, 784, t + 0.12, 0.14, 0.08);
+    b(523, t, 0.1, 0.07);
+    b(659, t + 0.06, 0.1, 0.07);
+    b(784, t + 0.12, 0.14, 0.08);
   }
 }
 

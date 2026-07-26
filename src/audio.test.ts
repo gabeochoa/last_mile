@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { isMuted, setMuted } from "./audio";
+import { getVolume, setVolume } from "./audio";
 
 // node env has no localStorage; stub one so the guarded round-trip is exercisable.
 beforeEach(() => {
@@ -14,12 +14,21 @@ beforeEach(() => {
   };
 });
 
-describe("mute", () => {
-  it("defaults unmuted, round-trips set/get", () => {
-    expect(isMuted()).toBe(false);
-    setMuted(true);
-    expect(isMuted()).toBe(true);
-    setMuted(false);
-    expect(isMuted()).toBe(false);
+describe("volume", () => {
+  it("defaults to full, round-trips set/get, and clamps to 0..1", () => {
+    expect(getVolume()).toBe(1);
+    setVolume(0.5);
+    expect(getVolume()).toBe(0.5);
+    setVolume(0);
+    expect(getVolume()).toBe(0);
+    setVolume(2);
+    expect(getVolume()).toBe(1);
+    setVolume(-1);
+    expect(getVolume()).toBe(0);
+  });
+
+  it("honors a legacy mute flag as volume 0 when no volume is saved", () => {
+    localStorage.setItem("lastmile.muted", "1");
+    expect(getVolume()).toBe(0);
   });
 });

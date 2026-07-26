@@ -8,7 +8,7 @@ import { Upgrades, makeMicrographic } from "./Upgrades";
 import { BUCKETS, nextCost, poachActive, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
-import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
+import { initAudioOnFirstGesture, getVolume, playSfx, setVolume } from "./audio";
 
 // ?dev starts flush so the shop + purchases can be exercised/screenshotted.
 const DEV = new URLSearchParams(window.location.search).get("dev") !== null;
@@ -77,7 +77,7 @@ export function App() {
   // latch: the shop appears once you can afford two upgrades, then stays — and is
   // already shown when resuming a save with progress (so a refresh keeps the shop).
   const [revealed, setRevealed] = useState(DEV || hasProgress);
-  const [muted, setMutedState] = useState(isMuted);
+  const [volume, setVolumeState] = useState(getVolume);
   const [autopilotEnabled, setAutopilotEnabled] = useState(loaded?.autopilotOn ?? true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(loaded?.autoStartOn ?? true);
   const [autoBuyEnabled, setAutoBuyEnabled] = useState(loaded?.autoBuyOn ?? true);
@@ -250,11 +250,12 @@ export function App() {
     if (allMaxed && !keepPlaying) setEnded(true);
   }, [allMaxed, keepPlaying]);
 
-  const onRestart = () => {
-    // testing convenience: wipe progress but start flush with $50k (keeps your color)
+  const onRestart = (startCash = 0) => {
+    // wipe progress and reload; normal reset starts at $0, the cheat restart at $50.
+    // keeps your chosen color.
     resettingRef.current = true;
     clearSave();
-    save({ version: 1, cash: 50000, upgrades: {}, routes: 0, accent });
+    save({ version: 1, cash: startCash, upgrades: {}, routes: 0, accent });
     window.location.reload();
   };
   const displayShare = useAnimatedNumber(theirShare, 500, 2);
@@ -471,17 +472,17 @@ export function App() {
       {settingsOpen && (
         <Settings
           accent={accent}
-          muted={muted}
-          onToggleMute={() => {
-            const next = !muted;
-            setMuted(next);
-            setMutedState(next);
+          volume={volume}
+          onVolume={(v) => {
+            setVolume(v);
+            setVolumeState(v);
           }}
-          onReset={onRestart}
+          onReset={() => onRestart(0)}
           onForceEndDay={() => {
             setForceEndSignal((n) => n + 1);
             setSettingsOpen(false);
           }}
+          onCheatRestart={() => onRestart(50)}
           onClose={() => setSettingsOpen(false)}
         />
       )}
