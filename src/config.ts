@@ -102,10 +102,11 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "autoDeliver", name: "Auto-Deliver", effect: "packages auto-collect; no key press", baseCost: 10, costMult: 1, maxLevel: 1 },
       { id: "autopilot", name: "Autopilot Module", effect: "self-drives — no input needed", baseCost: 250, costMult: 1, maxLevel: 1 },
-      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 10, requires: "autoDeliver", requiresLevel: 1 },
+      { id: "fleet", name: "Fleet Recruitment", effect: "hire a driver (van on the grid)", baseCost: 150, costMult: 1.7, maxLevel: 30, requires: "autoDeliver", requiresLevel: 1 },
       { id: "autoStart", name: "Auto-Start Day", effect: "the next day begins on its own", baseCost: 500, costMult: 1, maxLevel: 1, requires: "autopilot", requiresLevel: 1 },
-      { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 12, requiresAny: ["autopilot", "fleet"] },
-      { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 8, requires: "autoStart", requiresLevel: 1 },
+      { id: "autobuy", name: "Ops Manager", effect: "auto-buys your cheapest affordable upgrade", baseCost: 5000, costMult: 1, maxLevel: 1, requires: "buyout", requiresLevel: 1 },
+      { id: "vanSpeed", name: "Faster Vans", effect: "you + your drivers move faster", baseCost: 100, costMult: 1.5, maxLevel: 30, requiresAny: ["autopilot", "fleet"] },
+      { id: "daySpeed", name: "Faster Days", effect: "days start quicker", baseCost: 300, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
     ],
   },
   {
@@ -115,6 +116,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 15, costMult: 1.5, maxLevel: 15 },
       { id: "dayBonus", name: "Bulk Contracts", effect: "cash bonus for finishing a day", baseCost: 50, costMult: 1.4, maxLevel: 15, requires: "fleet", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "customers tip — more per delivery", baseCost: 1000, costMult: 1.5, maxLevel: 20, requires: "fleet", requiresLevel: 2 },
+      { id: "contracts", name: "Contracts", effect: "steady cash every second", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
     ],
   },
   {
@@ -140,6 +142,10 @@ export function perDelivery(u: Record<string, number>) {
 // Bulk Contracts -> cash bonus for finishing a day (0 until owned, +ROUTE_BONUS/level).
 export function routeBonus(u: Record<string, number>) {
   return (u.dayBonus ?? 0) * ROUTE_BONUS;
+}
+// Contracts -> passive cash per second (0 until owned, scales fast for the late game).
+export function contractIncome(u: Record<string, number>) {
+  return (u.contracts ?? 0) * 25;
 }
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {

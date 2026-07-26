@@ -4,7 +4,7 @@ import { Grid } from "./Grid";
 import { Ending } from "./Ending";
 import { Intro } from "./Intro";
 import { Upgrades, makeMicrographic } from "./Upgrades";
-import { BUCKETS, upgradeCost, perDelivery, routeBonus, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
+import { BUCKETS, upgradeCost, perDelivery, routeBonus, contractIncome, extraPackages, expandLevel, unownedShare, depotCount, vanSpeed, daySpeed, DEFAULT_ACCENT, BASE_PACKAGES, fmtNum, rivalColors, rivalCompanyCount } from "./config";
 import { sizeForExpansion } from "./gridLogic";
 import { clearSave, load, save } from "./save";
 import { initAudioOnFirstGesture, isMuted, playSfx, setMuted } from "./audio";
@@ -55,6 +55,7 @@ export function App() {
   const [muted, setMutedState] = useState(isMuted);
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
   const [autoStartEnabled, setAutoStartEnabled] = useState(true);
+  const [autoBuyEnabled, setAutoBuyEnabled] = useState(true);
   // player's chosen brand color; recolors the whole UI + canvas from one value.
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
@@ -111,10 +112,49 @@ export function App() {
     playSfx("purchase");
   };
 
-  // Cash EARNED per day: track a running earnings total (income only — upgrade
-  // purchases never subtract from it) and snapshot the gain between day completions.
-  const [dayRate, setDayRate] = useState(0);
+  // Running earnings total (income only — purchases never subtract) for the $/day HUD
+  // and passive income; snapshotted per day below.
   const earnedRef = useRef(0);
+  // Contracts: passive cash per second. Recreated only when the income figure changes.
+  const contractPerSec = contractIncome(upgrades);
+  useEffect(() => {
+    if (contractPerSec <= 0) return;
+    const id = window.setInterval(() => {
+      earnedRef.current += contractPerSec;
+      setCash((c) => c + contractPerSec);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [contractPerSec]);
+
+  // Ops Manager: once owned, auto-buy the single cheapest affordable, unlocked upgrade
+  // on a tick. Held in a ref so the timer (bound once) always sees fresh cash/upgrades.
+  const autoBuyStepRef = useRef(() => {});
+  autoBuyStepRef.current = () => {
+    let best: string | null = null;
+    let bestCost = Infinity;
+    for (const it of BUCKETS.flatMap((b) => b.items)) {
+      if (!it.id || it.id === "autobuy") continue;
+      if (it.requires && (upgrades[it.requires] ?? 0) < (it.requiresLevel ?? 1)) continue;
+      if (it.requiresAny && !it.requiresAny.some((x) => (upgrades[x] ?? 0) >= 1)) continue;
+      const lvl = upgrades[it.id] ?? 0;
+      if (lvl >= (maxLevels[it.id] ?? it.maxLevel ?? 1)) continue;
+      const cost = upgradeCost(it, lvl);
+      if (cost <= cash && cost < bestCost) {
+        best = it.id;
+        bestCost = cost;
+      }
+    }
+    if (best) onBuy(best);
+  };
+  useEffect(() => {
+    if (!(upgrades.autobuy ?? 0) || !autoBuyEnabled) return;
+    const id = window.setInterval(() => autoBuyStepRef.current(), 500);
+    return () => window.clearInterval(id);
+  }, [upgrades.autobuy, autoBuyEnabled]);
+
+  // Cash EARNED per day: snapshot the running earnings total (see earnedRef) between
+  // day completions.
+  const [dayRate, setDayRate] = useState(0);
   const lastDayEarnedRef = useRef(0);
   const prevRoutesRef = useRef(stats.routes);
   useEffect(() => {
@@ -129,6 +169,8 @@ export function App() {
   const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
   // A new rival company (distinct color, never yours) appears every 10 expansions.
   const companyColors = rivalColors(accent, rivalCompanyCount(expandLevel(upgrades)));
+  // Each Contracts level reassigns one driver off the grid to contract work.
+  const driversOnGrid = Math.max(0, (upgrades.fleet ?? 0) - (upgrades.contracts ?? 0));
   // Planet-wide unowned market share (starts 100%, → 0 when you own every spot).
   const theirShare = unownedShare(upgrades);
 
@@ -240,8 +282,26 @@ export function App() {
               {autoStartEnabled ? "AUTO-START ON" : "AUTO-START OFF"}
             </button>
           )}
-          {(upgrades.fleet ?? 0) > 0 && (
-            <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {upgrades.fleet}</span>
+          {(upgrades.autobuy ?? 0) > 0 && (
+            <button
+              onClick={() => setAutoBuyEnabled((v) => !v)}
+              title={autoBuyEnabled ? "Ops Manager buying your cheapest upgrade — click to pause" : "Ops Manager paused — click to resume"}
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(236,231,218,0.25)",
+                color: autoBuyEnabled ? "#ECE7DA" : "rgba(236,231,218,0.4)",
+                fontFamily: "inherit",
+                fontSize: 12,
+                letterSpacing: 1,
+                padding: "2px 8px",
+                cursor: "pointer",
+              }}
+            >
+              {autoBuyEnabled ? "AUTO-BUY ON" : "AUTO-BUY OFF"}
+            </button>
+          )}
+          {driversOnGrid > 0 && (
+            <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {driversOnGrid}</span>
           )}
           <button
             onClick={() => {
@@ -362,7 +422,7 @@ export function App() {
           onStats={setStats}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
-          fleet={upgrades.fleet ?? 0}
+          fleet={driversOnGrid}
           vanSpeed={vanSpeed(upgrades)}
           daySpeed={daySpeed(upgrades)}
           autoStartDay={(upgrades.autoStart ?? 0) > 0 && autoStartEnabled}
