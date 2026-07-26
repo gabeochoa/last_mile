@@ -63,6 +63,8 @@ export type Upgrade = {
   // maxLevel is a fluctuating capacity, not true completion: keep the row visible and
   // just disable the button when full (never show MAX / hide it).
   softCap?: boolean;
+  // tooltip shown when a soft-capped upgrade is at its (fluctuating) cap
+  capHint?: string;
 };
 
 // Compact number formatting for big values: 30000 -> "30k", 1_500_000 -> "1.5m".
@@ -117,7 +119,8 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "customers tip — more per delivery", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "fleet", requiresLevel: 2 },
-      { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1 },
+      { id: "contracts", name: "Contracts", effect: "steady cash every second (−1 driver)", baseCost: 2000, costMult: 1.5, maxLevel: 20, requires: "autoStart", requiresLevel: 1, softCap: true, capHint: "Needs another driver — hire more Fleet." },
+      { id: "contractBoost", name: "Corporate Accounts", effect: "each contract pays more", baseCost: 8000, costMult: 1.6, maxLevel: 20, requires: "contracts", requiresLevel: 1 },
     ],
   },
   {
@@ -144,9 +147,10 @@ export function perDelivery(u: Record<string, number>) {
 export function routeBonus(u: Record<string, number>) {
   return (u.dayBonus ?? 0) * ROUTE_BONUS;
 }
-// Contracts -> passive cash per second (0 until owned, scales fast for the late game).
+// Contracts -> passive cash per second: $25 per contract, boosted +50%/level by
+// Corporate Accounts.
 export function contractIncome(u: Record<string, number>) {
-  return (u.contracts ?? 0) * 25;
+  return (u.contracts ?? 0) * 25 * (1 + (u.contractBoost ?? 0) * 0.5);
 }
 // Faster Vans -> speed factor for autopilot/fleet ticks (level 0 = 1.0, +0.5x/level).
 export function vanSpeed(u: Record<string, number>) {

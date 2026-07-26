@@ -134,6 +134,17 @@ export function App() {
     return () => window.clearInterval(id);
   }, [contractPerSec]);
 
+  // Income per second (sampled), so the shop can show "…until you can afford it".
+  const [perSec, setPerSec] = useState(0);
+  const lastSecEarnedRef = useRef(0);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setPerSec(earnedRef.current - lastSecEarnedRef.current);
+      lastSecEarnedRef.current = earnedRef.current;
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   // Ops Manager: once owned, auto-buy the single cheapest affordable, unlocked upgrade
   // on a tick. Held in a ref so the timer (bound once) always sees fresh cash/upgrades.
   const autoBuyStepRef = useRef(() => {});
@@ -258,6 +269,9 @@ export function App() {
           {driversOnGrid > 0 && (
             <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {driversOnGrid}</span>
           )}
+          {(upgrades.contracts ?? 0) > 0 && (
+            <span style={{ fontSize: 12, letterSpacing: 1 }}>CONTRACTS {upgrades.contracts}</span>
+          )}
           {(upgrades.autopilot ?? 0) > 0 && (
             <button
               onClick={() => setAutopilotEnabled((v) => !v)}
@@ -370,6 +384,7 @@ export function App() {
           upgrades={upgrades}
           onBuy={onBuy}
           maxLevels={maxLevels}
+          perSec={perSec}
           footer={
             bigMap ? (
               <span style={{ color: accent, fontWeight: 700, fontSize: 22, letterSpacing: 2 }}>

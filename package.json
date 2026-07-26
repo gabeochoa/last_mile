@@ -1,13 +1,13 @@
 {
   "name": "the_last_mile",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "package": "npm run build && cd dist && zip -r -X ../the_last_mile_web.zip . && cd ..",
-    "upload": "npm run package && butler push the_last_mile_web.zip choicehoney/last-mile-gmtk-2026:html",
+    "upload": "npm run package && butler push the_last_mile_web.zip choicehoney/last-mile-gmtk-2026:html --userversion $npm_package_version",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

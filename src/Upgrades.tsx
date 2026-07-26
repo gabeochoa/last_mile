@@ -44,8 +44,16 @@ type UpgradesProps = {
   upgrades: Record<string, number>;
   onBuy: (id: string) => void;
   maxLevels?: Record<string, number>;
+  perSec?: number; // income/sec, for the "…until affordable" tooltip
   footer?: ReactNode;
 };
+
+// seconds -> "M:SS" (or "Hh MM" for long waits)
+function untilStr(seconds: number): string {
+  const s = Math.ceil(seconds);
+  if (s >= 3600) return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 // Action slot: LOCKED / OWNED / MAX badge, or a buy button whose label IS the
 // price. The current level shows inline with the title instead (see the row).
@@ -62,7 +70,7 @@ function UpgradeEnd({
   maxLevel: number;
   cash: number;
   onBuy: (id: string) => void;
-  setTip: (t: { text: string; x: number; y: number } | null) => void;
+  setTip: (t: { x: number; y: number; text?: string; cost?: number } | null) => void;
 }) {
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
@@ -74,12 +82,6 @@ function UpgradeEnd({
     return <Badge label={maxLevel === 1 ? "OWNED" : "MAX"} variant="success" />;
   }
   const canBuy = !full && item.id != null && cash >= cost;
-  // why is it disabled? (soft-cap grid-full, or can't afford yet)
-  const reason = full
-    ? "No empty delivery spots — buy out rivals or expand the map."
-    : cash < cost
-    ? `Need $${fmtNum(cost - cash)} more`
-    : null;
   const btn = (
     <Button
       label={`$${fmtNum(cost)}`}
@@ -89,12 +91,16 @@ function UpgradeEnd({
       onClick={canBuy && item.id != null ? () => onBuy(item.id!) : undefined}
     />
   );
-  if (!reason) return btn;
-  // custom tooltip on the disabled button explaining why
+  if (canBuy) return btn;
+  // disabled → custom tooltip: soft-cap = static text; can't-afford = live cost (the
+  // parent renders "$X more (M:SS until)" from current cash + income).
+  const tipData = full
+    ? { text: item.capHint ?? "No empty delivery spots — buy out rivals or expand the map." }
+    : { cost };
   return (
     <span
       style={{ display: "inline-flex" }}
-      onMouseMove={(e) => setTip({ text: reason, x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setTip({ ...tipData, x: e.clientX, y: e.clientY })}
       onMouseLeave={() => setTip(null)}
     >
       {btn}
@@ -102,9 +108,17 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesProps) {
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, footer }: UpgradesProps) {
   const [hideCompleted, setHideCompleted] = useState(false);
-  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
+  // live tooltip body: static text, or a "$X more (M:SS until)" that updates as cash rises
+  const tipBody = (): string => {
+    if (!tip) return "";
+    if (tip.text) return tip.text;
+    const need = (tip.cost ?? 0) - cash;
+    if (need <= 0) return "Ready to buy";
+    return `Need $${fmtNum(need)} more` + (perSec > 0 ? ` (${untilStr(need / perSec)} until)` : "");
+  };
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
@@ -242,7 +256,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
             pointerEvents: "none",
           }}
         >
-          {tip.text}
+          {tipBody()}
         </div>
       )}
     </VStack>
