@@ -89,7 +89,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     items: [
       { id: "demand", name: "Demand Engine", effect: "more deliveries per day", baseCost: 5, costMult: 1.2, softCap: true },
       { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 60, costMult: 1.5, maxLevel: 15 },
-      { id: "dayBonus", name: "Bulk Contracts", effect: "cash bonus for finishing a day", baseCost: 50, costMult: 1.4, maxLevel: 15 },
+      { id: "dayBonus", name: "Bulk Contracts", effect: "cash bonus for finishing a day", baseCost: 50, costMult: 1.4, maxLevel: 15, requires: "fleet", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "customers tip — more per delivery", baseCost: 1000, costMult: 1.5, maxLevel: 20, requires: "fleet", requiresLevel: 2 },
     ],
   },
