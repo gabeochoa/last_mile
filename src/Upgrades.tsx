@@ -230,7 +230,10 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
             }
           >
             {items.map((item) => {
-              const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
+              // Cancel a Contract is a repeatable free action, not a leveled upgrade — always
+              // treat it as level 0 so it never shows a level badge or an "OWNED" state (even
+              // if an old save stored a stray level for it).
+              const level = item.id === "uncontract" ? 0 : item.id != null ? upgrades[item.id] ?? 0 : 0;
               // Route Optimization previews the per-delivery payout: current → next.
               const rate = (n: number) => n.toFixed(2).replace(/\.?0+$/, "");
               const description =

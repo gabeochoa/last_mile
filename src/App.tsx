@@ -122,8 +122,9 @@ export function App() {
   const rivalsRemaining = Math.max(0, companyCount - boughtCount);
   const maxLevels: Record<string, number> = {
     demand: Math.max(0, stats.capacity - BASE_PACKAGES),
-    // up to ten vans per column of the map — expand to field more drivers
-    fleet: dims.cols * 10,
+    // ten vans per column, plus each rival you've bought out hands over their quota too:
+    // 10 × (1 + rivals bought) × columns.
+    fleet: dims.cols * 10 * (1 + boughtCount),
     // each Contract reassigns a driver, so you can have at most as many as your fleet
     contracts: upgrades.fleet ?? 0,
     // you can only buy out companies you've expanded far enough to see
@@ -131,7 +132,7 @@ export function App() {
   };
   // The game is "won" when every purchasable upgrade is maxed (nothing left to buy).
   const allMaxed = BUCKETS.flatMap((b) => b.items).every((it) => {
-    if (!it.id || it.softCap) return true; // soft caps (Demand) fluctuate — don't gate the ending
+    if (!it.id || it.softCap || it.id === "uncontract") return true; // soft caps + the free Cancel action don't gate the ending
     const max = maxLevels[it.id] ?? it.maxLevel ?? 1;
     return (upgrades[it.id] ?? 0) >= max;
   });
