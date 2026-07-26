@@ -14,4 +14,8 @@ Fixes from GMTK 2026 player feedback.
 - **Contract income cap now scales** with those multipliers instead of a flat $100M/s that pinned total income in the billions.
 - **Buying out rivals scales cheaper** (cost growth 1.6 → 1.45), so it doesn't outrun your income mid-game.
 
+### UI
+- **Bigger, more legible top bar** (larger font, taller bar) — easier to read at fullscreen.
+- **Ops Manager shows what it just auto-bought** in the top bar.
+
 <!-- add new entries above this line as we go -->

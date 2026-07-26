@@ -121,6 +121,9 @@ export function App() {
   const [forceEndSignal, setForceEndSignal] = useState(0);
   // hover-cash tooltip: shows where income is coming from, percentage-wise.
   const [cashTip, setCashTip] = useState<{ x: number; y: number } | null>(null);
+  // brief banner note of what Ops Manager just auto-bought (visual feedback).
+  const [autoBoughtFlash, setAutoBoughtFlash] = useState("");
+  const autoFlashTimerRef = useRef(0);
   // player's chosen brand color; recolors the whole UI + canvas from one value.
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
@@ -322,7 +325,15 @@ export function App() {
         bestCost = cost;
       }
     }
-    if (best) onBuy(best);
+    if (best) {
+      onBuy(best);
+      const name = UPGRADE_BY_ID.get(best)?.name;
+      if (name) {
+        setAutoBoughtFlash(name);
+        window.clearTimeout(autoFlashTimerRef.current);
+        autoFlashTimerRef.current = window.setTimeout(() => setAutoBoughtFlash(""), 1500);
+      }
+    }
   };
   useEffect(() => {
     if (!(upgrades.autobuy ?? 0) || !anyAutoBuyOn) return;
@@ -389,16 +400,16 @@ export function App() {
           insetBlockStart: 0,
           insetInlineStart: 0,
           insetInlineEnd: 0,
-          height: 40,
+          height: 44,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 16,
-          paddingInline: 12,
+          paddingInline: 16,
           background: "#0F0F0F",
           borderBlockEnd: "1px solid rgba(236,231,218,0.15)",
           fontFamily: "ui-monospace, Menlo, monospace",
-          fontSize: 13,
+          fontSize: 16,
           letterSpacing: 1,
           color: "#ECE7DA",
           zIndex: 2,
@@ -447,6 +458,9 @@ export function App() {
             flexShrink: 0,
           }}
         >
+          {autoBoughtFlash && (
+            <span style={{ fontSize: 11, letterSpacing: 0.5, opacity: 0.6 }}>🛒 {autoBoughtFlash}</span>
+          )}
           {driversOnGrid > 0 && (
             <span style={{ fontSize: 12, letterSpacing: 1 }}>DRIVERS {driversOnGrid}</span>
           )}
