@@ -188,10 +188,22 @@ function roadLines(len: number, rng: () => number): number[] {
   return lines;
 }
 
-// City layout: irregular road rows/cols, with the blocks between them filled by
-// buildings — but ORGANICALLY, not as a perfect lattice: some street cells sprout a
-// building (jagged frontages) and some interior cells are left open (courtyards/lots).
-// Connectivity isn't guaranteed here; genLayout runs ensureReachable to carve streets.
+// District styles: how likely a cell is a building, on a street cell vs an off-street
+// (block interior) cell. Different mixes read as organic / grid / open / dense.
+export const DISTRICT_STYLES: { name: string; road: number; off: number }[] = [
+  { name: "organic", road: 0.12, off: 0.88 }, // jagged frontages + courtyards
+  { name: "grid", road: 0.0, off: 1.0 },      // perfect lattice of blocks
+  { name: "open", road: 0.0, off: 0.45 },     // sparse — lots of plazas/lots
+  { name: "dense", road: 0.28, off: 0.96 },   // mazey, buildings crowd the streets
+];
+export const REGION = 100; // world splits into REGION×REGION districts, each its own style
+// origin=organic, right=grid, below=open, diagonal=dense, then the 2×2 pattern repeats.
+export const districtStyle = (x: number, y: number) =>
+  DISTRICT_STYLES[(Math.floor(x / REGION) + Math.floor(y / REGION) * 2) % DISTRICT_STYLES.length];
+
+// City layout: irregular streets, with each 100×100 district filled in its own style
+// (see districtStyle). Connectivity isn't guaranteed here; genLayout runs
+// ensureReachable to carve streets so every open cell connects back to START.
 export function cityBlocked(cols: number, rows: number, rng: () => number = Math.random): Set<number> {
   const roadCols = roadLines(cols, rng);
   const roadRows = roadLines(rows, rng);
@@ -201,11 +213,8 @@ export function cityBlocked(cols: number, rows: number, rng: () => number = Math
     for (let x = 0; x < cols; x++) {
       const c = idx(x, y, cols);
       if (c === START) continue; // your first depot is always open
-      if (isRoad(x, y)) {
-        if (rng() < 0.12) blocked.add(c); // occasional building juts into the street
-      } else {
-        if (rng() < 0.88) blocked.add(c); // mostly buildings, with the odd open lot
-      }
+      const style = districtStyle(x, y);
+      if (rng() < (isRoad(x, y) ? style.road : style.off)) blocked.add(c);
     }
   }
   return blocked;
