@@ -220,7 +220,11 @@ export function App() {
   // Rivals hold ~90% of new frontier; each Buy Out Rivals level frees 15% of it.
   const rivalFraction = Math.max(0, 0.9 - 0.15 * (upgrades.buyout ?? 0));
   // A new rival company (distinct color, never yours) appears every 5 expansions.
-  const companyColors = rivalColors(accent, rivalCompanyCount(expandLevel(upgrades)));
+  // Memoized so its array reference is stable (the canvas caches keyed on it).
+  const companyColors = useMemo(
+    () => rivalColors(accent, rivalCompanyCount(expandLevel(upgrades))),
+    [accent, upgrades.expand],
+  );
   // Each Contracts level reassigns one driver off the grid to contract work.
   const driversOnGrid = Math.max(0, (upgrades.fleet ?? 0) - (upgrades.contracts ?? 0));
   // Planet-wide unowned market share (starts 100%, → 0 when you own every spot).

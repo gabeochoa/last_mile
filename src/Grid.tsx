@@ -554,6 +554,13 @@ export function Grid({
   // A grow shrinks `cell`; instead of snapping, ease the on-screen cell from the
   // old (larger) size to the new (smaller) one over ~400ms. offX/offY/gridW/gridH
   // are all derived from the animated cell so the map shrinks-to-fit smoothly.
+  // Offscreen cache of the STATIC layer (buildings + rival rings + frame): rebuilt only
+  // when the map/scale changes, blitted each frame — so the thousands of blocked cells
+  // aren't redrawn on every tick (the big late-game perf win).
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bgKeyRef = useRef<{ blocked: unknown; reserved: unknown; colors: unknown; cell: number; offX: number; offY: number; w: number }>(
+    { blocked: null, reserved: null, colors: null, cell: 0, offX: 0, offY: 0, w: 0 },
+  );
   const drawRef = useRef<(c: number) => void>(() => {});
   const animRafRef = useRef(0);
   const prevCellRef = useRef(cell);   // last real cell — a drop means the grid grew
@@ -600,18 +607,9 @@ export function Grid({
     const gridW = gcols * cell;
     const gridH = grows * cell;
 
-    ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, canvas, canvas);
+    const dot = Math.max(4, Math.round(cell * 0.15));
 
-    // thin 1px frame hugging the fixed square canvas (grid is centered within)
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, canvas - 1, canvas - 1);
-
-    drawRegistration(ctx, offX, offY, gridW, gridH);
-
-    // depot glyph: ink outline box + ⌂ (accent when armed). Shared by the day-end
-    // screen and the live render so every warehouse draws the same.
+    // depot glyph: ink outline box + ⌂ (accent when armed).
     const drawDepot = (c: number, accent: boolean) => {
       const dX = offX + (c % gcols) * cell;
       const dY = offY + Math.floor(c / gcols) * cell;
@@ -626,22 +624,52 @@ export function Grid({
       ctx.textAlign = "left";
     };
 
-    // day over: the finished route fades to an empty grid — frame, registration
-    // marks and the depots only (no packages/visited/vans/player) until Start Day.
+    // day over: the finished route fades to an empty grid — frame + depots only.
     if (dayEnded) {
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, canvas, canvas);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0.5, 0.5, canvas - 1, canvas - 1);
+      drawRegistration(ctx, offX, offY, gridW, gridH);
       for (const c of depots) drawDepot(c, false);
       return;
     }
 
-    // blocked buildings = solid ink at ~70% alpha
-    ctx.fillStyle = INK;
-    ctx.globalAlpha = 0.7;
-    for (const c of blocked) {
-      const bx = c % gcols;
-      const by = Math.floor(c / gcols);
-      ctx.fillRect(offX + bx * cell, offY + by * cell, cell, cell);
+    // ── STATIC layer (bg + frame + registration + buildings + rival rings) ──
+    // Rebuilt on an offscreen canvas only when the map or scale changes; otherwise the
+    // cached bitmap is just blitted, so thousands of cells aren't redrawn each frame.
+    if (!bgCanvasRef.current) bgCanvasRef.current = document.createElement("canvas");
+    const bg = bgCanvasRef.current;
+    if (bg.width !== canvas) { bg.width = canvas; bg.height = canvas; }
+    const k = bgKeyRef.current;
+    if (k.blocked !== blocked || k.reserved !== reserved || k.colors !== rivalColors || k.cell !== cell || k.offX !== offX || k.offY !== offY || k.w !== canvas) {
+      const b = bg.getContext("2d")!;
+      b.clearRect(0, 0, canvas, canvas);
+      b.fillStyle = BG;
+      b.fillRect(0, 0, canvas, canvas);
+      b.strokeStyle = INK;
+      b.lineWidth = 1;
+      b.strokeRect(0.5, 0.5, canvas - 1, canvas - 1);
+      drawRegistration(b, offX, offY, gridW, gridH);
+      b.fillStyle = INK;
+      b.globalAlpha = 0.7;
+      for (const c of blocked) {
+        b.fillRect(offX + (c % gcols) * cell, offY + Math.floor(c / gcols) * cell, cell, cell);
+      }
+      b.globalAlpha = 1;
+      b.lineWidth = 2;
+      for (const c of reserved) {
+        const cx = offX + (c % gcols) * cell + cell / 2;
+        const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
+        b.beginPath();
+        b.arc(cx, cy, dot, 0, Math.PI * 2);
+        b.strokeStyle = cellColor(c, rivalColors);
+        b.stroke();
+      }
+      bgKeyRef.current = { blocked, reserved, colors: rivalColors, cell, offX, offY, w: canvas };
     }
-    ctx.globalAlpha = 1;
+    ctx.drawImage(bg, 0, 0);
 
     // visited cells filled ink at ~18% alpha (coverage feedback — always drawn)
     ctx.fillStyle = INK;
@@ -676,7 +704,6 @@ export function Grid({
     }
 
     // special stops: accent ring (uncollected) or dim filled dot (collected)
-    const dot = Math.max(4, Math.round(cell * 0.15));
     for (const c of specials) {
       const cx = offX + (c % gcols) * cell + cell / 2;
       const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
@@ -712,16 +739,7 @@ export function Grid({
       );
     }
 
-    // rival delivery points: rings in each owning company's color (not yours until bought out)
-    ctx.lineWidth = 2;
-    for (const c of reserved) {
-      const cx = offX + (c % gcols) * cell + cell / 2;
-      const cy = offY + Math.floor(c / gcols) * cell + cell / 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, dot, 0, Math.PI * 2);
-      ctx.strokeStyle = cellColor(c, rivalColors);
-      ctx.stroke();
-    }
+    // (rival delivery-point rings are drawn in the cached static layer above)
 
     // rival delivery vans: solid squares in their company color, driving in from offscreen
     const rvi = Math.round(cell * 0.28);
