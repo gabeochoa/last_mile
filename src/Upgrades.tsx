@@ -55,40 +55,56 @@ function UpgradeEnd({
   maxLevel,
   cash,
   onBuy,
+  setTip,
 }: {
   item: Upgrade;
   level: number;
   maxLevel: number;
   cash: number;
   onBuy: (id: string) => void;
+  setTip: (t: { text: string; x: number; y: number } | null) => void;
 }) {
   if (item.locked) {
     return <Badge label="LOCKED" variant="neutral" />;
   }
   const cost = upgradeCost(item, level);
-  if (level >= maxLevel) {
-    // soft cap (e.g. Demand Engine at grid capacity): keep the button, just disabled —
-    // the cap fluctuates day to day, so it's "no room now", not a permanent MAX.
-    if (item.softCap) {
-      return <Button label={`$${cost}`} size="sm" variant="primary" isDisabled />;
-    }
-    // one-time upgrades read as OWNED once bought; leveled ones cap at MAX.
+  const full = level >= maxLevel;
+  // permanent MAX/OWNED (not a soft cap) shows a badge, no button
+  if (full && !item.softCap) {
     return <Badge label={maxLevel === 1 ? "OWNED" : "MAX"} variant="success" />;
   }
-  const canBuy = item.id != null && cash >= cost;
-  return (
+  const canBuy = !full && item.id != null && cash >= cost;
+  // why is it disabled? (soft-cap grid-full, or can't afford yet)
+  const reason = full
+    ? "No empty delivery spots — buy out rivals or expand the map."
+    : cash < cost
+    ? `Need $${fmtNum(cost - cash)} more`
+    : null;
+  const btn = (
     <Button
       label={`$${fmtNum(cost)}`}
       size="sm"
       variant="primary"
       isDisabled={!canBuy}
-      onClick={item.id != null ? () => onBuy(item.id!) : undefined}
+      onClick={canBuy && item.id != null ? () => onBuy(item.id!) : undefined}
     />
+  );
+  if (!reason) return btn;
+  // custom tooltip on the disabled button explaining why
+  return (
+    <span
+      style={{ display: "inline-flex" }}
+      onMouseMove={(e) => setTip({ text: reason, x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setTip(null)}
+    >
+      {btn}
+    </span>
   );
 }
 
 export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesProps) {
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const maxLevelFor = (item: Upgrade) =>
     (item.id != null ? maxLevels?.[item.id] : undefined) ?? item.maxLevel ?? 1;
   const isDone = (item: Upgrade) => {
@@ -170,7 +186,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
                       <Text color={item.locked ? "disabled" : "primary"}>{item.name}</Text>
                       {level > 0 && <Badge label={`Lv ${level}`} variant="neutral" />}
                     </HStack>
-                    <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} />
+                    <UpgradeEnd item={item} level={level} maxLevel={maxLevelFor(item)} cash={cash} onBuy={onBuy} setTip={setTip} />
                   </HStack>
                   <Text type="supporting">{description}</Text>
                 </VStack>
@@ -190,6 +206,29 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, footer }: UpgradesP
         >
           {footer}
         </VStack>
+      )}
+
+      {/* Custom tooltip explaining why a disabled buy button can't be pressed. */}
+      {tip && (
+        <div
+          style={{
+            position: "fixed",
+            left: tip.x + 14,
+            top: tip.y + 14,
+            zIndex: 50,
+            maxWidth: 220,
+            padding: "6px 10px",
+            background: "var(--color-background-card)",
+            border: "1px solid var(--color-border-emphasized)",
+            color: "var(--color-text-primary)",
+            fontSize: 11,
+            letterSpacing: 0.5,
+            lineHeight: 1.4,
+            pointerEvents: "none",
+          }}
+        >
+          {tip.text}
+        </div>
       )}
     </VStack>
   );
