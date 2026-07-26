@@ -432,10 +432,16 @@ export function Grid({
       // driven OVER on the way (applyMove's auto-deliver converts them below) — never
       // chased. Chasing them made the player oscillate forever between stops that faster
       // rivals kept servicing first, so the day never ended.
-      const left = [...s.layout.specials].filter((c) => !s.collected.has(c));
       let t = autopilotTargetRef.current;
       if (!(t != null && s.layout.specials.has(t) && !s.collected.has(t))) {
-        t = left.length ? left.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
+        let best: number | null = null;
+        let bd = Infinity;
+        for (const c of s.layout.specials) {
+          if (s.collected.has(c)) continue;
+          const d = dist(c);
+          if (d < bd) { bd = d; best = c; }
+        }
+        t = best;
         autopilotTargetRef.current = t;
       }
       const target = t ?? [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
@@ -518,8 +524,16 @@ export function Grid({
         // collectAt above (a van standing on one steals it) — never chased, so no oscillation.
         const keep = target != null && layout.specials.has(target) && !collected.has(target) && !claimed.has(target);
         if (!keep) {
-          const avail = [...layout.specials].filter((c) => !collected.has(c) && !claimed.has(c));
-          target = avail.length ? avail.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : null;
+          // pick the nearest free special in a single allocation-free pass (spreading +
+          // filtering the whole set per van was the GC hot path once fleets got large)
+          let best: number | null = null;
+          let bd = Infinity;
+          for (const c of layout.specials) {
+            if (collected.has(c) || claimed.has(c)) continue;
+            const d = dist(c);
+            if (d < bd) { bd = d; best = c; }
+          }
+          target = best;
         }
         if (target != null) claimed.add(target);
         const dir = flowStep(cell, target ?? van.home);
