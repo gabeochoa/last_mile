@@ -719,11 +719,17 @@ export function Grid({
     prevCellRef.current = cell;
 
     if (grew) {
-      // ease from where we're visually at now → the new smaller target. An
-      // interrupting grow just resets from/start, so the running loop retargets.
-      animFromRef.current = animCellRef.current;
-      animStartRef.current = performance.now();
-      if (!animRafRef.current) {
+      if (animRafRef.current) {
+        // rapid grow mid-animation (e.g. auto-buy spamming expansion): don't chase a
+        // moving target — snap to the fitted size so the WHOLE map stays on screen.
+        cancelAnimationFrame(animRafRef.current);
+        animRafRef.current = 0;
+        animCellRef.current = cell;
+        drawAt(cell);
+      } else {
+        // ease from where we're visually at now → the new smaller target.
+        animFromRef.current = animCellRef.current;
+        animStartRef.current = performance.now();
         const tick = (now: number) => {
           const t = Math.min(1, (now - animStartRef.current) / 400);
           const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
