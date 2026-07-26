@@ -486,6 +486,9 @@ export function Grid({
   const TOTAL = gcols * grows - blocked.size;
   // cell shrinks so the largest axis fills the fixed canvas ("zoom out")
   const cell = Math.floor(MAX_CANVAS_PX / Math.max(gcols, grows));
+  // On very large maps the per-cell grid lines and visited shading are imperceptible
+  // (cells are a few px) but cost thousands of draws — skip them to stay smooth.
+  const detailed = Math.max(gcols, grows) <= 45;
 
   // ── grid-grow "zoom out" animation ──────────────────────────────────────────
   // A grow shrinks `cell`; instead of snapping, ease the on-screen cell from the
@@ -580,7 +583,8 @@ export function Grid({
     }
     ctx.globalAlpha = 1;
 
-    // visited cells filled ink at ~18% alpha
+    // visited cells filled ink at ~18% alpha (skipped on huge maps)
+    if (detailed) {
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.18;
     for (const c of visited) {
@@ -589,8 +593,10 @@ export function Grid({
       ctx.fillRect(offX + cx * cell, offY + cy * cell, cell, cell);
     }
     ctx.globalAlpha = 1;
+    }
 
-    // grid lines at ~15% ink alpha
+    // grid lines at ~15% ink alpha (skipped on huge maps)
+    if (detailed) {
     ctx.strokeStyle = INK;
     ctx.globalAlpha = 0.15;
     ctx.lineWidth = 1;
@@ -609,6 +615,7 @@ export function Grid({
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    }
 
     // special stops: accent ring (uncollected) or dim filled dot (collected)
     const dot = Math.max(4, Math.round(cell * 0.15));
