@@ -485,22 +485,11 @@ export function Grid({
       });
       vansRef.current = next;
       setVans(next);
-      // mark every fleet van's cell as visited so YOUR drivers leave a gray trail too
-      // (like the player). Rivals don't — only your vans.
-      let vis = gsRef.current.visited;
-      let grew = false;
-      for (const v of next) {
-        const c = idx(v.x, v.y, gcols);
-        if (!vis.has(c)) {
-          if (!grew) { vis = new Set(vis); grew = true; }
-          vis.add(c);
-        }
-      }
-      if (grew) {
-        const st = { ...gsRef.current, visited: vis };
-        gsRef.current = st;
-        setGs(st);
-      }
+      // mark every fleet van's cell visited so YOUR drivers leave a gray trail too (only
+      // your vans). Mutated IN PLACE — cloning this (large, growing) Set every tick was
+      // the top GC cost; setVans above already triggers the redraw that reads it.
+      const vis = gsRef.current.visited;
+      for (const v of next) vis.add(idx(v.x, v.y, gcols));
       // once everyone (incl. the player) is home + all deliveries done, end the day
       const done = finishIfDone(gsRef.current, {
         routeBonus: routeBonusRef.current,
