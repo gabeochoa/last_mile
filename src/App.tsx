@@ -75,9 +75,10 @@ export function App() {
   // already shown when resuming a save with progress (so a refresh keeps the shop).
   const [revealed, setRevealed] = useState(DEV || hasProgress);
   const [muted, setMutedState] = useState(isMuted);
-  const [autopilotEnabled, setAutopilotEnabled] = useState(true);
-  const [autoStartEnabled, setAutoStartEnabled] = useState(true);
-  const [autoBuyEnabled, setAutoBuyEnabled] = useState(true);
+  const [autopilotEnabled, setAutopilotEnabled] = useState(loaded?.autopilotOn ?? true);
+  const [autoStartEnabled, setAutoStartEnabled] = useState(loaded?.autoStartOn ?? true);
+  const [autoBuyEnabled, setAutoBuyEnabled] = useState(loaded?.autoBuyOn ?? true);
+  const [hideCompleted, setHideCompleted] = useState(loaded?.hideComplete ?? false);
   // player's chosen brand color; recolors the whole UI + canvas from one value.
   const [accent, setAccent] = useState(loaded?.accent ?? DEFAULT_ACCENT);
   const theme = useMemo(() => makeMicrographic(accent), [accent]);
@@ -127,8 +128,18 @@ export function App() {
   const resettingRef = useRef(false);
   useEffect(() => {
     if (DEV || resettingRef.current) return;
-    save({ version: 1, cash, upgrades, routes: stats.routes, accent });
-  }, [cash, upgrades, stats.routes, accent]);
+    save({
+      version: 1,
+      cash,
+      upgrades,
+      routes: stats.routes,
+      accent,
+      hideComplete: hideCompleted,
+      autopilotOn: autopilotEnabled,
+      autoStartOn: autoStartEnabled,
+      autoBuyOn: autoBuyEnabled,
+    });
+  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, autoBuyEnabled]);
 
   const onBuy = (id: string) => {
     const u = BUCKETS.flatMap((b) => b.items).find((it) => it.id === id);
@@ -352,6 +363,8 @@ export function App() {
           onBuy={onBuy}
           maxLevels={maxLevels}
           perSec={perSec}
+          hideCompleted={hideCompleted}
+          onHideCompleted={setHideCompleted}
           footer={
             bigMap ? (
               <span style={{ color: accent, fontWeight: 700, fontSize: 22, letterSpacing: 2 }}>

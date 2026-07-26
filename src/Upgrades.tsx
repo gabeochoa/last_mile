@@ -45,6 +45,8 @@ type UpgradesProps = {
   onBuy: (id: string) => void;
   maxLevels?: Record<string, number>;
   perSec?: number; // income/sec, for the "…until affordable" tooltip
+  hideCompleted: boolean;
+  onHideCompleted: (v: boolean) => void;
   footer?: ReactNode;
 };
 
@@ -108,8 +110,7 @@ function UpgradeEnd({
   );
 }
 
-export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, footer }: UpgradesProps) {
-  const [hideCompleted, setHideCompleted] = useState(false);
+export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, hideCompleted, onHideCompleted, footer }: UpgradesProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text?: string; cost?: number } | null>(null);
   // live tooltip body: static text, or a "$X more (M:SS until)" that updates as cash rises
   const tipBody = (): string => {
@@ -152,7 +153,7 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, footer 
           size="sm"
           label="hide complete"
           value={hideCompleted}
-          onChange={setHideCompleted}
+          onChange={onHideCompleted}
         />
       </HStack>
 

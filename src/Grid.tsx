@@ -354,12 +354,13 @@ export function Grid({
   }, [autopilot, vanSpeed]);
 
   // Keep the van array sized to `fleet` with each van spawned AT its home depot.
-  // Van i homes to the i-th sorted depot (round-robin). A new layout (new route or
-  // live grow) re-homes every van; growing `fleet` only appends new vans at homes.
-  const prevLayoutRef = useRef(gs.layout);
+  // Van i homes to the i-th sorted depot (round-robin). A NEW layout (new day / live
+  // grow) re-homes every van; growing `fleet` only appends new vans. Keyed on the
+  // depots Set reference so mid-day changes (Spread Flyers adds specials) don't re-home.
+  const prevDepotsRef = useRef(gs.layout.depots);
   useEffect(() => {
-    const layoutChanged = prevLayoutRef.current !== gs.layout;
-    prevLayoutRef.current = gs.layout;
+    const layoutChanged = prevDepotsRef.current !== gs.layout.depots;
+    prevDepotsRef.current = gs.layout.depots;
     const { cols: gcols } = gs.layout;
     const sortedDepots = [...gs.layout.depots].sort((a, b) => a - b);
     const mkVan = (i: number) => {
@@ -377,7 +378,7 @@ export function Grid({
       }
       return prev;
     });
-  }, [fleet, gs.layout]);
+  }, [fleet, gs.layout.depots]);
 
   // Fleet tick (single loop, fixed 45ms): each van SLIDES its on-screen position
   // (dx,dy) toward its current logical cell (x,y) one axis at a time — so it follows
@@ -444,16 +445,18 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fleet, vanSpeed]);
 
-  // Keep a few rival delivery vans alive whenever rival points exist; re-seed on a
-  // new layout. They drive in from offscreen, service a point, and drive back out.
+  // Rivals field one van per column (like you). Re-seeded only when the RESERVED set
+  // changes (new day / grow / buyout) — NOT when Spread Flyers adds specials, which
+  // makes a fresh layout object but keeps the same reserved reference.
   useEffect(() => {
-    const count = gs.layout.reserved ? Math.min(gs.layout.reserved.size, 12) : 0;
+    const res = gs.layout.reserved;
+    const count = res ? Math.min(res.size, gs.layout.cols) : 0;
     setRivalVans(
       Array.from({ length: count }, () => spawnRivalVan(gs.layout, rivalColorsRef.current)).filter(
         (v): v is RivalVan => v !== null,
       ),
     );
-  }, [gs.layout]);
+  }, [gs.layout.reserved]);
 
   useEffect(() => {
     if (!gs.layout.reserved?.size) return;
@@ -461,7 +464,7 @@ export function Grid({
       setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout, rivalColorsRef.current)));
     }, 55);
     return () => window.clearInterval(id);
-  }, [gs.layout]);
+  }, [gs.layout.reserved]);
 
   // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
   // right away so DELIVERIES LEFT updates instantly (next-route counts already fold

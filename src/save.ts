@@ -11,6 +11,11 @@ export type SaveData = {
   routes: number;
   // player's chosen accent color (hex); optional for older saves.
   accent?: string;
+  // UI prefs (optional for older saves): shop "hide complete" + automation toggles.
+  hideComplete?: boolean;
+  autopilotOn?: boolean;
+  autoStartOn?: boolean;
+  autoBuyOn?: boolean;
 };
 
 // Pure validator (testable in node): rejects junk, wrong shape, or old versions.
@@ -28,7 +33,18 @@ export function parseSave(json: string): SaveData | null {
   if (typeof o.routes !== "number") return null;
   if (typeof o.upgrades !== "object" || o.upgrades === null) return null;
   const accent = typeof o.accent === "string" ? o.accent : undefined;
-  return { version: 1, cash: o.cash, upgrades: o.upgrades as Record<string, number>, routes: o.routes, accent };
+  const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+  return {
+    version: 1,
+    cash: o.cash,
+    upgrades: o.upgrades as Record<string, number>,
+    routes: o.routes,
+    accent,
+    hideComplete: bool(o.hideComplete),
+    autopilotOn: bool(o.autopilotOn),
+    autoStartOn: bool(o.autoStartOn),
+    autoBuyOn: bool(o.autoBuyOn),
+  };
 }
 
 export function save(data: SaveData): void {
