@@ -137,12 +137,13 @@ export const EXPAND_MAX =
   BUCKETS.flatMap((b) => b.items).find((i) => i.id === "expand")?.maxLevel ?? 20;
 export const BUYOUT_MAX =
   BUCKETS.flatMap((b) => b.items).find((i) => i.id === "buyout")?.maxLevel ?? 6;
-// Planet-wide market share (NOT just the visible grid): you own the fraction of the
-// planet you've expanded into AND cleared of rivals. Starts at 100% unowned and only
-// hits 0% once you've expanded everywhere (EXPAND_MAX) and bought out every rival
-// (BUYOUT_MAX) — i.e. you own every empty spot on the planet.
+// Planet-wide market share (NOT just the visible grid), as a float so it reads like
+// 99.99%. You own: a starting sliver for showing up + a trickle per Spread Flyers +
+// the bulk from expanding into the planet AND clearing its rivals. Starts ~99.99%
+// unowned; hits 0% once fully expanded (EXPAND_MAX) and fully bought out (BUYOUT_MAX).
 export function unownedShare(u: Record<string, number>): number {
   const reached = expandLevel(u) / EXPAND_MAX; // how much of the planet you've expanded into
   const claimed = (u.buyout ?? 0) / BUYOUT_MAX; // how much of it you've taken from rivals
-  return Math.max(0, Math.round(100 * (1 - reached * claimed)));
+  const owned = 0.01 + 0.01 * (u.demand ?? 0) + 100 * reached * claimed;
+  return Math.max(0, 100 - owned);
 }
