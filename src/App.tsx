@@ -144,6 +144,7 @@ export function App() {
   };
   const displayShare = useAnimatedNumber(theirShare, 500, 2);
   const displayPackages = useAnimatedNumber(stats.packagesLeft);
+  const displayCash = useAnimatedNumber(cash, 400);
 
   // Controls hint fades in under the map at the start, then fades out for good once
   // the shop is revealed (by then you know how to play). Its slot keeps a fixed
@@ -183,7 +184,7 @@ export function App() {
           <span>DAY {stats.routes + 1}</span>
           {bigMap && <span>DELIVERIES {String(displayPackages).padStart(2, "0")}</span>}
           <span>
-            CASH ${fmtNum(cash)}
+            CASH ${fmtNum(displayCash)}
             <span style={{ opacity: 0.6, marginInlineStart: 8 }}>
               {dayRate >= 0 ? "+" : "−"}${fmtNum(Math.abs(dayRate))}/day
             </span>
