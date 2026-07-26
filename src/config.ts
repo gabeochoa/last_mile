@@ -44,9 +44,6 @@ export function rivalCompanyCount(expandLvl: number): number {
 export const ROUTE_BONUS = 25; // bonus per Bulk Contracts level
 export const SPECIAL_BONUS = 1;
 
-// Market-takeover math: each cleared route claims this much share.
-export const SHARE_PER_ROUTE = 5;
-
 // id set => real, purchasable upgrade. Only wired ids do anything; the rest
 // stay visual (no id => BUY disabled) or LOCKED, as in the mock.
 export type Upgrade = {

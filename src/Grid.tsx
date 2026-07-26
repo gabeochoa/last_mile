@@ -153,7 +153,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; reserved: number; total: number; dayEnded: boolean }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean }) => void;
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
@@ -523,11 +523,9 @@ export function Grid({
       mapPct: TOTAL > 0 ? Math.round((visited.size / TOTAL) * 100) : 0,
       routes,
       capacity,
-      reserved: reserved.size,
-      total: gcols * grows,
       dayEnded,
     });
-  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, reserved, gcols, grows]);
+  }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
