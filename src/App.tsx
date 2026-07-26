@@ -100,9 +100,11 @@ export function App() {
     }
   }, [canAffordTwo, revealed]);
 
-  // Autosave meta whenever it changes (dev never writes the save).
+  // Autosave meta whenever it changes (dev never writes the save). Skipped once a reset
+  // is in flight so a late interval tick can't re-save the old state over the fresh one.
+  const resettingRef = useRef(false);
   useEffect(() => {
-    if (DEV) return;
+    if (DEV || resettingRef.current) return;
     save({ version: 1, cash, upgrades, routes: stats.routes, accent });
   }, [cash, upgrades, stats.routes, accent]);
 
@@ -190,6 +192,7 @@ export function App() {
 
   const onRestart = () => {
     // testing convenience: wipe progress but start flush with $50k (keeps your color)
+    resettingRef.current = true;
     clearSave();
     save({ version: 1, cash: 50000, upgrades: {}, routes: 0, accent });
     window.location.reload();
