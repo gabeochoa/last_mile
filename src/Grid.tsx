@@ -21,7 +21,9 @@ const allDriversHome = (
 // The world exists past your map: blue vans drive IN from offscreen to a rival
 // delivery point, drop off, then drive back OUT and respawn. Positions may be
 // off-grid (drawn in the padding = "offscreen"). Purely visual.
-type RivalVan = { x: number; y: number; tx: number; ty: number; stage: "in" | "out"; wait: number; color: string };
+// x,y = float on-screen position (slides); tx,ty = the cell being slid toward;
+// gx,gy = the stage goal cell (rival point, then an offscreen edge).
+type RivalVan = { x: number; y: number; tx: number; ty: number; gx: number; gy: number; stage: "in" | "out"; wait: number; color: string };
 type RLayout = { reserved?: Set<number>; blocked: Set<number>; cols: number; rows: number };
 
 // Deterministically map a cell to one of the rival company colors, so each company
@@ -45,46 +47,60 @@ const borderEntries = (layout: RLayout): [number, number, number, number][] => {
   return out;
 };
 
+const RIVAL_SPEED = 0.3; // cells per tick — the van SLIDES toward its next cell
+
 const spawnRivalVan = (layout: RLayout, colors: string[]): RivalVan | null => {
   const res = layout.reserved ? [...layout.reserved] : [];
   const border = borderEntries(layout);
   if (!res.length || !border.length) return null;
   const cell = res[Math.floor(Math.random() * res.length)];
   const [bx, by, ox, oy] = border[Math.floor(Math.random() * border.length)];
-  // spawn just offscreen next to an OPEN border cell, heading for the rival point,
-  // colored by the company that owns that cell
-  return { x: bx + ox, y: by + oy, tx: cell % layout.cols, ty: Math.floor(cell / layout.cols), stage: "in", wait: 0, color: cellColor(cell, colors) };
+  // start just offscreen by an OPEN border cell; goal = the rival point (its company color)
+  return {
+    x: bx + ox, y: by + oy, tx: bx, ty: by, gx: cell % layout.cols, gy: Math.floor(cell / layout.cols),
+    stage: "in", wait: 0, color: cellColor(cell, colors),
+  };
 };
 
+// Ease the van toward its immediate target cell; when it arrives, pick the next cell
+// along a wall-avoiding path to its goal (the rival point, then back offscreen).
 const stepRivalVan = (v: RivalVan, layout: RLayout, colors: string[]): RivalVan => {
   const { cols, rows, blocked } = layout;
   const onGrid = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
   const open = (x: number, y: number) => !onGrid(x, y) || !blocked.has(idx(x, y, cols));
-  const toward = (): RivalVan => {
-    // route around walls with BFS while both ends are on the grid
-    if (onGrid(v.x, v.y) && onGrid(v.tx, v.ty)) {
-      const dir = bfsNextStep(blocked, idx(v.x, v.y, cols), idx(v.tx, v.ty, cols), cols, rows);
-      if (dir) return { ...v, x: v.x + dir[0], y: v.y + dir[1] };
-    }
-    // off-grid entry/exit: step straight, but never into a building
-    const dx = Math.sign(v.tx - v.x);
-    const dy = Math.sign(v.ty - v.y);
-    if (dx !== 0 && open(v.x + dx, v.y)) return { ...v, x: v.x + dx };
-    if (dy !== 0 && open(v.x, v.y + dy)) return { ...v, y: v.y + dy };
-    return v;
-  };
-  if (v.stage === "in") {
-    if (v.x === v.tx && v.y === v.ty) {
-      // delivered: head back out to the nearest horizontal edge, pause a beat first
-      const exitX = v.tx < cols / 2 ? -1 : cols;
-      return { ...v, stage: "out", wait: 3, tx: exitX, ty: v.ty };
-    }
-    return toward();
+
+  // still sliding toward the current target cell
+  const dx = v.tx - v.x;
+  const dy = v.ty - v.y;
+  const d = Math.hypot(dx, dy);
+  if (d > 0.02) {
+    const s = Math.min(d, RIVAL_SPEED);
+    return { ...v, x: v.x + (dx / d) * s, y: v.y + (dy / d) * s };
   }
-  if (v.wait > 0) return { ...v, wait: v.wait - 1 };
-  const moved = toward();
-  const off = moved.x < -1 || moved.x > cols || moved.y < -1 || moved.y > rows;
-  return off ? spawnRivalVan(layout, colors) ?? moved : moved;
+
+  // arrived at a cell — snap and decide the next one
+  const cx = v.tx;
+  const cy = v.ty;
+  const van = { ...v, x: cx, y: cy };
+  if (van.stage === "out" && !onGrid(cx, cy)) return spawnRivalVan(layout, colors) ?? van; // left the map
+  if (van.stage === "in" && cx === van.gx && cy === van.gy) {
+    // delivered: turn around and head back out the nearest edge, pausing a beat
+    return { ...van, stage: "out", wait: 5, gx: cx < cols / 2 ? -1 : cols, gy: cy };
+  }
+  if (van.wait > 0) return { ...van, wait: van.wait - 1 };
+  // next cell toward the goal: BFS around walls on-grid, else straight (never into a wall)
+  let nx = cx;
+  let ny = cy;
+  if (onGrid(cx, cy) && onGrid(van.gx, van.gy)) {
+    const dir = bfsNextStep(blocked, idx(cx, cy, cols), idx(van.gx, van.gy, cols), cols, rows);
+    if (dir) { nx = cx + dir[0]; ny = cy + dir[1]; }
+  } else {
+    const sx = Math.sign(van.gx - cx);
+    const sy = Math.sign(van.gy - cy);
+    if (sx !== 0 && open(cx + sx, cy)) nx = cx + sx;
+    else if (sy !== 0 && open(cx, cy + sy)) ny = cy + sy;
+  }
+  return { ...van, tx: nx, ty: ny };
 };
 
 // Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
@@ -423,7 +439,7 @@ export function Grid({
     if (!gs.layout.reserved?.size) return;
     const id = window.setInterval(() => {
       setRivalVans((vs) => vs.map((v) => stepRivalVan(v, gsRef.current.layout, rivalColorsRef.current)));
-    }, 130);
+    }, 55);
     return () => window.clearInterval(id);
   }, [gs.layout]);
 
