@@ -82,9 +82,7 @@ const stepRivalVan = (
   flowStep: (from: number, target: number) => [number, number] | null,
   done: Set<number>,
 ): RivalVan | null => {
-  const { cols, rows, blocked } = layout;
-  const onGrid = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
-  const open = (x: number, y: number) => !onGrid(x, y) || !blocked.has(idx(x, y, cols));
+  const { cols } = layout;
 
   // still sliding toward the current target cell
   const dx = v.tx - v.x;
@@ -99,26 +97,27 @@ const stepRivalVan = (
   const cx = v.tx;
   const cy = v.ty;
   const van = { ...v, x: cx, y: cy };
-  // walked off the map: respawn for another undelivered point, or leave for good (null)
-  if (van.stage === "out" && !onGrid(cx, cy)) return spawnRivalVan(layout, colors, done);
   if (van.stage === "in" && cx === van.gx && cy === van.gy) {
-    // delivered: turn around and head back out the nearest edge, pausing a beat
-    return { ...van, stage: "out", wait: 5, gx: cx < cols / 2 ? -1 : cols, gy: cy };
+    // delivered: head for the nearest OPEN border cell to leave (its offscreen depot)
+    const border = borderEntries(layout);
+    let bx = cx;
+    let by = cy;
+    let bd = Infinity;
+    for (const [ex, ey] of border) {
+      const dd = Math.abs(ex - cx) + Math.abs(ey - cy);
+      if (dd < bd) { bd = dd; bx = ex; by = ey; }
+    }
+    return { ...van, stage: "out", wait: 4, gx: bx, gy: by };
+  }
+  // reached the edge → gone home; take another undelivered point, or leave for good (null)
+  if (van.stage === "out" && cx === van.gx && cy === van.gy) {
+    return spawnRivalVan(layout, colors, done);
   }
   if (van.wait > 0) return { ...van, wait: van.wait - 1 };
-  // next cell toward the goal: BFS around walls on-grid, else straight (never into a wall)
-  let nx = cx;
-  let ny = cy;
-  if (onGrid(cx, cy) && onGrid(van.gx, van.gy)) {
-    const dir = flowStep(idx(cx, cy, cols), idx(van.gx, van.gy, cols));
-    if (dir) { nx = cx + dir[0]; ny = cy + dir[1]; }
-  } else {
-    const sx = Math.sign(van.gx - cx);
-    const sy = Math.sign(van.gy - cy);
-    if (sx !== 0 && open(cx + sx, cy)) nx = cx + sx;
-    else if (sy !== 0 && open(cx, cy + sy)) ny = cy + sy;
-  }
-  return { ...van, tx: nx, ty: ny };
+  // both goal (rival point OR border cell) are on-grid now → always flow-field pathable,
+  // so a van can never get stuck behind buildings on the way home.
+  const dir = flowStep(idx(cx, cy, cols), idx(van.gx, van.gy, cols));
+  return dir ? { ...van, tx: cx + dir[0], ty: cy + dir[1] } : { ...van, stage: "out", gx: cx, gy: cy };
 };
 
 // Canvas is a SQUARE that fills the right side of the screen (right of the sidebar,
