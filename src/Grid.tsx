@@ -175,6 +175,7 @@ export function Grid({
   onEarn,
   onStats,
   onPoach,
+  onDeliver,
   autoDeliver,
   autopilot,
   fleet,
@@ -203,6 +204,8 @@ export function Grid({
   onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean }) => void;
   // called with how many rival stops you just poached (for the lifetime takeover count)
   onPoach?: (n: number) => void;
+  // called with how many of YOUR stops were just delivered (lifetime packages count)
+  onDeliver?: (n: number) => void;
   autoDeliver: boolean;
   autopilot: boolean;
   fleet: number;
@@ -322,6 +325,8 @@ export function Grid({
   onEarnRef.current = onEarn;
   const onPoachRef = useRef(onPoach);
   onPoachRef.current = onPoach;
+  const onDeliverRef = useRef(onDeliver);
+  onDeliverRef.current = onDeliver;
   const poachRef = useRef(poach);
   poachRef.current = poach;
   const policeFineRef = useRef(policeFine);
@@ -739,6 +744,15 @@ export function Grid({
     convertedSizeRef.current = gs.converted.size;
     if (delta > 0) onPoachRef.current?.(delta);
   }, [gs.converted]);
+
+  // Report YOUR delivered stops (collected grows) for the lifetime packages count. Resets
+  // to 0 each new day (a shrink is ignored), so only genuine deliveries are counted.
+  const collectedCountRef = useRef(gs.collected.size);
+  useEffect(() => {
+    const delta = gs.collected.size - collectedCountRef.current;
+    collectedCountRef.current = gs.collected.size;
+    if (delta > 0) onDeliverRef.current?.(delta);
+  }, [gs.collected]);
 
   // Demand Engine bought mid-route: spawn the new delivery(s) on the CURRENT route
   // right away so DELIVERIES LEFT updates instantly (next-route counts already fold

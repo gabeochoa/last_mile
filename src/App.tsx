@@ -79,6 +79,8 @@ export function App() {
   const [upgrades, setUpgrades] = useState<Record<string, number>>(loaded?.upgrades ?? {});
   // lifetime count of rival stops poached (see Poach Rivals) — permanently discounts buyouts.
   const [takeover, setTakeover] = useState(loaded?.takeover ?? 0);
+  // lifetime packages delivered (your stops + poached rival stops) — shown on the ending.
+  const [totalDelivered, setTotalDelivered] = useState(loaded?.totalDelivered ?? 0);
   const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false });
   // latch: the shop appears once you can afford two upgrades, then stays — and is
   // already shown when resuming a save with progress (so a refresh keeps the shop).
@@ -168,8 +170,9 @@ export function App() {
       autoStartOn: autoStartEnabled,
       takeover,
       autoBuySel,
+      totalDelivered,
     });
-  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, takeover, autoBuySel]);
+  }, [cash, upgrades, stats.routes, accent, hideCompleted, autopilotEnabled, autoStartEnabled, takeover, autoBuySel, totalDelivered]);
 
   const onBuy = (id: string) => {
     // Cancel a Contract: a free, repeatable action (not a leveled upgrade) — drop one
@@ -260,13 +263,15 @@ export function App() {
   // Planet-wide unowned market share (starts 100%, → 0 when you own every spot).
   const theirShare = unownedShare(upgrades);
 
-  // Show the ending once every upgrade is maxed (or ?end preview). Continue dismisses
+  // Show the ending when you take the whole market (0% unowned — the thematic win) or, as
+  // a fallback, when literally every upgrade is maxed (or ?end preview). Continue dismisses
   // it and sets keepPlaying so it won't pop again this session.
+  const won = theirShare <= 0.0001 || allMaxed;
   const [keepPlaying, setKeepPlaying] = useState(false);
   const [ended, setEnded] = useState(END_PREVIEW);
   useEffect(() => {
-    if (allMaxed && !keepPlaying) setEnded(true);
-  }, [allMaxed, keepPlaying]);
+    if (won && !keepPlaying) setEnded(true);
+  }, [won, keepPlaying]);
 
   const onRestart = (startCash = 0) => {
     // wipe progress and reload; normal reset starts at $0, the cheat restart at $50.
@@ -406,7 +411,7 @@ export function App() {
           perSec={perSec}
           takeover={takeover}
           buyoutColor={companyColors[boughtCount]}
-          lastRival={rivalsRemaining === 1}
+          lastRival={rivalsRemaining === 1 && unownedShare({ ...upgrades, buyout: boughtCount + 1 }) <= 0.0001}
           autoBuyOwned={(upgrades.autobuy ?? 0) > 0}
           isAutoBuyOn={isAutoBuyOn}
           onToggleAutoBuy={toggleAutoBuy}
@@ -471,7 +476,11 @@ export function App() {
             setCash((c) => c + delta);
           }}
           onStats={setStats}
-          onPoach={(n) => setTakeover((t) => t + n)}
+          onDeliver={(n) => setTotalDelivered((t) => t + n)}
+          onPoach={(n) => {
+            setTakeover((t) => t + n);
+            setTotalDelivered((t) => t + n);
+          }}
           autoDeliver={(upgrades.autoDeliver ?? 0) > 0}
           autopilot={(upgrades.autopilot ?? 0) > 0 && autopilotEnabled}
           fleet={driversOnGrid}
@@ -525,7 +534,7 @@ export function App() {
             setForceEndSignal((n) => n + 1);
             setSettingsOpen(false);
           }}
-          onCheatRestart={() => onRestart(50000)}
+          onCheatRestart={() => onRestart(500_000_000_000_000)}
           onClose={() => setSettingsOpen(false)}
         />
       )}
@@ -535,6 +544,8 @@ export function App() {
         <Ending
           routes={stats.routes}
           cash={cash}
+          packages={totalDelivered}
+          earned={Math.round(earnedRef.current)}
           accent={accent}
           onRestart={onRestart}
           onContinue={() => {

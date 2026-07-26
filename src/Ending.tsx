@@ -7,12 +7,16 @@ import { fmtNum } from "./config";
 export function Ending({
   routes,
   cash,
+  packages,
+  earned,
   accent,
   onRestart,
   onContinue,
 }: {
   routes: number;
   cash: number;
+  packages: number;
+  earned: number;
   accent: string;
   onRestart: () => void;
   onContinue: () => void;
@@ -60,7 +64,9 @@ export function Ending({
       </div>
 
       <div style={{ fontSize: 13, letterSpacing: 1, opacity: 0.75, lineHeight: 1.9 }}>
-        <div>DAYS RUN {routes}</div>
+        <div>DAYS RUN {fmtNum(routes)}</div>
+        <div>PACKAGES DELIVERED {fmtNum(packages)}</div>
+        <div>MONEY EARNED ${fmtNum(earned)}</div>
         <div>CASH BANKED ${fmtNum(cash)}</div>
         <div style={{ color: accent }}>MARKET SHARE 100%</div>
       </div>

@@ -20,6 +20,8 @@ export type SaveData = {
   takeover?: number;
   // per-upgrade Ops Manager auto-buy opt-in (id -> on). Unset = bucket default.
   autoBuySel?: Record<string, boolean>;
+  // lifetime packages delivered (your stops + poached rival stops) — shown on the ending.
+  totalDelivered?: number;
 };
 
 // Pure validator (testable in node): rejects junk, wrong shape, or old versions.
@@ -53,6 +55,7 @@ export function parseSave(json: string): SaveData | null {
       typeof o.autoBuySel === "object" && o.autoBuySel !== null
         ? (o.autoBuySel as Record<string, boolean>)
         : undefined,
+    totalDelivered: typeof o.totalDelivered === "number" ? o.totalDelivered : undefined,
   };
 }
 
