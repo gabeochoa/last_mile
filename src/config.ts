@@ -140,7 +140,7 @@ export const BUCKETS: { name: string; items: Upgrade[] }[] = [
     name: "ECONOMY",
     items: [
       { id: "demand", name: "Spread Flyers", effect: "more deliveries per day", baseCost: 5, costMult: 1.1, softCap: true },
-      { id: "routeOpt", name: "Better Rates", effect: "+$1 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
+      { id: "routeOpt", name: "Better Rates", effect: "+$1.30 per delivery", baseCost: 15, costMult: 1.3, maxLevel: 40 },
       { id: "dayBonus", name: "Completion Bonus", effect: "cash for completing the day's deliveries", baseCost: 50, costMult: 1.4, maxLevel: 1000, requires: "fleet", requiresLevel: 1 },
       { id: "surge", name: "Tips", effect: "customers tip your contract drivers", baseCost: 1000, costMult: 1.5, maxLevel: 50, requires: "contracts", requiresLevel: 1 },
     ],
@@ -166,8 +166,13 @@ export function extraPackages(u: Record<string, number>) {
   return u.demand ?? 0;
 }
 export const SURGE_MULT = 1.5;
+// Better Rates adds this much per level to each delivery's payout.
+export const ROUTE_RATE = 1.3;
+export function perDeliveryAt(routeOptLevel: number) {
+  return SPECIAL_BONUS + routeOptLevel * ROUTE_RATE;
+}
 export function perDelivery(u: Record<string, number>) {
-  return SPECIAL_BONUS + (u.routeOpt ?? 0);
+  return perDeliveryAt(u.routeOpt ?? 0);
 }
 // Per-contract cash/sec: $25 base, +50%/Corporate Accounts level, ×1.5/Tips level.
 export function contractPerDriver(u: Record<string, number>) {

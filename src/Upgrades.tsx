@@ -6,7 +6,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { List } from "@astryxdesign/core/List";
-import { BUCKETS, nextCost, buyoutDiscount, fmtNum, contractPerDriver, dayBonusReward, type Upgrade } from "./config";
+import { BUCKETS, nextCost, buyoutDiscount, fmtNum, contractPerDriver, dayBonusReward, perDeliveryAt, type Upgrade } from "./config";
 
 // Micrographic art direction as an astryx theme (scoped via <Theme>, so the
 // playable game keeps the default neutral theme). Built from the player's chosen
@@ -206,9 +206,10 @@ export function Upgrades({ cash, upgrades, onBuy, maxLevels, perSec = 0, takeove
             {items.map((item) => {
               const level = item.id != null ? upgrades[item.id] ?? 0 : 0;
               // Route Optimization previews the per-delivery payout: current → next.
+              const rate = (n: number) => n.toFixed(2).replace(/\.?0+$/, "");
               const description =
                 item.id === "routeOpt"
-                  ? `$${1 + level}/delivery → $${1 + level + 1}`
+                  ? `$${rate(perDeliveryAt(level))}/delivery → $${rate(perDeliveryAt(level + 1))}`
                   : item.id === "dayBonus"
                   ? `$${fmtNum(dayBonusReward(level))}/day → $${fmtNum(dayBonusReward(level + 1))}`
                   : item.id === "surge"
