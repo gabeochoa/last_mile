@@ -203,7 +203,7 @@ export function Grid({
   initialRoutes = 0,
 }: {
   onEarn: (delta: number) => void;
-  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number; deliveredToday: number; cellsPerDay: number }) => void;
+  onStats: (s: { packagesLeft: number; mapPct: number; routes: number; capacity: number; dayEnded: boolean; poachedFrac: number; deliveredToday: number; cellsPerDay: number; droneDeliveredToday: number }) => void;
   // called with how many rival stops you just poached (for the lifetime takeover count)
   onPoach?: (n: number) => void;
   // called with how many of YOUR stops were just delivered (lifetime packages count)
@@ -351,6 +351,7 @@ export function Grid({
   // Green Energy as a per-DAY figure in the income tooltip.
   const cellsTodayRef = useRef(0);
   const lastDayCellsRef = useRef(0);
+  const droneTodayRef = useRef(0); // stops delivered by drones this day (for the breakdown)
   const lockerPerRowRef = useRef(lockerPerRow);
   lockerPerRowRef.current = lockerPerRow;
   const onStatsRef = useRef(onStats);
@@ -635,7 +636,7 @@ export function Grid({
         if (n <= 0) break;
         if (state.collected.has(c)) continue;
         const hit = collectAt(state, c, { perDelivery: perDeliveryRef.current });
-        if (hit.earned) { state = hit.state; earned += hit.earned; n--; }
+        if (hit.earned) { state = hit.state; earned += hit.earned; n--; droneTodayRef.current++; }
       }
       if (state === gsRef.current) return;
       gsRef.current = state;
@@ -934,6 +935,7 @@ export function Grid({
       prevRoutesForCellsRef.current = routes;
       lastDayCellsRef.current = cellsTodayRef.current;
       cellsTodayRef.current = 0;
+      droneTodayRef.current = 0;
     }
   }, [routes]);
   useEffect(() => {
@@ -946,6 +948,7 @@ export function Grid({
       poachedFrac,
       deliveredToday,
       cellsPerDay: lastDayCellsRef.current,
+      droneDeliveredToday: droneTodayRef.current,
     });
   }, [specials, collected, visited, TOTAL, routes, dayEnded, capacity, poachedFrac, deliveredToday]);
 

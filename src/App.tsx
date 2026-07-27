@@ -83,7 +83,7 @@ export function App() {
   const [takeover, setTakeover] = useState(loaded?.takeover ?? 0);
   // lifetime packages delivered (your stops + poached rival stops) — shown on the ending.
   const [totalDelivered, setTotalDelivered] = useState(loaded?.totalDelivered ?? 0);
-  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false, poachedFrac: 0, deliveredToday: 0, cellsPerDay: 0 });
+  const [stats, setStats] = useState({ packagesLeft: 0, mapPct: 0, routes: loaded?.routes ?? 0, capacity: 0, dayEnded: false, poachedFrac: 0, deliveredToday: 0, cellsPerDay: 0, droneDeliveredToday: 0 });
   // latch: the shop appears once you can afford two upgrades, then stays — and is
   // already shown when resuming a save with progress (so a refresh keeps the shop).
   const [revealed, setRevealed] = useState(DEV || hasProgress);
@@ -690,6 +690,7 @@ export function App() {
                 {policeFine(upgrades) > 0 && <div>+ ${fmtNum(policeFine(upgrades))} per rival delivery (police)</div>}
                 <div style={{ opacity: 0.7, marginTop: 6 }}>TODAY</div>
                 <div>{fmtNum(stats.deliveredToday)} delivered so far</div>
+                {stats.droneDeliveredToday > 0 && <div>{fmtNum(stats.droneDeliveredToday)} by drones</div>}
                 <div>${fmtNum(Math.max(0, earnedRef.current - dayStartEarnedRef.current))} earned</div>
               </>
             );

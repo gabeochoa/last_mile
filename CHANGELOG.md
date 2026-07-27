@@ -17,5 +17,7 @@ Fixes from GMTK 2026 player feedback.
 ### UI
 - **Bigger, more legible top bar** (larger font, taller bar) — easier to read at fullscreen.
 - **Ops Manager shows what it just auto-bought** in the top bar.
+- Cash breakdown's TODAY section shows **how many stops your drones delivered**.
+- Buy Out Rivals shows **"???"** (with a hint to expand) when you've claimed the whole current city, instead of a misleading MAX.
 
 <!-- add new entries above this line as we go -->
