@@ -20,4 +20,7 @@ Fixes from GMTK 2026 player feedback.
 - Cash breakdown's TODAY section shows **how many stops your drones delivered**.
 - Buy Out Rivals shows **"???"** (with a hint to expand) when you've claimed the whole current city, instead of a misleading MAX.
 
+### Fixes
+- **Autopilot no longer bounces between two spots on the way home** — it now commits to one depot instead of re-picking the nearest each tick (which flipped as the path rounded walls).
+
 <!-- add new entries above this line as we go -->

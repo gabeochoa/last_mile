@@ -309,6 +309,9 @@ export function Grid({
   const beginDayRef = useRef<() => void>(() => {});
   // autopilot's committed package target (persists until collected) — prevents dithering
   const autopilotTargetRef = useRef<number | null>(null);
+  // autopilot's committed home depot when returning — picked once and kept until reached, so
+  // it doesn't flip between depots (Manhattan-nearest flips as the flow path rounds walls).
+  const autopilotHomeRef = useRef<number | null>(null);
   // Cached BFS flow fields per target cell — computed once, reused by every van until the
   // map changes (new day / grow), so pathfinding is paid once, not per tick. Each field is
   // a full-grid Int32Array (~cols*rows*4 bytes), so the cache is LRU-CAPPED: with lockers
@@ -477,7 +480,21 @@ export function Grid({
         t = best;
         autopilotTargetRef.current = t;
       }
-      const target = t ?? [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      // heading to a package → clear the committed home; heading home → commit ONE depot and
+      // keep it until reached (re-pick only if it vanished), so the player never bounces
+      // between two depots whose Manhattan distance flips as the path rounds walls.
+      let target: number;
+      if (t != null) {
+        autopilotHomeRef.current = null;
+        target = t;
+      } else {
+        let home = autopilotHomeRef.current;
+        if (home == null || !s.layout.depots.has(home)) {
+          home = [...s.layout.depots].reduce((a, b) => (dist(b) < dist(a) ? b : a));
+          autopilotHomeRef.current = home;
+        }
+        target = home;
+      }
       const dir = flowStep(here, target);
       if (!dir) return;
       commit(applyMove(gsRef.current, dir[0], dir[1], { ...moveOpts(), autoDeliver: true }));
