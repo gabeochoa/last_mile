@@ -78,6 +78,20 @@ function UpgradeEnd({
   }
   const cost = nextCost(item, level, { poachFrac, cash, torque });
   const full = level >= maxLevel;
+  // Buy Out Rivals "max" is only ever temporary — you've claimed every rival in the CURRENT
+  // city, but expanding the map reveals more. Show "???" with a hint instead of MAX.
+  if (full && item.id === "buyout") {
+    return (
+      <span
+        style={{ display: "inline-flex", cursor: "help" }}
+        onMouseEnter={(e) => setTip({ text: "I think this city is fully ours — but there's still more cities to expand to.", x: e.clientX, y: e.clientY })}
+        onMouseMove={(e) => setTip({ text: "I think this city is fully ours — but there's still more cities to expand to.", x: e.clientX, y: e.clientY })}
+        onMouseLeave={() => setTip(null)}
+      >
+        <Badge label="???" variant="success" />
+      </span>
+    );
+  }
   // permanent MAX/OWNED (not a soft cap) shows a badge, no button
   if (full && !item.softCap) {
     return <Badge label={maxLevel === 1 ? "OWNED" : "MAX"} variant="success" />;
